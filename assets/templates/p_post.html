@@ -21,21 +21,21 @@
 		<div class="pct">
 			<div class="t_f" id="postmessage_{{.ID}}">{{.HTML}}</div>
 		</div>
-		{{if .Editable}}
 		<div class="po"><div class="pob cl">
 			<div class="z">
 				<span class="likes" id="likes{{.ID}}">
 					{{if .CanLike}}<button type="button" class="linklike likebtn" data-pid="{{.ID}}" title="点赞">👍 赞</button>{{end}}
-					<span class="like-count" data-lc="{{.ID}}"{{if .CanLike}} data-likes-toggle="{{.ID}}"{{end}}>{{if gt .LikeCount 0}}👍 ×{{.LikeCount}}{{end}}</span>
+					<span class="like-count" data-lc="{{.ID}}"{{if gt .LikeCount 0}} data-likes-toggle="{{.ID}}"{{end}}>{{if gt .LikeCount 0}}👍 ×{{.LikeCount}}{{end}}</span>
 				</span>
+				{{if .Editable}}
 				<a href="/edit/{{.ID}}" class="editp">编辑</a>
 				<form method="post" action="/delete/{{.ID}}" class="inlineform delform" data-confirm="确定删除该楼层吗？{{if eq .Floor 1}}删除首楼将删除整个主题。{{end}}">
 					<input type="hidden" name="_csrf" value="{{.CSRF}}">
 					<input type="hidden" name="back" value="">
 					<button type="submit" class="linklike removep">删除</button>
 				</form>
+				{{end}}
 			</div>
 		</div></div>
-		{{end}}
 	</div>
 </div>{{end}}

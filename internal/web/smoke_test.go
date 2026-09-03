@@ -199,6 +199,38 @@ func TestPageSmoke(t *testing.T) {
 	}
 }
 
+// TestLikeButtonVisibility 楼层操作区按身份的可见性回归
+//（曾发生：点赞按钮被包进 {{if .Editable}}，普通用户看不到任何点赞按钮）。
+// 冒烟数据：主题 1 首楼由 user01 发、回复由 admin 发。
+func TestLikeButtonVisibility(t *testing.T) {
+	thread := "/thread-1-1-1.html"
+
+	// 匿名：无点赞按钮，但点赞计数可见
+	body := smokeGet(t, thread, nil).Body.String()
+	if strings.Contains(body, `class="linklike likebtn"`) {
+		t.Fatal("匿名用户不应看到点赞按钮")
+	}
+	if !strings.Contains(body, `data-lc="`) {
+		t.Fatal("匿名用户应看到点赞计数（浮层入口）")
+	}
+
+	// 普通用户：别人的楼层有按钮（首楼是 user01 自己的 → 无按钮；admin 的回复 → 有按钮）
+	body = smokeGet(t, thread, userCookie).Body.String()
+	if !strings.Contains(body, `class="linklike likebtn"`) {
+		t.Fatal("普通用户应在他人的楼层看到点赞按钮")
+	}
+	ownBlock := strings.SplitN(strings.SplitN(body, `id="post1"`, 2)[1], `id="post2"`, 2)[0]
+	if strings.Contains(ownBlock, `likebtn`) {
+		t.Fatal("自己的楼层不应出现点赞按钮")
+	}
+
+	// 管理员：所有他人楼层均有按钮
+	body = smokeGet(t, thread, adminCookie).Body.String()
+	if !strings.Contains(body, `class="linklike likebtn"`) {
+		t.Fatal("管理员应看到点赞按钮")
+	}
+}
+
 // TestStaticAssets 静态资源可访问且带缓存头。
 func TestStaticAssets(t *testing.T) {
 	w := smokeGet(t, "/static/css/app.css", nil)
