@@ -17,11 +17,7 @@ import (
 )
 
 var testStore *Store
-var testPool poolCloser
-
-type poolCloser interface {
-	Close()
-}
+var testPool *pgxpool.Pool
 
 func TestMain(m *testing.M) {
 	dsn := os.Getenv("FORUM_TEST_DSN")
@@ -233,7 +229,7 @@ func TestSearch(t *testing.T) {
 	}
 	_ = th
 	// 清空索引后重建（验证存量补齐路径）
-	if _, err := testPool.(*pgxpool.Pool).Exec(ctx, `UPDATE posts SET search_data=NULL`); err != nil {
+	if _, err := testPool.Exec(ctx, `UPDATE posts SET search_data=NULL`); err != nil {
 		t.Fatal(err)
 	}
 	if n, err := testStore.ReindexSearch(ctx); err != nil || n == 0 {

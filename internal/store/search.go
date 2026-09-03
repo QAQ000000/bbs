@@ -128,7 +128,7 @@ type SearchHit struct {
 	ForumID    int64
 	ForumName  string
 	AuthorName string
-	CreatedAt  string
+	CreatedAt  time.Time
 	Excerpt    string
 	Rank       float64
 }
@@ -142,7 +142,7 @@ func (s *Store) Search(ctx context.Context, q string, page, size int) ([]*Search
 	offset := (page - 1) * size
 	// 取足够多的命中做主题级去重分页（小型论坛数据量下足够）
 	rows, err := s.pool.Query(ctx,
-		`SELECT t.id, t.title, t.forum_id, f.name, u.username, t.created_at::text,
+		`SELECT t.id, t.title, t.forum_id, f.name, u.username, t.created_at,
 			ts_headline('simple', p.content_md, q, 'MaxWords=30, MinWords=12, StartSel=<mark>, StopSel=</mark>, MaxFragments=1'),
 			ts_rank(p.search_data, q) AS score
 		 FROM posts p
