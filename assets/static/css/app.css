@@ -274,6 +274,11 @@ h1, h2, h3, h4 { margin: 0; font-weight: 600; }
 .preview-box h4 { font-size: 12px; color: var(--c-text-sub); margin-bottom: 6px; }
 .editor-foot { padding: 6px 12px; font-size: 12px; background: #f8fafc; border-top: 1px solid var(--c-border); }
 .submit-row { margin-top: 12px; }
+.editor-form > .submit-row {
+	position: sticky; bottom: 0; z-index: 5;
+	background: var(--c-panel); padding: 10px 0;
+	border-top: 1px solid var(--c-border);
+}
 .form-error {
 	margin: 10px 0; padding: 8px 12px; border-radius: 3px;
 	background: #fdeaea; border: 1px solid #f2b8b5; color: #b03030;

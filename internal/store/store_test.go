@@ -110,6 +110,29 @@ func TestThreadCounters(t *testing.T) {
 	if tc != 1 || pc != 3 {
 		t.Fatalf("版块计数: thread=%d post=%d，期望 1/3", tc, pc)
 	}
+	// 读取路径口径断言（能抓住列顺序错位类回归）：
+	// 版块行 ThreadCount/PostCount/TodayCount 必须与真实公开内容一致
+	cats, err := testStore.CategoriesWithForums(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var seen bool
+	for _, c := range cats {
+		for _, f := range c.Forums {
+			if f.ID == fid {
+				seen = true
+				if f.ThreadCount != 1 || f.PostCount != 3 {
+					t.Fatalf("读取路径版块计数错位: thread=%d post=%d，期望 1/3", f.ThreadCount, f.PostCount)
+				}
+				if f.TodayCount != 3 {
+					t.Fatalf("实时今日帖数应为 3: %d", f.TodayCount)
+				}
+			}
+		}
+	}
+	if !seen {
+		t.Fatal("版块行未返回")
+	}
 
 	// 编辑：版本号自增
 	p1, _ := testStore.Post(ctx, p.ID)

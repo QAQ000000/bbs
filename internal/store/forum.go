@@ -12,11 +12,13 @@ import (
 // ---- 版块与分类 ----
 
 // forumCols 今日帖数为读取时实时计算（公开口径：不含待审核与已删除），杜绝计数漂移。
+// 注意：列输出顺序必须与 scanForum 的 Scan 顺序严格一致（曾因 today_count 插错
+// 位置导致首页"主题/帖子"整体错位两列）。
 const forumCols = `f.id, f.category_id, f.name, f.description,
+	 f.thread_count, f.post_count,
 	 (SELECT count(*) FROM posts p JOIN threads t ON t.id=p.thread_id
 	   WHERE t.forum_id=f.id AND NOT p.deleted AND NOT p.pending
 	     AND p.created_at >= current_date) AS today_count,
-	 f.thread_count, f.post_count,
 	 coalesce(f.last_post_at, 'epoch'::timestamptz), f.last_post_at IS NOT NULL,
 	 coalesce(f.last_post_uid,0), coalesce(f.last_post_author,''),
 	 coalesce(f.last_thread_id,0), coalesce(f.last_thread_title,''), coalesce(f.moderators,'')`

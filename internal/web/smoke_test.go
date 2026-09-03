@@ -231,6 +231,15 @@ func TestLikeButtonVisibility(t *testing.T) {
 	}
 }
 
+// TestForumStatsDisplay 首页版块计数与真实内容一致（列序错位回归防线）。
+// 冒烟种子：版块 1 含 1 主题（2 楼层），其余版块为空。
+func TestForumStatsDisplay(t *testing.T) {
+	body := smokeGet(t, "/", nil).Body.String()
+	if !strings.Contains(body, "1 / 2") {
+		t.Fatal("首页未显示版块 1 的正确计数 1 / 2（疑似 forumCols 列序错位）")
+	}
+}
+
 // TestStaticAssets 静态资源可访问且带缓存头。
 func TestStaticAssets(t *testing.T) {
 	w := smokeGet(t, "/static/css/app.css", nil)
