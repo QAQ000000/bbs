@@ -37,7 +37,9 @@
 .stat-cards .card em { display: block; font-size: 26px; font-weight: 700; color: var(--c-primary); font-style: normal; }
 .stat-cards .card span { font-size: 12px; color: var(--c-text-sub); }
 
-.admin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.panel { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.admin-table { width: 100%; min-width: 640px; border-collapse: collapse; font-size: 13px; }
+.admin-table td, .admin-table th { word-break: keep-all; }
 .admin-table th {
 	text-align: left; font-weight: 400; color: var(--c-text-sub); font-size: 12px;
 	padding: 7px 8px; border-bottom: 1px solid var(--c-border); white-space: nowrap;
@@ -75,7 +77,10 @@
 
 @media (max-width: 900px) {
 	#admin-menu { width: 100%; float: none; margin-bottom: 12px; }
-	#admin-menu a { padding: 9px 14px; }
-	#admin-main { margin-left: 0; }
+	#admin-menu ul { display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+	#admin-menu li { flex: none; }
+	#admin-menu a { padding: 9px 14px; border-left: 0; border-bottom: 3px solid transparent; white-space: nowrap; }
+	#admin-menu li.a a { border-left: 0; border-bottom-color: var(--c-primary); }
+	#admin-main { margin-left: 0; overflow-x: hidden; }
 	.admin-grid .panel.z { width: 100%; float: none; margin-left: 0; }
 }

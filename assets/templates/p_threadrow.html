@@ -12,6 +12,7 @@
 		{{if .Digest}}<span class="badge badge-digest">精华</span>{{end}}
 		{{if .Closed}}<span class="badge badge-lock">锁定</span>{{end}}
 		{{if ge .PostCount 11}}<span class="tps">回复 {{.Replies}}</span>{{end}}
+		<span class="m-num">{{.Replies}} 回复</span>
 	</th>
 	<td class="by">
 		<cite><a href="{{userURL .AuthorID}}">{{.AuthorName}}</a></cite>
