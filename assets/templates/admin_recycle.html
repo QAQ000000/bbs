@@ -1,0 +1,40 @@
+{{define "content"}}
+<div class="admin-head cl"><h2 class="z">回收站</h2>
+	<form method="post" action="/admin/recyclebin/purgeall" class="y" data-confirm="确定清空回收站吗？主题与其全部楼层将被彻底删除，不可恢复！">
+		<input type="hidden" name="_csrf" value="{{.CSRF}}">
+		<button type="submit" class="pn pn-sm pn-danger">清空回收站</button>
+	</form>
+</div>
+
+<div class="panel">
+	<table class="admin-table">
+		<thead><tr><th>主题</th><th>作者</th><th>楼层</th><th>删除前最后活跃</th><th class="ops-cell">操作</th></tr></thead>
+		<tbody>
+		{{range .Threads}}
+		<tr>
+			<td><a href="{{threadURL .ID}}" target="_blank">{{.Title}}</a></td>
+			<td>{{.AuthorName}}</td>
+			<td class="xg1">{{.PostCount}}</td>
+			<td class="xg1">{{timefmt .LastPostAt}}</td>
+			<td class="ops-cell">
+				<form method="post" action="/admin/recyclebin/restore" class="inlineform">
+					<input type="hidden" name="_csrf" value="{{$.CSRF}}">
+					<input type="hidden" name="tid" value="{{.ID}}">
+					<button type="submit" class="pn pn-sm">恢复</button>
+				</form>
+				<form method="post" action="/admin/recyclebin/purge" class="inlineform" data-confirm="彻底删除「{{.Title}}」？不可恢复！">
+					<input type="hidden" name="_csrf" value="{{$.CSRF}}">
+					<input type="hidden" name="tid" value="{{.ID}}">
+					<button type="submit" class="pn pn-sm pn-danger">彻底删除</button>
+				</form>
+			</td>
+		</tr>
+		{{else}}
+		<tr><td colspan="5" class="empty">回收站是空的</td></tr>
+		{{end}}
+		</tbody>
+	</table>
+</div>
+
+{{if .Page}}<div class="pg">{{range .Page}}{{if .IsEllipsis}}<span class="dots">{{.Label}}</span>{{else if .Cur}}<strong>{{.Label}}</strong>{{else}}<a href="{{.URL}}">{{.Label}}</a>{{end}}{{end}}</div>{{end}}
+{{end}}

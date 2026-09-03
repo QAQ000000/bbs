@@ -1,0 +1,74 @@
+{{define "content"}}
+<div class="admin-head cl"><h2 class="z">用户管理</h2>
+	<form method="get" action="/admin/users" class="y cl search-form">
+		<input type="text" name="q" value="{{.Keyword}}" class="px px-inline" placeholder="用户名模糊搜索">
+		<button type="submit" class="pn pnc pn-sm">搜索</button>
+	</form>
+</div>
+
+<div class="panel">
+	<table class="admin-table">
+		<thead><tr>
+			<th>ID</th><th>用户名</th><th>用户组</th><th>等级</th><th>帖子/阅读</th><th>注册时间</th><th>最后登录</th><th>状态</th><th class="ops-cell">操作</th>
+		</tr></thead>
+		<tbody>
+		{{range .Users}}
+		<tr id="urow{{.ID}}">
+			<td class="xg1">{{.ID}}</td>
+			<td><a href="{{userURL .ID}}" target="_blank">{{.Username}}</a></td>
+			<td>
+				<form method="post" action="/admin/users/group" class="inline-form">
+					<input type="hidden" name="_csrf" value="{{$.CSRF}}">
+					<input type="hidden" name="uid" value="{{.ID}}">
+					<select name="group" class="px px-inline px-auto" onchange="this.form.submit()">
+						<option value="0"{{if eq .GroupID 0}} selected{{end}}>会员</option>
+						<option value="2"{{if eq .GroupID 2}} selected{{end}}>版主</option>
+						<option value="1"{{if eq .GroupID 1}} selected{{end}}>管理员</option>
+					</select>
+				</form>
+			</td>
+			<td class="xg1">{{.TrustLevelName}}</td>
+			<td class="xg1">{{.PostCount}}</td>
+			<td class="xg1">{{timefmt .CreatedAt}}</td>
+			<td class="xg1">{{timefmt .LastLoginAt}}</td>
+			<td>
+				{{if .IsBanned}}<span class="badge badge-lock" title="{{.BanReason}}">禁言至 {{timefmt .BannedUntil}}</span>
+				{{else}}<span class="xg1">正常</span>{{end}}
+			</td>
+			<td class="ops-cell">
+				<form method="post" action="/admin/users/ban" class="inline-form cl">
+					<input type="hidden" name="_csrf" value="{{$.CSRF}}">
+					<input type="hidden" name="uid" value="{{.ID}}">
+					<select name="days" class="px px-inline px-auto">
+						<option value="1">1 天</option>
+						<option value="3">3 天</option>
+						<option value="7">7 天</option>
+						<option value="30">30 天</option>
+						<option value="0">永久</option>
+					</select>
+					<input type="text" name="reason" class="px px-inline" placeholder="理由（选填）">
+					<button type="submit" class="pn pn-sm pn-danger">禁言</button>
+				</form>
+				{{if .IsBanned}}
+				<form method="post" action="/admin/users/unban" class="inlineform">
+					<input type="hidden" name="_csrf" value="{{$.CSRF}}">
+					<input type="hidden" name="uid" value="{{.ID}}">
+					<button type="submit" class="pn pn-sm">解禁</button>
+				</form>
+				{{end}}
+				<form method="post" action="/admin/users/delete" class="inlineform" data-confirm="确定删除用户 {{.Username}} 吗？仅可删除无发帖记录的用户。">
+					<input type="hidden" name="_csrf" value="{{$.CSRF}}">
+					<input type="hidden" name="uid" value="{{.ID}}">
+					<button type="submit" class="pn pn-sm pn-danger">删号</button>
+				</form>
+			</td>
+		</tr>
+		{{else}}
+		<tr><td colspan="8" class="empty">没有符合条件的用户</td></tr>
+		{{end}}
+		</tbody>
+	</table>
+</div>
+
+{{if .Page}}<div class="pg">{{range .Page}}{{if .IsEllipsis}}<span class="dots">{{.Label}}</span>{{else if .Cur}}<strong>{{.Label}}</strong>{{else}}<a href="{{.URL}}">{{.Label}}</a>{{end}}{{end}}</div>{{end}}
+{{end}}

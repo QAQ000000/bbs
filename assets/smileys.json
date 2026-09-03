@@ -1,0 +1,962 @@
+{
+    "packages": [
+        {
+            "id": 1,
+            "name": "Default",
+            "dir": "default"
+        },
+        {
+            "id": 2,
+            "name": "Cool Monkey",
+            "dir": "coolmonkey"
+        },
+        {
+            "id": 3,
+            "name": "Silly Boy",
+            "dir": "grapeman"
+        },
+        {
+            "id": 4,
+            "name": "QQ",
+            "dir": "qq"
+        }
+    ],
+    "codes": [
+        {
+            "code": ":)",
+            "pkg": "default",
+            "file": "smile.gif",
+            "order": 1
+        },
+        {
+            "code": ":(",
+            "pkg": "default",
+            "file": "sad.gif",
+            "order": 2
+        },
+        {
+            "code": ":D",
+            "pkg": "default",
+            "file": "biggrin.gif",
+            "order": 3
+        },
+        {
+            "code": ":'(",
+            "pkg": "default",
+            "file": "cry.gif",
+            "order": 4
+        },
+        {
+            "code": ":@",
+            "pkg": "default",
+            "file": "huffy.gif",
+            "order": 5
+        },
+        {
+            "code": ":o",
+            "pkg": "default",
+            "file": "shocked.gif",
+            "order": 6
+        },
+        {
+            "code": ":P",
+            "pkg": "default",
+            "file": "tongue.gif",
+            "order": 7
+        },
+        {
+            "code": ":$",
+            "pkg": "default",
+            "file": "shy.gif",
+            "order": 8
+        },
+        {
+            "code": ";P",
+            "pkg": "default",
+            "file": "titter.gif",
+            "order": 9
+        },
+        {
+            "code": ":L",
+            "pkg": "default",
+            "file": "sweat.gif",
+            "order": 10
+        },
+        {
+            "code": ":Q",
+            "pkg": "default",
+            "file": "mad.gif",
+            "order": 11
+        },
+        {
+            "code": ":lol",
+            "pkg": "default",
+            "file": "lol.gif",
+            "order": 12
+        },
+        {
+            "code": ":loveliness:",
+            "pkg": "default",
+            "file": "loveliness.gif",
+            "order": 13
+        },
+        {
+            "code": ":funk:",
+            "pkg": "default",
+            "file": "funk.gif",
+            "order": 14
+        },
+        {
+            "code": ":curse:",
+            "pkg": "default",
+            "file": "curse.gif",
+            "order": 15
+        },
+        {
+            "code": ":dizzy:",
+            "pkg": "default",
+            "file": "dizzy.gif",
+            "order": 16
+        },
+        {
+            "code": ":shutup:",
+            "pkg": "default",
+            "file": "shutup.gif",
+            "order": 17
+        },
+        {
+            "code": ":sleepy:",
+            "pkg": "default",
+            "file": "sleepy.gif",
+            "order": 18
+        },
+        {
+            "code": ":hug:",
+            "pkg": "default",
+            "file": "hug.gif",
+            "order": 19
+        },
+        {
+            "code": ":victory:",
+            "pkg": "default",
+            "file": "victory.gif",
+            "order": 20
+        },
+        {
+            "code": ":time:",
+            "pkg": "default",
+            "file": "time.gif",
+            "order": 21
+        },
+        {
+            "code": ":kiss:",
+            "pkg": "default",
+            "file": "kiss.gif",
+            "order": 22
+        },
+        {
+            "code": ":handshake",
+            "pkg": "default",
+            "file": "handshake.gif",
+            "order": 23
+        },
+        {
+            "code": ":call:",
+            "pkg": "default",
+            "file": "call.gif",
+            "order": 24
+        },
+        {
+            "code": "{:2_25:}",
+            "pkg": "coolmonkey",
+            "file": "01.gif",
+            "order": 1
+        },
+        {
+            "code": "{:2_26:}",
+            "pkg": "coolmonkey",
+            "file": "02.gif",
+            "order": 2
+        },
+        {
+            "code": "{:2_27:}",
+            "pkg": "coolmonkey",
+            "file": "03.gif",
+            "order": 3
+        },
+        {
+            "code": "{:2_28:}",
+            "pkg": "coolmonkey",
+            "file": "04.gif",
+            "order": 4
+        },
+        {
+            "code": "{:2_29:}",
+            "pkg": "coolmonkey",
+            "file": "05.gif",
+            "order": 5
+        },
+        {
+            "code": "{:2_30:}",
+            "pkg": "coolmonkey",
+            "file": "06.gif",
+            "order": 6
+        },
+        {
+            "code": "{:2_31:}",
+            "pkg": "coolmonkey",
+            "file": "07.gif",
+            "order": 7
+        },
+        {
+            "code": "{:2_32:}",
+            "pkg": "coolmonkey",
+            "file": "08.gif",
+            "order": 8
+        },
+        {
+            "code": "{:2_33:}",
+            "pkg": "coolmonkey",
+            "file": "09.gif",
+            "order": 9
+        },
+        {
+            "code": "{:2_34:}",
+            "pkg": "coolmonkey",
+            "file": "10.gif",
+            "order": 10
+        },
+        {
+            "code": "{:2_35:}",
+            "pkg": "coolmonkey",
+            "file": "11.gif",
+            "order": 11
+        },
+        {
+            "code": "{:2_36:}",
+            "pkg": "coolmonkey",
+            "file": "12.gif",
+            "order": 12
+        },
+        {
+            "code": "{:2_37:}",
+            "pkg": "coolmonkey",
+            "file": "13.gif",
+            "order": 13
+        },
+        {
+            "code": "{:2_38:}",
+            "pkg": "coolmonkey",
+            "file": "14.gif",
+            "order": 14
+        },
+        {
+            "code": "{:2_39:}",
+            "pkg": "coolmonkey",
+            "file": "15.gif",
+            "order": 15
+        },
+        {
+            "code": "{:2_40:}",
+            "pkg": "coolmonkey",
+            "file": "16.gif",
+            "order": 16
+        },
+        {
+            "code": "{:3_41:}",
+            "pkg": "grapeman",
+            "file": "01.gif",
+            "order": 1
+        },
+        {
+            "code": "{:3_42:}",
+            "pkg": "grapeman",
+            "file": "02.gif",
+            "order": 2
+        },
+        {
+            "code": "{:3_43:}",
+            "pkg": "grapeman",
+            "file": "03.gif",
+            "order": 3
+        },
+        {
+            "code": "{:3_44:}",
+            "pkg": "grapeman",
+            "file": "04.gif",
+            "order": 4
+        },
+        {
+            "code": "{:3_45:}",
+            "pkg": "grapeman",
+            "file": "05.gif",
+            "order": 5
+        },
+        {
+            "code": "{:3_46:}",
+            "pkg": "grapeman",
+            "file": "06.gif",
+            "order": 6
+        },
+        {
+            "code": "{:3_47:}",
+            "pkg": "grapeman",
+            "file": "07.gif",
+            "order": 7
+        },
+        {
+            "code": "{:3_48:}",
+            "pkg": "grapeman",
+            "file": "08.gif",
+            "order": 8
+        },
+        {
+            "code": "{:3_49:}",
+            "pkg": "grapeman",
+            "file": "09.gif",
+            "order": 9
+        },
+        {
+            "code": "{:3_50:}",
+            "pkg": "grapeman",
+            "file": "10.gif",
+            "order": 10
+        },
+        {
+            "code": "{:3_51:}",
+            "pkg": "grapeman",
+            "file": "11.gif",
+            "order": 11
+        },
+        {
+            "code": "{:3_52:}",
+            "pkg": "grapeman",
+            "file": "12.gif",
+            "order": 12
+        },
+        {
+            "code": "{:3_53:}",
+            "pkg": "grapeman",
+            "file": "13.gif",
+            "order": 13
+        },
+        {
+            "code": "{:3_54:}",
+            "pkg": "grapeman",
+            "file": "14.gif",
+            "order": 14
+        },
+        {
+            "code": "{:3_55:}",
+            "pkg": "grapeman",
+            "file": "15.gif",
+            "order": 15
+        },
+        {
+            "code": "{:3_56:}",
+            "pkg": "grapeman",
+            "file": "16.gif",
+            "order": 16
+        },
+        {
+            "code": "{:3_57:}",
+            "pkg": "grapeman",
+            "file": "17.gif",
+            "order": 17
+        },
+        {
+            "code": "{:3_58:}",
+            "pkg": "grapeman",
+            "file": "18.gif",
+            "order": 18
+        },
+        {
+            "code": "{:3_59:}",
+            "pkg": "grapeman",
+            "file": "19.gif",
+            "order": 19
+        },
+        {
+            "code": "{:3_60:}",
+            "pkg": "grapeman",
+            "file": "20.gif",
+            "order": 20
+        },
+        {
+            "code": "{:3_61:}",
+            "pkg": "grapeman",
+            "file": "21.gif",
+            "order": 21
+        },
+        {
+            "code": "{:3_62:}",
+            "pkg": "grapeman",
+            "file": "22.gif",
+            "order": 22
+        },
+        {
+            "code": "{:3_63:}",
+            "pkg": "grapeman",
+            "file": "23.gif",
+            "order": 23
+        },
+        {
+            "code": "{:3_64:}",
+            "pkg": "grapeman",
+            "file": "24.gif",
+            "order": 24
+        },
+        {
+            "code": ":kelian:",
+            "pkg": "qq",
+            "file": "kelian.gif",
+            "order": 1
+        },
+        {
+            "code": ":haqian:",
+            "pkg": "qq",
+            "file": "haqian.gif",
+            "order": 2
+        },
+        {
+            "code": ":woshou:",
+            "pkg": "qq",
+            "file": "woshou.gif",
+            "order": 3
+        },
+        {
+            "code": ":aixin:",
+            "pkg": "qq",
+            "file": "aixin.gif",
+            "order": 4
+        },
+        {
+            "code": ":zuohengheng:",
+            "pkg": "qq",
+            "file": "zuohengheng.gif",
+            "order": 5
+        },
+        {
+            "code": ":weixiao:",
+            "pkg": "qq",
+            "file": "weixiao.gif",
+            "order": 6
+        },
+        {
+            "code": ":jingkong:",
+            "pkg": "qq",
+            "file": "jingkong.gif",
+            "order": 7
+        },
+        {
+            "code": ":tiaopi:",
+            "pkg": "qq",
+            "file": "tiaopi.gif",
+            "order": 8
+        },
+        {
+            "code": ":touxiao:",
+            "pkg": "qq",
+            "file": "touxiao.gif",
+            "order": 9
+        },
+        {
+            "code": ":youling:",
+            "pkg": "qq",
+            "file": "youling.gif",
+            "order": 10
+        },
+        {
+            "code": ":caidao:",
+            "pkg": "qq",
+            "file": "caidao.gif",
+            "order": 11
+        },
+        {
+            "code": ":cahan:",
+            "pkg": "qq",
+            "file": "cahan.gif",
+            "order": 12
+        },
+        {
+            "code": ":hecai:",
+            "pkg": "qq",
+            "file": "hecai.gif",
+            "order": 13
+        },
+        {
+            "code": ":keai:",
+            "pkg": "qq",
+            "file": "keai.gif",
+            "order": 14
+        },
+        {
+            "code": ":ciya:",
+            "pkg": "qq",
+            "file": "ciya.gif",
+            "order": 15
+        },
+        {
+            "code": ":saorao:",
+            "pkg": "qq",
+            "file": "saorao.gif",
+            "order": 16
+        },
+        {
+            "code": ":jingxi:",
+            "pkg": "qq",
+            "file": "jingxi.gif",
+            "order": 17
+        },
+        {
+            "code": ":ku:",
+            "pkg": "qq",
+            "file": "ku.gif",
+            "order": 18
+        },
+        {
+            "code": ":piezui:",
+            "pkg": "qq",
+            "file": "piezui.gif",
+            "order": 19
+        },
+        {
+            "code": ":se:",
+            "pkg": "qq",
+            "file": "se.gif",
+            "order": 20
+        },
+        {
+            "code": ":xia:",
+            "pkg": "qq",
+            "file": "xia.gif",
+            "order": 21
+        },
+        {
+            "code": ":yinxian:",
+            "pkg": "qq",
+            "file": "yinxian.gif",
+            "order": 22
+        },
+        {
+            "code": ":zhouma:",
+            "pkg": "qq",
+            "file": "zhouma.gif",
+            "order": 23
+        },
+        {
+            "code": ":kulou:",
+            "pkg": "qq",
+            "file": "kulou.gif",
+            "order": 24
+        },
+        {
+            "code": ":xu:",
+            "pkg": "qq",
+            "file": "xu.gif",
+            "order": 25
+        },
+        {
+            "code": ":jingya:",
+            "pkg": "qq",
+            "file": "jingya.gif",
+            "order": 26
+        },
+        {
+            "code": ":doge:",
+            "pkg": "qq",
+            "file": "doge.gif",
+            "order": 27
+        },
+        {
+            "code": ":bizui:",
+            "pkg": "qq",
+            "file": "bizui.gif",
+            "order": 28
+        },
+        {
+            "code": ":yangtuo:",
+            "pkg": "qq",
+            "file": "yangtuo.gif",
+            "order": 29
+        },
+        {
+            "code": ":shouqiang:",
+            "pkg": "qq",
+            "file": "shouqiang.gif",
+            "order": 30
+        },
+        {
+            "code": ":baoquan:",
+            "pkg": "qq",
+            "file": "baoquan.gif",
+            "order": 31
+        },
+        {
+            "code": ":yun:",
+            "pkg": "qq",
+            "file": "yun.gif",
+            "order": 32
+        },
+        {
+            "code": ":lanqiu:",
+            "pkg": "qq",
+            "file": "lanqiu.gif",
+            "order": 33
+        },
+        {
+            "code": ":zhemo:",
+            "pkg": "qq",
+            "file": "zhemo.gif",
+            "order": 34
+        },
+        {
+            "code": ":guzhang:",
+            "pkg": "qq",
+            "file": "guzhang.gif",
+            "order": 35
+        },
+        {
+            "code": ":shengli:",
+            "pkg": "qq",
+            "file": "shengli.gif",
+            "order": 36
+        },
+        {
+            "code": ":zaijian:",
+            "pkg": "qq",
+            "file": "zaijian.gif",
+            "order": 37
+        },
+        {
+            "code": ":dabing:",
+            "pkg": "qq",
+            "file": "dabing.gif",
+            "order": 38
+        },
+        {
+            "code": ":deyi:",
+            "pkg": "qq",
+            "file": "deyi.gif",
+            "order": 39
+        },
+        {
+            "code": ":hanxiao:",
+            "pkg": "qq",
+            "file": "hanxiao.gif",
+            "order": 40
+        },
+        {
+            "code": ":kun:",
+            "pkg": "qq",
+            "file": "kun.gif",
+            "order": 41
+        },
+        {
+            "code": ":hexie:",
+            "pkg": "qq",
+            "file": "hexie.gif",
+            "order": 42
+        },
+        {
+            "code": ":daku:",
+            "pkg": "qq",
+            "file": "daku.gif",
+            "order": 43
+        },
+        {
+            "code": ":wozuimei:",
+            "pkg": "qq",
+            "file": "wozuimei.gif",
+            "order": 44
+        },
+        {
+            "code": ":xiaoku:",
+            "pkg": "qq",
+            "file": "xiaoku.gif",
+            "order": 45
+        },
+        {
+            "code": ":xigua:",
+            "pkg": "qq",
+            "file": "xigua.gif",
+            "order": 46
+        },
+        {
+            "code": ":huaixiao:",
+            "pkg": "qq",
+            "file": "huaixiao.gif",
+            "order": 47
+        },
+        {
+            "code": ":liulei:",
+            "pkg": "qq",
+            "file": "liulei.gif",
+            "order": 48
+        },
+        {
+            "code": ":lenghan:",
+            "pkg": "qq",
+            "file": "lenghan.gif",
+            "order": 49
+        },
+        {
+            "code": ":qiudale:",
+            "pkg": "qq",
+            "file": "qiudale.gif",
+            "order": 50
+        },
+        {
+            "code": ":zhayanjian:",
+            "pkg": "qq",
+            "file": "zhayanjian.gif",
+            "order": 51
+        },
+        {
+            "code": ":qiaoda:",
+            "pkg": "qq",
+            "file": "qiaoda.gif",
+            "order": 52
+        },
+        {
+            "code": ":baojin:",
+            "pkg": "qq",
+            "file": "baojin.gif",
+            "order": 53
+        },
+        {
+            "code": ":OK:",
+            "pkg": "qq",
+            "file": "OK.gif",
+            "order": 54
+        },
+        {
+            "code": ":xiaojiujie:",
+            "pkg": "qq",
+            "file": "xiaojiujie.gif",
+            "order": 55
+        },
+        {
+            "code": ":gouyin:",
+            "pkg": "qq",
+            "file": "gouyin.gif",
+            "order": 56
+        },
+        {
+            "code": ":youhengheng:",
+            "pkg": "qq",
+            "file": "youhengheng.gif",
+            "order": 57
+        },
+        {
+            "code": ":tuosai:",
+            "pkg": "qq",
+            "file": "tuosai.gif",
+            "order": 58
+        },
+        {
+            "code": ":nanguo:",
+            "pkg": "qq",
+            "file": "nanguo.gif",
+            "order": 59
+        },
+        {
+            "code": ":quantou:",
+            "pkg": "qq",
+            "file": "quantou.gif",
+            "order": 60
+        },
+        {
+            "code": ":haixiu:",
+            "pkg": "qq",
+            "file": "haixiu.gif",
+            "order": 61
+        },
+        {
+            "code": ":koubi:",
+            "pkg": "qq",
+            "file": "koubi.gif",
+            "order": 62
+        },
+        {
+            "code": ":qiang:",
+            "pkg": "qq",
+            "file": "qiang.gif",
+            "order": 63
+        },
+        {
+            "code": ":pijiu:",
+            "pkg": "qq",
+            "file": "pijiu.gif",
+            "order": 64
+        },
+        {
+            "code": ":bishi:",
+            "pkg": "qq",
+            "file": "bishi.gif",
+            "order": 65
+        },
+        {
+            "code": ":yiwen:",
+            "pkg": "qq",
+            "file": "yiwen.gif",
+            "order": 66
+        },
+        {
+            "code": ":liuhan:",
+            "pkg": "qq",
+            "file": "liuhan.gif",
+            "order": 67
+        },
+        {
+            "code": ":wunai:",
+            "pkg": "qq",
+            "file": "wunai.gif",
+            "order": 68
+        },
+        {
+            "code": ":aini:",
+            "pkg": "qq",
+            "file": "aini.gif",
+            "order": 69
+        },
+        {
+            "code": ":bangbangtang:",
+            "pkg": "qq",
+            "file": "bangbangtang.gif",
+            "order": 70
+        },
+        {
+            "code": ":penxue:",
+            "pkg": "qq",
+            "file": "penxue.gif",
+            "order": 71
+        },
+        {
+            "code": ":haobang:",
+            "pkg": "qq",
+            "file": "haobang.gif",
+            "order": 72
+        },
+        {
+            "code": ":qinqin:",
+            "pkg": "qq",
+            "file": "qinqin.gif",
+            "order": 73
+        },
+        {
+            "code": ":xiaoyanger:",
+            "pkg": "qq",
+            "file": "xiaoyanger.gif",
+            "order": 74
+        },
+        {
+            "code": ":fendou:",
+            "pkg": "qq",
+            "file": "fendou.gif",
+            "order": 75
+        },
+        {
+            "code": ":ganga:",
+            "pkg": "qq",
+            "file": "ganga.gif",
+            "order": 76
+        },
+        {
+            "code": ":shuai:",
+            "pkg": "qq",
+            "file": "shuai.gif",
+            "order": 77
+        },
+        {
+            "code": ":juhua:",
+            "pkg": "qq",
+            "file": "juhua.gif",
+            "order": 78
+        },
+        {
+            "code": ":baiyan:",
+            "pkg": "qq",
+            "file": "baiyan.gif",
+            "order": 79
+        },
+        {
+            "code": ":fanu:",
+            "pkg": "qq",
+            "file": "fanu.gif",
+            "order": 80
+        },
+        {
+            "code": ":jie:",
+            "pkg": "qq",
+            "file": "jie.gif",
+            "order": 81
+        },
+        {
+            "code": ":chi:",
+            "pkg": "qq",
+            "file": "chi.gif",
+            "order": 82
+        },
+        {
+            "code": ":kuaikule:",
+            "pkg": "qq",
+            "file": "kuaikule.gif",
+            "order": 83
+        },
+        {
+            "code": ":zhuakuang:",
+            "pkg": "qq",
+            "file": "zhuakuang.gif",
+            "order": 84
+        },
+        {
+            "code": ":shui:",
+            "pkg": "qq",
+            "file": "shui.gif",
+            "order": 85
+        },
+        {
+            "code": ":dan:",
+            "pkg": "qq",
+            "file": "dan.gif",
+            "order": 86
+        },
+        {
+            "code": ":aoman:",
+            "pkg": "qq",
+            "file": "aoman.gif",
+            "order": 87
+        },
+        {
+            "code": ":fadai:",
+            "pkg": "qq",
+            "file": "fadai.gif",
+            "order": 88
+        },
+        {
+            "code": ":leiben:",
+            "pkg": "qq",
+            "file": "leiben.gif",
+            "order": 89
+        },
+        {
+            "code": ":tu:",
+            "pkg": "qq",
+            "file": "tu.gif",
+            "order": 90
+        },
+        {
+            "code": ":weiqu:",
+            "pkg": "qq",
+            "file": "weiqu.gif",
+            "order": 91
+        },
+        {
+            "code": ":xieyanxiao:",
+            "pkg": "qq",
+            "file": "xieyanxiao.gif",
+            "order": 92
+        }
+    ]
+}

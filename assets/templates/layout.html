@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{if .Title}}{{.Title}} - {{end}}{{.SiteName}}</title>
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body{{if .User}} data-authed="1"{{end}}>
+
+<div id="toptb"><div class="wp cl">
+	<div class="z"><a href="/" class="nvhm">{{.SiteName}}</a></div>
+	<div class="y">
+		{{if .User}}
+			<strong><a href="{{userURL .User.ID}}" class="vwmy">{{.User.Username}}</a></strong><span class="pipe">|</span>
+			<a href="/notify" title="通知" class="notify-link{{if gt .NotifyCount 0}} has-unread{{end}}">🔔{{if gt .NotifyCount 0}} <em class="notify-num">{{.NotifyCount}}</em>{{end}}</a><span class="pipe">|</span>
+			<a href="{{userURL .User.ID}}">个人中心</a><span class="pipe">|</span>
+			<form method="post" action="/logout" class="inlineform"><input type="hidden" name="_csrf" value="{{.CSRF}}"><button type="submit" class="linklike">退出</button></form>
+		{{else}}
+			<a href="/login">登录</a><span class="pipe">|</span><a href="/register">注册</a>
+		{{end}}
+	</div>
+</div></div>
+
+<div id="hd"><div class="wp cl">
+	<div class="hdc cl">
+		<h2 class="logo z"><a href="/"><span class="logo-go">Go</span><span class="logo-bbs">!BBS</span></a></h2>
+		<div class="um y">
+			{{if .User}}
+				<a href="{{userURL .User.ID}}" class="avt" title="{{.User.Username}}">{{avatar .User.ID .User.Username}}</a>
+				<span class="vwmy"><a href="{{userURL .User.ID}}">{{.User.Username}}</a></span>
+				<span class="pipe">|</span><span class="xg1">帖子 <em class="xi1">{{.User.PostCount}}</em></span>
+				{{if .User.IsAdmin}}<span class="pipe">|</span><span class="badge badge-admin">管理员</span>{{end}}
+				<span class="pipe">|</span>
+				<form method="post" action="/logout" class="inlineform"><input type="hidden" name="_csrf" value="{{.CSRF}}"><button type="submit" class="linklike">退出</button></form>
+			{{else}}
+				<a href="/login" class="pn">登录</a>
+				<a href="/register" class="pn pnc">注册</a>
+			{{end}}
+		</div>
+	</div>
+	<div id="nv"><div class="wp cl">
+		<ul class="z">
+			<li{{if eq .NavActive "home"}} class="a"{{end}}><a href="/">首页</a></li>
+			<li><a href="/new" class="nvnew">发新帖</a></li>
+		</ul>
+		<div class="y cl">
+			<form method="get" action="/search" class="nav-search"><input type="text" name="q" class="px" placeholder="搜索帖子…"><button type="submit" class="pn pn-sm">搜索</button></form>
+		</div>
+	</div></div>
+</div></div>
+
+{{with .Flash}}<div class="wp"><div class="flash" data-flash>{{.}}</div></div>{{end}}
+
+<div id="wp" class="wp" {{if .User}}data-live-user="{{.User.ID}}"{{end}}>{{template "content" .}}</div>
+
+<div id="ft"><div class="wp cl">
+	<div class="z">{{.SiteName}} © {{.Year}}</div>
+	<div class="y">Powered by <strong>GoBBS</strong> · Go + PostgreSQL + SSE</div>
+</div></div>
+
+<button id="scrolltop" title="回到顶部" aria-label="回到顶部">↑</button>
+<script src="/static/js/app.js" defer></script>
+<script src="/static/js/live.js" defer></script>
+</body>
+</html>

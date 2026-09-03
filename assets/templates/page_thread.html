@@ -1,0 +1,57 @@
+{{define "content"}}
+<div id="pt" class="bm cl"><div class="z">
+	<a href="/" class="nvhm">{{.SiteName}}</a> <em>›</em>
+	<a href="{{forumURL .Forum.ID}}">{{.Forum.Name}}</a> <em>›</em>
+	<span class="ellip">{{.Thread.Title}}</span>
+</div></div>
+
+{{if .Page}}<div id="pgt" class="bm bw0 pgs cl"><div class="y pg">{{template "pagination" .}}</div></div>{{end}}
+
+<div id="ct" class="wp cl">
+	<div class="mn">
+		<div class="thread-head bm bmw">
+			<h1 class="ts"><span id="thread_subject">{{.Thread.Title}}</span>
+				{{if .Thread.Closed}}<span class="badge badge-lock">已锁定</span>{{end}}
+				{{if .Thread.Digest}}<span class="badge badge-digest">精华</span>{{end}}
+				{{if .Thread.Sticky}}<span class="badge badge-sticky">置顶</span>{{end}}
+			</h1>
+			{{if .Thread.Pending}}<div class="pending-tip">⏳ 该主题正在等待审核，审核通过前仅作者与管理人员可见。</div>{{end}}
+			<p class="xg1 hm-meta">
+				<a href="{{forumURL .Forum.ID}}">{{.Forum.Name}}</a><span class="pipe">|</span>
+				<a href="{{userURL .Thread.AuthorID}}">{{.Thread.AuthorName}}</a><span class="pipe">|</span>
+				{{.Thread.ViewCount}} 次浏览<span class="pipe">|</span>
+				{{.Thread.Replies}} 回复
+			</p>
+		</div>
+
+		<div id="postlist" class="bm bmw"
+			data-thread="{{.Thread.ID}}"
+			data-page="{{.PageNum}}"
+			data-total-page="{{.TotalPage}}"
+			data-page-size="10"
+			data-post-count="{{.Thread.PostCount}}"
+			data-closed="{{if .Thread.Closed}}1{{else}}0{{end}}"
+			data-live="{{.LiveTopic}}">
+			{{range .Posts}}{{template "post_floor" .}}{{end}}
+			<div id="last"></div>
+		</div>
+
+		{{if .Page}}<div id="pgt-bottom" class="bm bw0 pgs cl"><div class="y pg">{{template "pagination" .}}</div></div>{{end}}
+
+		{{if .Thread.Closed}}
+			<div class="bm"><div class="bm_c xg1 closed-tip">该主题已锁定，无法继续回复。</div></div>
+		{{else if .User}}
+			<div class="bm bmw fastpost" id="fastpost">
+				<div class="bm_h"><h2>快速回复</h2></div>
+				<div class="bm_c">
+					{{template "editor" .QuickReply}}
+				</div>
+			</div>
+		{{else}}
+			<div class="bm"><div class="bm_c xg1 login-tip">
+				您需要 <a href="/login?next={{threadNext .Thread.ID}}">登录</a> 或 <a href="/register">注册</a> 后才能回复。
+			</div></div>
+		{{end}}
+	</div>
+</div>
+{{end}}

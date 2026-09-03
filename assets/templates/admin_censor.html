@@ -1,0 +1,35 @@
+{{define "content"}}
+<div class="admin-head"><h2>敏感词过滤</h2></div>
+
+<div class="panel">
+	<form method="post" action="/admin/censor/add" class="inline-form cl" style="margin-bottom:12px">
+		<input type="hidden" name="_csrf" value="{{.CSRF}}">
+		<input type="text" name="word" class="px px-inline" placeholder="敏感词" required>
+		<input type="text" name="replacement" class="px px-inline" placeholder="替换为（默认 *）">
+		<button type="submit" class="pn pnc pn-sm">添加</button>
+		<span class="xg1">发帖与回帖时自动替换正文与标题中的敏感词</span>
+	</form>
+
+	<table class="admin-table">
+		<thead><tr><th>ID</th><th>敏感词</th><th>替换为</th><th class="ops-cell">操作</th></tr></thead>
+		<tbody>
+		{{range .Words}}
+		<tr>
+			<td class="xg1">{{.ID}}</td>
+			<td><code class="op-code">{{.Word}}</code></td>
+			<td class="xg1">{{.Replacement}}</td>
+			<td class="ops-cell">
+				<form method="post" action="/admin/censor/delete" class="inlineform">
+					<input type="hidden" name="_csrf" value="{{$.CSRF}}">
+					<input type="hidden" name="id" value="{{.ID}}">
+					<button type="submit" class="pn pn-sm pn-danger">删除</button>
+				</form>
+			</td>
+		</tr>
+		{{else}}
+		<tr><td colspan="4" class="empty">还没有敏感词</td></tr>
+		{{end}}
+		</tbody>
+	</table>
+</div>
+{{end}}

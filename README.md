@@ -1,0 +1,144 @@
+# GoBBS
+
+现代化的开源论坛系统：Go + PostgreSQL，单二进制部署，内置实时刷新、Markdown 编辑器、
+全文搜索与完整的站点治理能力。
+
+> **独立项目声明**：本项目是独立开发的全新实现，参考了经典论坛产品的功能习惯（如版块结构、
+> 伪静态地址格式），但未使用任何第三方论坛程序的代码或素材，与其官方团队亦无任何关联或背书。
+> 提及第三方产品名称仅为描述兼容性与来源事实，相关名称的权利归其各自权利人所有。
+
+## 功能总览
+
+- **内容**：Markdown 编辑器（工具栏/表情/粘贴传图/云端草稿/预览）、版块与分类、伪静态地址
+  （`forum-2-1.html`、`thread-68845-1-1.html`，与传统论坛习惯一致）
+- **实时**：基于 SSE 的局部刷新 —— 新回复原位追加、编辑楼层即时替换、点赞计数同步、
+  通知实时提醒（无需 WebSocket，自带断线重连）
+- **互动**：点赞（含点赞名单浮层）、@提及通知（站内铃铛 + 邮件）、信任等级（新用户 → 正式成员自动成长）
+- **搜索**：PostgreSQL tsvector 全文搜索，中文 bigram 分词，零外部依赖
+- **治理**：发帖审核队列（含原因码）、回收站、敏感词替换、批量删帖、防 CSRF / bcrypt / XSS 加固
+- **后台**：仪表盘、版块管理、内容管理、用户管理（禁言/删号/改组）、站点设置（含上传限额与
+  仅外链模式）、审计日志、公告管理
+- **部署**：单二进制（模板与静态资源 embed）、游客整页缓存、透明 gzip
+
+## 快速开始
+
+```bash
+# 0. 前置：Go 1.25+ 与 PostgreSQL 16+（推荐 18）
+# 1. 建库（在 PostgreSQL 上执行）
+CREATE DATABASE forum OWNER "youruser";
+
+# 2. 编译
+go build -o bin/forumd ./cmd/forumd
+
+# 3. 启动（首次加 -seed 灌入演示数据；schema 启动时自动迁移）
+FORUM_DSN="postgres://user:pass@127.0.0.1:5432/forum" \
+FORUM_ADDR="127.0.0.1:8090" \
+./bin/forumd -seed
+
+# 4. 打开 http://127.0.0.1:8090 ，默认管理员：admin / admin123456（务必改密）
+```
+
+## 配置（环境变量）
+
+| 变量 | 默认值 | 说明 |
+| --- | --- | --- |
+| `FORUM_ADDR` | `127.0.0.1:8080` | HTTP 监听地址 |
+| `FORUM_DSN` | `postgres://123456:123456@127.0.0.1:5432/forum` | PostgreSQL 连接串 |
+| `FORUM_SITE_NAME` | `GoBBS 社区` | 站点名称（首次启动写入设置，之后后台可改） |
+| `FORUM_SITE_LOGO` | `Go!BBS` | 头部 Logo 文案 |
+| `FORUM_SITE_URL` | `http://127.0.0.1:8090` | 站点外部地址（邮件中的链接） |
+| `FORUM_UPLOAD_DIR` | `data/uploads` | 图片/附件存储目录（运行时数据） |
+| `FORUM_SMILEY_DIR` | `data/smiley` | 自定义图片表情包目录 |
+| `FORUM_THREADS_PER_PAGE` | `20` | 版块页每页主题数（首次启动写入设置） |
+| `FORUM_POSTS_PER_PAGE` | `10` | 帖子页每页楼层数（首次启动写入设置） |
+| `FORUM_DEV` | `0` | 置 1 时模板热重载（开发用） |
+| `FORUM_PROD` | `0` | 置 1 启用 Secure Cookie（HTTPS 部署时） |
+| `FORUM_SMTP_HOST` | 空 | SMTP 服务器；**为空则禁用邮件通知** |
+| `FORUM_SMTP_PORT` | `25` | SMTP 端口 |
+| `FORUM_SMTP_USER` / `FORUM_SMTP_PASS` | 空 | SMTP 认证（可选） |
+| `FORUM_SMTP_FROM` | `noreply@gobbs.local` | 发件人地址 |
+
+> 站点级配置（站名、每页条数、注册开关、发帖审核、**上传限额与仅外链模式**、关站）
+> 存于数据库，在 后台 → 站点设置 修改，环境变量仅作首次启动的初始值。
+
+## 运行时数据与自定义表情
+
+运行时数据都在 `data/`（默认），**不属于仓库、不参与编译**，请纳入备份：
+
+```
+data/
+├── uploads/    # 用户上传的图片与附件（FORUM_UPLOAD_DIR）
+└── smiley/     # 自定义图片表情包（FORUM_SMILEY_DIR）
+```
+
+默认表情为 Unicode Emoji 短代码（`:smile:` `:joy:` …），渲染为字符本身，零图片资产。
+要使用图片表情包（例如从你此前的论坛迁移素材）：
+
+```bash
+# 你的素材目录结构：<素材目录>/<包名>/<图片文件>
+./bin/forumd -import-smileys /path/to/my-smileys
+# 可选：提供原始表情代码映射（结构见 scripts/gen_smileys.php 的输出）
+./bin/forumd -import-smileys /path/to/my-smileys -codes codes.json
+```
+
+导入后重启生效，编辑器表情面板会出现对应分组。素材的版权与授权由导入者自行确认。
+
+## 部署运维
+
+**systemd 单元**（`/etc/systemd/system/gobbs.service`）：
+
+```ini
+[Unit]
+Description=GoBBS forum
+After=network.target postgresql.service
+
+[Service]
+WorkingDirectory=/opt/gobbs
+Environment=FORUM_DSN=postgres://user:pass@127.0.0.1:5432/forum
+Environment=FORUM_ADDR=127.0.0.1:8090
+ExecStart=/opt/gobbs/bin/forumd
+Restart=on-failure
+User=gobbs
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**备份**：PostgreSQL `pg_dump forum` + `data/` 目录。
+**升级**：替换二进制重启即可（schema 自动增量迁移；分词器升级会自动补齐搜索索引）。
+
+**反向代理（nginx）**：
+
+```nginx
+location / { proxy_pass http://127.0.0.1:8090; }
+location /api/live { proxy_pass http://127.0.0.1:8090; proxy_buffering off; }
+```
+
+生产环境务必：改默认管理员密码、`FORUM_PROD=1`（HTTPS 下 Secure Cookie）。
+
+## 开发
+
+```
+cmd/forumd/        入口（-seed / -import-smileys）
+assets/            embed 打包：templates 模板、static 静态资源、db schema
+internal/
+  config/          环境变量配置
+  db/              连接池与 schema 迁移
+  store/           数据访问（查询/事务/缓存），全部 SQL 集中于此
+  markdown/        goldmark 渲染 + 表情内联扩展
+  smiley/          表情系统（内置 emoji + 自定义图片包）
+  live/            SSE 推送中枢（按主题分组发布订阅）
+  mail/            异步邮件（net/smtp）
+  avatar/          确定性字母头像 SVG
+  web/             路由、伪静态、中间件、handlers、模板渲染
+scripts/           辅助脚本（素材导出、发布自检）
+```
+
+- 模板与静态资源修改后需重新编译（或 `FORUM_DEV=1` 热重载模板）
+- API 简要说明见 [docs/API.md](docs/API.md)
+- 表结构见 `assets/db/schema.sql`（含逐表注释）
+
+## 许可
+
+本项目以 **AGPL-3.0-or-later** 分发（见 [LICENSE](LICENSE)）。
+第三方组件许可见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。

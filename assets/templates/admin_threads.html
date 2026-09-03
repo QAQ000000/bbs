@@ -1,0 +1,66 @@
+{{define "content"}}
+<div class="admin-head cl"><h2 class="z">内容管理</h2>
+	<form method="get" action="/admin/threads" class="y cl search-form">
+		<select name="forum" class="px px-inline px-auto">
+			<option value="0">全部版块</option>
+			{{range .Categories}}{{range .Forums}}<option value="{{.ID}}"{{if eq $.ForumID .ID}} selected{{end}}>{{.Name}}</option>{{end}}{{end}}
+		</select>
+		<input type="text" name="q" value="{{.Keyword}}" class="px px-inline" placeholder="标题关键词">
+		<input type="text" name="author" value="{{.Author}}" class="px px-inline" placeholder="作者用户名">
+		<button type="submit" class="pn pnc pn-sm">搜索</button>
+	</form>
+</div>
+
+<div class="panel">
+	<form method="post" action="/admin/threads/action" id="batchform">
+		<input type="hidden" name="_csrf" value="{{.CSRF}}">
+		<input type="hidden" name="back" value="{{.BackURL}}">
+		<table class="admin-table">
+			<thead><tr>
+				<th><input type="checkbox" onclick="document.querySelectorAll('#batchform input[name=tid]').forEach(c=>c.checked=this.checked)" title="全选"></th>
+				<th>主题</th><th>版块</th><th>作者</th><th>回复/查看</th><th>状态</th><th>最后发表</th>
+			</tr></thead>
+			<tbody>
+			{{range .Threads}}
+			<tr>
+				<td><input type="checkbox" name="tid" value="{{.ID}}"></td>
+				<td>
+					<a href="{{threadURL .ID}}" target="_blank">{{.Title}}</a>
+					{{if .Sticky}}<span class="badge badge-sticky">置顶{{.Sticky}}</span>{{end}}
+					{{if .Digest}}<span class="badge badge-digest">精华</span>{{end}}
+					{{if .Closed}}<span class="badge badge-lock">锁定</span>{{end}}
+				</td>
+				<td class="xg1">{{.ForumID}}</td>
+				<td>{{.AuthorName}}</td>
+				<td class="xg1">{{.Replies}} / {{.ViewCount}}</td>
+				<td class="xg1">{{timefmt .CreatedAt}}</td>
+				<td class="xg1">{{timefmt .LastPostAt}}</td>
+			</tr>
+			{{else}}
+			<tr><td colspan="7" class="empty">没有符合条件的主题</td></tr>
+			{{end}}
+			</tbody>
+		</table>
+
+		<div class="batch-bar cl">
+			<div class="z cl">
+				<select name="op" class="px px-inline px-auto" onchange="document.getElementById('batchform').dataset.confirm = this.value==='delete' ? '确定删除所选主题吗？删除后进入回收站。' : ''">
+					<option value="">-- 批量操作 --</option>
+					<option value="sticky1">置顶（普通）</option>
+					<option value="sticky2">置顶（长期）</option>
+					<option value="sticky3">置顶（全局）</option>
+					<option value="unsticky">取消置顶</option>
+					<option value="digest">设为精华</option>
+					<option value="undigest">取消精华</option>
+					<option value="lock">锁定</option>
+					<option value="unlock">解锁</option>
+					<option value="delete">删除（进回收站）</option>
+				</select>
+				<button type="submit" class="pn pnc pn-sm">执行</button>
+			</div>
+		</div>
+	</form>
+</div>
+
+{{if .Page}}<div class="pg">{{range .Page}}{{if .IsEllipsis}}<span class="dots">{{.Label}}</span>{{else if .Cur}}<strong>{{.Label}}</strong>{{else}}<a href="{{.URL}}">{{.Label}}</a>{{end}}{{end}}</div>{{end}}
+{{end}}

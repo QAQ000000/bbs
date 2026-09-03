@@ -1,0 +1,62 @@
+{{define "editor"}}<form method="post" action="{{.Action}}" id="postform" class="editor-form" data-editor{{if .DraftContext}} data-draft-context="{{.DraftContext}}"{{end}}{{if .UploadEnabled}} data-max-image-mb="{{.MaxImageMB}}" data-max-file-mb="{{.MaxFileMB}}"{{end}}>
+	<input type="hidden" name="_csrf" value="{{.CSRF}}">
+	{{if gt .Version 0}}<input type="hidden" name="version" value="{{.Version}}">{{end}}
+	{{if .Thread}}<div class="editor-ctx xg1">回复主题：<a href="{{threadURL .Thread.ID}}">{{.Thread.Title}}</a>{{if .Thread.Closed}}（已锁定）{{end}}</div>{{end}}
+	{{if .IsThreadOp}}
+	<div class="pbt cl">
+		<input type="text" name="subject" id="subject" class="px" value="{{.Subject}}" placeholder="请输入标题（最多 80 字）" maxlength="80" autocomplete="off">
+	</div>
+	{{end}}
+	<div class="editor">
+		<div class="bar cl">
+			<div class="btns z">
+				<button type="button" class="ebtn" data-act="bold" title="加粗 **文本**"><strong>B</strong></button>
+				<button type="button" class="ebtn" data-act="italic" title="斜体 *文本*"><em>I</em></button>
+				<button type="button" class="ebtn" data-act="strike" title="删除线 ~~文本~~"><s>S</s></button>
+				<button type="button" class="ebtn" data-act="quote" title="引用">&gt; 引用</button>
+				<button type="button" class="ebtn" data-act="code" title="行内代码">‹›</button>
+				<button type="button" class="ebtn" data-act="codeblock" title="代码块">{ }</button>
+				<button type="button" class="ebtn" data-act="ul" title="无序列表">• 列表</button>
+				<button type="button" class="ebtn" data-act="ol" title="有序列表">1. 列表</button>
+				<button type="button" class="ebtn" data-act="link" title="链接">链接</button>
+				{{if .UploadEnabled}}
+				<button type="button" class="ebtn" data-upload-btn title="上传图片（或直接粘贴）">图片⬆</button>
+				<button type="button" class="ebtn" data-uploadfile-btn title="上传附件（PDF/TXT/ZIP）">附件📎</button>
+				<input type="file" accept="image/jpeg,image/png,image/gif,image/webp" data-upload-input hidden>
+				<input type="file" accept=".pdf,.txt,.zip" data-uploadfile-input hidden>
+				{{end}}
+				<button type="button" class="ebtn" data-act="table" title="表格">表格</button>
+				<button type="button" class="ebtn" data-act="hr" title="分割线">――</button>
+			</div>
+			<div class="y">
+				<button type="button" class="pn" data-toggle="#smiley-panel">表情</button>
+				<button type="button" class="pn" data-toggle="#preview-box" data-preview>预览</button>
+			</div>
+		</div>
+		<div class="smiley-panel" id="smiley-panel" hidden>
+			{{range .Smileys}}
+			<div class="smiley-group">
+				<h4>{{.Name}}</h4>
+				<div class="smiley-grid">
+					{{range .Codes}}<button type="button" class="smiley-item" data-code="{{.Code}}" title="{{.Code}}">{{if smileyIsImg .}}<img src="{{smileyURL .}}" alt="{{.Code}}" loading="lazy" width="24" height="24">{{else}}<span class="emoji-face">{{.Unicode}}</span>{{end}}</button>{{end}}
+				</div>
+			</div>
+			{{end}}
+		</div>
+		<div class="area">
+			<textarea name="content" id="content" class="pt" rows="12" placeholder="支持 Markdown 语法：**加粗**、# 标题、> 引用、``` 代码块…">{{.Content}}</textarea>
+		</div>
+		<div class="preview-box" id="preview-box" hidden>
+			<h4>预览</h4>
+			<div class="preview-inner t_f" data-preview-html></div>
+		</div>
+		<div class="editor-foot cl">
+			<span class="xg1 y" data-charcount>0 字</span>
+			<span class="xg1 z">{{if not .UploadEnabled}}⚠ 站点已切换为仅外链模式，请使用外部图片/附件链接{{else if .DraftContext}}草稿已云端同步{{else}}草稿保存在本机{{end}}</span>
+		</div>
+	</div>
+	{{if .Error}}<div class="form-error">{{.Error}}</div>{{end}}
+	<div class="submit-row">
+		<button type="submit" class="pn pnc" id="postsubmit">{{if .IsThreadOp}}发布主题{{else if .Thread}}参与回复{{else}}保存修改{{end}}</button>
+	</div>
+</form>{{end}}

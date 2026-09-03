@@ -1,0 +1,24 @@
+{{define "content"}}
+<div class="admin-head"><h2>管理日志</h2></div>
+
+<div class="panel">
+	<table class="admin-table">
+		<thead><tr><th>时间</th><th>操作人</th><th>动作</th><th>详情</th><th>IP</th></tr></thead>
+		<tbody>
+		{{range .Logs}}
+		<tr>
+			<td class="xg1">{{timefmt .CreatedAt}}</td>
+			<td>{{.Username}}</td>
+			<td><code class="op-code">{{.Action}}</code></td>
+			<td class="detail-cell">{{.Detail}}</td>
+			<td class="xg1">{{.IP}}</td>
+		</tr>
+		{{else}}
+		<tr><td colspan="5" class="empty">暂无日志</td></tr>
+		{{end}}
+		</tbody>
+	</table>
+</div>
+
+{{if .Page}}<div class="pg">{{range .Page}}{{if .IsEllipsis}}<span class="dots">{{.Label}}</span>{{else if .Cur}}<strong>{{.Label}}</strong>{{else}}<a href="{{.URL}}">{{.Label}}</a>{{end}}{{end}}</div>{{end}}
+{{end}}

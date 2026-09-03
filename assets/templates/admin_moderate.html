@@ -1,0 +1,72 @@
+{{define "content"}}
+<div class="admin-head"><h2>审核队列</h2></div>
+
+<div class="panel">
+	<h3>待审核主题（{{len .Threads}}）</h3>
+	<table class="admin-table">
+		<thead><tr><th>标题</th><th>版块</th><th>作者</th><th>内容摘要</th><th>原因</th><th>提交时间</th><th class="ops-cell">操作</th></tr></thead>
+		<tbody>
+		{{range .Threads}}
+		<tr>
+			<td><a href="{{threadURL .Thread.ID}}" target="_blank">{{.Thread.Title}}</a></td>
+			<td class="xg1">{{.Thread.ForumID}}</td>
+			<td>{{.Thread.AuthorName}}</td>
+			<td class="detail-cell xg1">{{.Excerpt}}</td>
+			<td><span class="badge badge-sticky">{{reasonLabel .Thread.PendingReason}}</span></td>
+			<td class="xg1">{{timefmt .Thread.CreatedAt}}</td>
+			<td class="ops-cell">
+				<form method="post" action="/admin/moderate/thread" class="inlineform">
+					<input type="hidden" name="_csrf" value="{{$.CSRF}}">
+					<input type="hidden" name="tid" value="{{.Thread.ID}}">
+					<input type="hidden" name="op" value="approve">
+					<button type="submit" class="pn pn-sm pnc">通过</button>
+				</form>
+				<form method="post" action="/admin/moderate/thread" class="inlineform" data-confirm="不通过将删除该主题，确定吗？">
+					<input type="hidden" name="_csrf" value="{{$.CSRF}}">
+					<input type="hidden" name="tid" value="{{.Thread.ID}}">
+					<input type="hidden" name="op" value="delete">
+					<button type="submit" class="pn pn-sm pn-danger">删除</button>
+				</form>
+			</td>
+		</tr>
+		{{else}}
+		<tr><td colspan="7" class="empty">没有待审核的主题</td></tr>
+		{{end}}
+		</tbody>
+	</table>
+</div>
+
+<div class="panel">
+	<h3>待审核回复（{{len .Posts}}）</h3>
+	<table class="admin-table">
+		<thead><tr><th>所属主题</th><th>作者</th><th>内容摘要</th><th>原因</th><th>提交时间</th><th class="ops-cell">操作</th></tr></thead>
+		<tbody>
+		{{range .Posts}}
+		<tr>
+			<td><a href="{{threadURL .ThreadID}}" target="_blank">{{.ThreadTtl}}</a></td>
+			<td>{{.Post.AuthorName}}</td>
+			<td class="detail-cell xg1">{{.Post.ContentMD}}</td>
+			<td><span class="badge badge-sticky">{{reasonLabel .Post.PendingReason}}</span></td>
+			<td class="xg1">{{timefmt .Post.CreatedAt}}</td>
+			<td class="ops-cell">
+				<form method="post" action="/admin/moderate/post" class="inlineform">
+					<input type="hidden" name="_csrf" value="{{$.CSRF}}">
+					<input type="hidden" name="pid" value="{{.Post.ID}}">
+					<input type="hidden" name="op" value="approve">
+					<button type="submit" class="pn pn-sm pnc">通过</button>
+				</form>
+				<form method="post" action="/admin/moderate/post" class="inlineform" data-confirm="不通过将删除该回复，确定吗？">
+					<input type="hidden" name="_csrf" value="{{$.CSRF}}">
+					<input type="hidden" name="pid" value="{{.Post.ID}}">
+					<input type="hidden" name="op" value="delete">
+					<button type="submit" class="pn pn-sm pn-danger">删除</button>
+				</form>
+			</td>
+		</tr>
+		{{else}}
+		<tr><td colspan="6" class="empty">没有待审核的回复</td></tr>
+		{{end}}
+		</tbody>
+	</table>
+</div>
+{{end}}

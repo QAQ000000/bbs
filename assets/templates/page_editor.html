@@ -1,0 +1,19 @@
+{{define "content"}}
+<div id="pt" class="bm cl"><div class="z">
+	<a href="/" class="nvhm">{{.SiteName}}</a> <em>›</em>
+	{{if .Forum}}<a href="{{forumURL .Forum.ID}}">{{.Forum.Name}}</a> <em>›</em>{{end}}
+	{{if .Thread}}<a href="{{threadURL .Thread.ID}}" class="ellip">{{.Thread.Title}}</a> <em>›</em>{{end}}
+	<span>{{.Common.Title}}</span>
+</div></div>
+
+<div id="ct" class="wp cl">
+	<div class="mn">
+		<div class="bm bmw">
+			<div class="bm_h"><h2>{{.Common.Title}}</h2></div>
+			<div class="bm_c">
+				{{template "editor" .}}
+			</div>
+		</div>
+	</div>
+</div>
+{{end}}

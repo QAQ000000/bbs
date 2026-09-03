@@ -1,0 +1,30 @@
+{{define "content"}}
+<div id="pt" class="bm cl"><div class="z">
+	<a href="/" class="nvhm">{{.SiteName}}</a> <em>›</em> <span>搜索</span>
+</div></div>
+
+<div id="ct" class="wp cl">
+	<div class="mn">
+		<div class="bm bmw">
+			<div class="bm_h"><h2>搜索{{if .Q}}："{{.Q}}"（{{len .Hits}} / 共 {{.PageNum}} 页结果）{{end}}</h2></div>
+			<div class="bm_c">
+				{{if not .Q}}
+					<p class="xg1">输入关键词搜索全部帖子。支持中文与英文。</p>
+				{{else if .Hits}}
+					{{range .Hits}}
+					<div class="search-hit">
+						<h3><a href="{{threadURL .ThreadID}}" class="xst">{{.Title}}</a></h3>
+						<p class="excerpt">{{safeHTML .Excerpt}}</p>
+						<p class="xg1"><a href="{{forumURL .ForumID}}">{{.ForumName}}</a><span class="pipe">|</span>{{.AuthorName}}<span class="pipe">|</span>{{timefmt .CreatedAt}}</p>
+					</div>
+					{{end}}
+				{{else}}
+					<p class="xg1">没有找到与"{{.Q}}"相关的内容。</p>
+				{{end}}
+			</div>
+		</div>
+
+		{{if .Page}}<div class="pgs bm bw0 cl"><div class="y pg">{{template "pagination" .}}</div></div>{{end}}
+	</div>
+</div>
+{{end}}

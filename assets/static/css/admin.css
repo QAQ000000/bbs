@@ -1,0 +1,81 @@
+/* GoBBS 管理后台样式（叠加在 app.css 之上） */
+
+.admin-body { background: #eef1f5; }
+
+#admin-hd { background: #223140; color: #cfd8e0; }
+#admin-hd .admin-hd-wp { margin: 0 auto; width: 1280px; max-width: 97vw; padding: 10px 0; font-size: 13px; }
+#admin-hd a, #admin-hd .linklike { color: #cfd8e0; }
+#admin-hd a:hover { color: #fff; }
+#admin-hd .logo-go { color: #4a9ce8; font-weight: 800; }
+#admin-hd .logo-bbs { font-weight: 800; color: #fff; }
+#admin-hd .admin-tag { font-size: 12px; color: #8fa4b8; margin-left: 6px; }
+#admin-hd .admin-user { color: #fff; font-weight: 600; }
+
+.admin-wrap { margin: 15px auto 30px; width: 1280px; max-width: 97vw; min-height: 70vh; }
+#admin-menu { width: 180px; float: left; background: #fff; border: 1px solid var(--c-border); border-radius: var(--radius); overflow: hidden; }
+#admin-menu ul { list-style: none; margin: 0; padding: 0; }
+#admin-menu a { display: block; padding: 11px 18px; color: var(--c-text); font-size: 14px; border-left: 3px solid transparent; }
+#admin-menu a:hover { background: #f4f7fa; text-decoration: none; }
+#admin-menu li.a a { background: #eef4fa; border-left-color: var(--c-primary); color: var(--c-primary); font-weight: 600; }
+
+#admin-main { margin-left: 195px; }
+.admin-head { margin: 4px 0 12px; }
+.admin-head h2 { font-size: 19px; }
+.search-form { margin: 0 0 8px; }
+
+.panel { background: #fff; border: 1px solid var(--c-border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 14px; }
+.panel h3 { font-size: 14px; color: #46525f; margin-bottom: 10px; }
+.admin-grid { display: block; }
+.admin-grid .panel.z { width: calc(50% - 7px); }
+.admin-grid .panel + .panel.z { margin-left: 14px; }
+
+.stat-cards { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 14px; }
+.stat-cards .card {
+	flex: 1; min-width: 130px; background: #fff; border: 1px solid var(--c-border);
+	border-radius: var(--radius); padding: 14px 16px; text-align: center;
+}
+.stat-cards .card em { display: block; font-size: 26px; font-weight: 700; color: var(--c-primary); font-style: normal; }
+.stat-cards .card span { font-size: 12px; color: var(--c-text-sub); }
+
+.admin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.admin-table th {
+	text-align: left; font-weight: 400; color: var(--c-text-sub); font-size: 12px;
+	padding: 7px 8px; border-bottom: 1px solid var(--c-border); white-space: nowrap;
+}
+.admin-table td { padding: 8px; border-bottom: 1px dashed #eef1f5; vertical-align: middle; }
+.admin-table tbody tr:hover { background: #fafcfe; }
+.admin-table .empty { text-align: center; color: var(--c-text-sub); padding: 24px 0; }
+.ops-cell { white-space: nowrap; }
+.ops-cell .inline-form { display: inline-flex; align-items: center; gap: 4px; margin: 2px 0; }
+.detail-cell { max-width: 380px; overflow-wrap: anywhere; }
+.op-code { background: #f4f6f8; border-radius: 3px; padding: 1px 6px; font-size: 12px; }
+
+.pn-sm { padding: 3px 10px; font-size: 12px; }
+.pn-danger { color: #b03030; border-color: #e7c3c1; }
+.pn-danger:hover { background: #fdeaea; border-color: #b03030; color: #b03030; }
+.px-inline { width: auto; min-width: 60px; padding: 4px 8px; font-size: 13px; }
+.px-auto { width: auto; }
+.px-num { width: 90px; }
+.px-wide { width: 280px; }
+.inline-form { display: inline-flex; align-items: center; gap: 6px; margin: 0; }
+.cat-row { margin-bottom: 8px; }
+
+.kv { width: 100%; border-collapse: collapse; font-size: 13px; }
+.kv th { text-align: left; color: var(--c-text-sub); font-weight: 400; padding: 7px 10px; width: 140px; white-space: nowrap; }
+.kv td { padding: 7px 0; }
+.form-kv th { width: 180px; }
+
+.batch-bar { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--c-border); }
+.batch-bar select { min-width: 160px; }
+.batch-bar .z { display: flex; gap: 8px; align-items: center; }
+
+.quick-links { list-style: none; margin: 0; padding: 0; }
+.quick-links li { padding: 6px 0; border-bottom: 1px dashed #eef1f5; }
+.quick-links li:last-child { border-bottom: 0; }
+
+@media (max-width: 900px) {
+	#admin-menu { width: 100%; float: none; margin-bottom: 12px; }
+	#admin-menu a { padding: 9px 14px; }
+	#admin-main { margin-left: 0; }
+	.admin-grid .panel.z { width: 100%; float: none; margin-left: 0; }
+}

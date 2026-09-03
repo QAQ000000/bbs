@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>后台 - {{if .Title}}{{.Title}} - {{end}}{{.SiteName}}</title>
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/css/app.css">
+<link rel="stylesheet" href="/static/css/admin.css">
+</head>
+<body class="admin-body">
+
+<div id="admin-hd"><div class="admin-hd-wp cl">
+	<div class="z"><span class="logo-go">Go</span><span class="logo-bbs">!BBS</span> <em class="admin-tag">管理后台</em></div>
+	<div class="y">
+		{{if .User}}<span class="admin-user">{{.User.Username}}</span><span class="pipe">|</span>{{end}}
+		<a href="/" target="_blank">访问站点 ↗</a>
+		<form method="post" action="/logout" class="inlineform"><input type="hidden" name="_csrf" value="{{.CSRF}}"><button type="submit" class="linklike">退出</button></form>
+	</div>
+</div></div>
+
+<div class="admin-wrap cl">
+	<div id="admin-menu" class="z">
+		<ul>
+			<li{{if eq .NavActive "dash"}} class="a"{{end}}><a href="/admin">仪表盘</a></li>
+			<li{{if eq .NavActive "moderate"}} class="a"{{end}}><a href="/admin/moderate">审核队列</a></li>
+			<li{{if eq .NavActive "threads"}} class="a"{{end}}><a href="/admin/threads">内容管理</a></li>
+			<li{{if eq .NavActive "prune"}} class="a"{{end}}><a href="/admin/prune">批量删帖</a></li>
+			<li{{if eq .NavActive "recycle"}} class="a"{{end}}><a href="/admin/recyclebin">回收站</a></li>
+			{{if .User.IsAdmin}}
+			<li{{if eq .NavActive "forums"}} class="a"{{end}}><a href="/admin/forums">版块管理</a></li>
+			<li{{if eq .NavActive "users"}} class="a"{{end}}><a href="/admin/users">用户管理</a></li>
+			<li{{if eq .NavActive "settings"}} class="a"{{end}}><a href="/admin/settings">站点设置</a></li>
+			<li{{if eq .NavActive "censor"}} class="a"{{end}}><a href="/admin/censor">敏感词</a></li>
+			<li{{if eq .NavActive "announce"}} class="a"{{end}}><a href="/admin/announcements">公告</a></li>
+			<li{{if eq .NavActive "logs"}} class="a"{{end}}><a href="/admin/logs">管理日志</a></li>
+			{{end}}
+		</ul>
+	</div>
+	<div id="admin-main">
+		{{with .Flash}}<div class="flash" data-flash>{{.}}</div>{{end}}
+		{{template "content" .}}
+	</div>
+</div>
+
+<script src="/static/js/app.js" defer></script>
+</body>
+</html>

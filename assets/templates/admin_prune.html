@@ -1,0 +1,44 @@
+{{define "content"}}
+<div class="admin-head"><h2>批量删帖</h2></div>
+
+<div class="form-error" style="margin-bottom:12px">⚠️ 此操作影响面大，请谨慎填写条件。删除的主题进入回收站可恢复；删除的回复直接软删（楼层号保留空洞）。无条件提交会被拒绝。</div>
+
+<div class="admin-grid cl">
+	<div class="panel z">
+		<h3>批量删除主题</h3>
+		<form method="post" action="/admin/prune/execute" class="settings-form">
+			<input type="hidden" name="_csrf" value="{{.CSRF}}">
+			<input type="hidden" name="kind" value="thread">
+			<table class="kv form-kv">
+				<tr><th>作者用户名</th><td><input type="text" name="author" class="px px-inline"></td></tr>
+				<tr><th>标题包含</th><td><input type="text" name="keyword" class="px px-inline"></td></tr>
+				<tr><th>限定版块</th>
+					<td><select name="forum" class="px px-inline px-auto">
+						<option value="0">全部版块</option>
+						{{range .Categories}}{{range .Forums}}<option value="{{.ID}}">{{.Name}}</option>{{end}}{{end}}
+					</select></td></tr>
+				<tr><th>删除 N 天前</th><td><input type="number" name="days" min="0" class="px px-inline px-num" placeholder="如 30（选填）"></td></tr>
+			</table>
+			<div class="submit-row"><button type="submit" class="pn pn-danger" data-confirm="确定按以上条件批量删除主题吗？">执行删除主题</button></div>
+		</form>
+	</div>
+
+	<div class="panel z">
+		<h3>批量删除回复</h3>
+		<form method="post" action="/admin/prune/execute" class="settings-form">
+			<input type="hidden" name="_csrf" value="{{.CSRF}}">
+			<input type="hidden" name="kind" value="post">
+			<table class="kv form-kv">
+				<tr><th>作者用户名</th><td><input type="text" name="author" class="px px-inline"></td></tr>
+				<tr><th>限定版块</th>
+					<td><select name="forum" class="px px-inline px-auto">
+						<option value="0">全部版块</option>
+						{{range .Categories}}{{range .Forums}}<option value="{{.ID}}">{{.Name}}</option>{{end}}{{end}}
+					</select></td></tr>
+				<tr><th>删除 N 天前</th><td><input type="number" name="days" min="0" class="px px-inline px-num" placeholder="如 30（选填）"></td></tr>
+			</table>
+			<div class="submit-row"><button type="submit" class="pn pn-danger" data-confirm="确定按以上条件批量删除回复吗？">执行删除回复</button></div>
+		</form>
+	</div>
+</div>
+{{end}}
