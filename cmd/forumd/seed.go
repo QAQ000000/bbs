@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+// seed.go：演示数据灌入（-seed；仅库为空时执行）。
 package main
 
 import (

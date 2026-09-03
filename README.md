@@ -85,6 +85,9 @@ data/
 
 ## 部署运维
 
+完整的生产部署手册（systemd、备份/恢复脚本、nginx 配置、升级流程、上线检查单）
+见 [docs/DEPLOY.md](docs/DEPLOY.md)。要点：
+
 **systemd 单元**（`/etc/systemd/system/gobbs.service`）：
 
 ```ini

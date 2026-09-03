@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+// store/moderate.go：发帖审核队列与批量删帖（事务内重算计数）、版主管辖范围。
 package store
 
 import (
@@ -134,8 +135,9 @@ func (s *Store) PrunePosts(ctx context.Context, author string, forumID int64, be
 	defer tx.Rollback(ctx)
 
 	var n int64
-	// 单条 CTE 链：定位目标 → 软删 → 基于实际删除的行重算主题与版块计数。
-	// （若重算复用 target 的过滤条件，删除后行已不可见，会导致重算被跳过）
+	// 单条 CTE 链：定位目标 → 软删 → 差值递减计数。
+	// 注意：同一语句内各 CTE 共享语句开始时的快照，重算不能依赖删除后的可见性，
+	// 因此用 RETURNING 的删除行数做差值，而非重新 count。
 	if err := tx.QueryRow(ctx, `
 		WITH target AS (
 			SELECT p.id, p.thread_id FROM posts p
@@ -143,24 +145,21 @@ func (s *Store) PrunePosts(ctx context.Context, author string, forumID int64, be
 			JOIN users u ON u.id = p.author_id`+w+`
 		), del AS (
 			UPDATE posts SET deleted=true WHERE id IN (SELECT id FROM target)
-			RETURNING id, thread_id
+			RETURNING thread_id
 		), affected AS (
-			SELECT DISTINCT thread_id FROM del
+			SELECT thread_id, count(*) AS removed FROM del GROUP BY thread_id
 		), upd_threads AS (
-			UPDATE threads t SET post_count = (
-				SELECT count(*) FROM posts p WHERE p.thread_id=t.id AND NOT p.deleted)
-			WHERE t.id IN (SELECT thread_id FROM affected)
-			RETURNING forum_id
+			UPDATE threads t SET post_count = GREATEST(t.post_count - a.removed, 0)
+			FROM affected a WHERE t.id = a.thread_id
+			RETURNING t.forum_id, a.removed
 		), affected_forums AS (
-			SELECT DISTINCT forum_id FROM upd_threads
+			SELECT forum_id, sum(removed) AS removed FROM upd_threads GROUP BY forum_id
 		), upd_forums AS (
-			UPDATE forums f SET post_count = (
-				SELECT coalesce(sum(t.post_count),0) FROM threads t
-				WHERE t.forum_id=f.id AND NOT t.deleted)
-			WHERE f.id IN (SELECT forum_id FROM affected_forums)
+			UPDATE forums f SET post_count = GREATEST(f.post_count - a.removed, 0)
+			FROM affected_forums a WHERE f.id = a.forum_id
 			RETURNING 1
 		)
-		SELECT count(*) FROM del`).Scan(&n); err != nil {
+		SELECT (SELECT count(*) FROM del)`, args...).Scan(&n); err != nil {
 		return 0, err
 	}
 	if err := tx.Commit(ctx); err != nil {

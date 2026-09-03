@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+// store/settings.go：站点设置 KV 的类型化读取与 30s 进程内缓存。
 package store
 
 import (

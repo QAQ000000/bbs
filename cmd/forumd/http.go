@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+// http.go：HTTP 服务器参数（超时与 SSE 长连接的写策略）。
 package main
 
 import (

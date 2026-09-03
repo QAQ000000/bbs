@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+// store/forum.go：版块/分类/主题/楼层的读取查询（列表页与帖子页）。
 package store
 
 import (

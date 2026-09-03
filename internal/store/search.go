@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+// store/search.go：tsvector 全文搜索（中文 bigram 分词）、阅读打点与信任等级升级。
 package store
 
 import (

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+// store/write.go：写操作事务（发主题/回帖/编辑/删除），维护反范式计数一致性。
 package store
 
 import (

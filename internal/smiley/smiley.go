@@ -134,11 +134,13 @@ func Match(s string) (Code, int, bool) {
 			}
 		}
 		customMu.RUnlock()
+		for code, c := range builtinByCode {
+			if len(code) > bestLen && strings.HasPrefix(s, code) && codeEnds(s, len(code)) {
+				best, bestLen = c, len(code)
+			}
+		}
 		if bestLen > 0 {
 			return best, bestLen, true
-		}
-		if c, ok := builtinByCode[s]; ok && codeEnds(s, len(c.Code)) {
-			return c, len(c.Code), true
 		}
 	}
 	return Code{}, 0, false

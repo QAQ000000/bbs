@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+// store/govern.go：回收站（恢复/彻底删除）、公告、敏感词过滤。
 package store
 
 import (

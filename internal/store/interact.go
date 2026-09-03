@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+// store/interact.go：点赞（统一动作表+计数回写）与服务端草稿。
 package store
 
 import (

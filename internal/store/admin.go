@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+// store/admin.go：后台管理数据访问（版块/用户/内容批量操作/审计日志/仪表盘统计）。
 package store
 
 import (

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+// store/cache.go：进程内缓存（会话 30s 正负缓存、用户名缓存），省每请求一次 DB 往返。
 package store
 
 import (

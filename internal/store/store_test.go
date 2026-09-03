@@ -1,0 +1,253 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+// store 集成测试：对独立测试库（forum_test）验证关键写路径的计数一致性。
+// 默认 DSN 可用 FORUM_TEST_DSN 覆盖；数据库不可达时跳过。
+
+package store
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"testing"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"dzforum/internal/db"
+)
+
+var testStore *Store
+var testPool poolCloser
+
+type poolCloser interface {
+	Close()
+}
+
+func TestMain(m *testing.M) {
+	dsn := os.Getenv("FORUM_TEST_DSN")
+	if dsn == "" {
+		dsn = "postgres://123456:123456@127.0.0.1:5432/forum_test"
+	}
+	ctx := context.Background()
+	pool, err := db.Open(ctx, dsn)
+	if err != nil {
+		fmt.Println("SKIP: 测试数据库不可达（", err, "）")
+		os.Exit(0)
+	}
+	testPool = pool
+	// 全量重建 schema
+	if _, err := pool.Exec(ctx, `DROP SCHEMA public CASCADE; CREATE SCHEMA public;`); err != nil {
+		fmt.Println("SKIP: 无法重置测试库:", err)
+		os.Exit(0)
+	}
+	if err := db.Migrate(ctx, pool); err != nil {
+		fmt.Println("FATAL: 迁移失败:", err)
+		os.Exit(1)
+	}
+	testStore = New(pool)
+	code := m.Run()
+	testPool.Close()
+	os.Exit(code)
+}
+
+// setupUsers 建两个测试用户，返回 id。
+func setupUsers(t *testing.T) (int64, int64) {
+	t.Helper()
+	u1, err := testStore.CreateUser(context.Background(), "作者"+t.Name(), "pass123456", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	u2, err := testStore.CreateUser(context.Background(), "回复者"+t.Name(), "pass123456", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return u1.ID, u2.ID
+}
+
+func setupForum(t *testing.T) int64 {
+	t.Helper()
+	var fid int64
+	if err := testStore.pool.QueryRow(context.Background(),
+		`INSERT INTO categories (name) VALUES ('测试分类') RETURNING id`).Scan(new(int)); err != nil {
+		t.Fatal(err)
+	}
+	if err := testStore.pool.QueryRow(context.Background(),
+		`INSERT INTO forums (category_id, name) VALUES (1,'测试版块') RETURNING id`).Scan(&fid); err != nil {
+		t.Fatal(err)
+	}
+	return fid
+}
+
+func TestThreadCounters(t *testing.T) {
+	ctx := context.Background()
+	author, replier := setupUsers(t)
+	fid := setupForum(t)
+
+	th, p, err := testStore.CreateThread(ctx, fid, author, "作者", "计数主题", "首楼 :smile:", "<p>首楼</p>", false, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if th.PostCount != 1 {
+		t.Fatalf("新主题 post_count 应为 1: %d", th.PostCount)
+	}
+	if p.Floor != 1 || p.Version != 1 {
+		t.Fatalf("首楼 floor/version: %d/%d", p.Floor, p.Version)
+	}
+
+	// 两条回复：楼层号递增、post_count 一致
+	for i := 0; i < 2; i++ {
+		th2, p2, err := testStore.CreateReply(ctx, th.ID, replier, "回复者", fmt.Sprintf("回复%d", i), "<p>r</p>", false, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if p2.Floor != i+2 || th2.PostCount != i+2 {
+			t.Fatalf("回复%d: floor=%d post_count=%d", i, p2.Floor, th2.PostCount)
+		}
+	}
+
+	// 版块计数
+	var tc, pc int64
+	if err := testStore.pool.QueryRow(ctx,
+		`SELECT thread_count, post_count FROM forums WHERE id=$1`, fid).Scan(&tc, &pc); err != nil {
+		t.Fatal(err)
+	}
+	if tc != 1 || pc != 3 {
+		t.Fatalf("版块计数: thread=%d post=%d，期望 1/3", tc, pc)
+	}
+
+	// 编辑：版本号自增
+	p1, _ := testStore.Post(ctx, p.ID)
+	_, thUp, err := testStore.UpdatePost(ctx, p.ID, "计数主题（改）", "改后内容", "<p>改</p>")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if thUp.Title != "计数主题（改）" {
+		t.Fatalf("首楼编辑应同步主题标题: %s", thUp.Title)
+	}
+	pAfter, _ := testStore.Post(ctx, p1.ID)
+	if pAfter.Version != 2 {
+		t.Fatalf("编辑后版本应为 2: %d", pAfter.Version)
+	}
+
+	// 删除一条回复：计数同步
+	posts, _ := testStore.Posts(ctx, th.ID, 1, 10, true)
+	if _, _, err := testStore.DeletePost(ctx, posts[2].ID); err != nil {
+		t.Fatal(err)
+	}
+	th3, _ := testStore.Thread(ctx, th.ID)
+	if th3.PostCount != 2 {
+		t.Fatalf("删回复后 post_count 应为 2: %d", th3.PostCount)
+	}
+}
+
+func TestPrunePostsRecompute(t *testing.T) {
+	ctx := context.Background()
+	author, replier := setupUsers(t)
+	fid := setupForum(t)
+
+	th, _, err := testStore.CreateThread(ctx, fid, author, "作者", "批量删帖", "首楼", "<p>x</p>", false, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 3; i++ {
+		if _, _, err := testStore.CreateReply(ctx, th.ID, replier, "回复者", "待删", "<p>y</p>", false, ""); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// 无条件拒绝
+	if _, err := testStore.PrunePosts(ctx, "", 0, 0); err == nil {
+		t.Fatal("无条件批量删除应被拒绝")
+	}
+	n, err := testStore.PrunePosts(ctx, "回复者"+t.Name(), 0, 0)
+	if err != nil || n != 3 {
+		t.Fatalf("应删 3 条: n=%d err=%v", n, err)
+	}
+	// 计数一致
+	th2, _ := testStore.Thread(ctx, th.ID)
+	if th2.PostCount != 1 {
+		t.Fatalf("批量删后 post_count 应为 1: %d", th2.PostCount)
+	}
+	var pc int64
+	if err := testStore.pool.QueryRow(ctx, `SELECT post_count FROM forums WHERE id=$1`, fid).Scan(&pc); err != nil {
+		t.Fatal(err)
+	}
+	if pc != 1 {
+		t.Fatalf("版块 post_count 应为 1: %d", pc)
+	}
+}
+
+func TestLikeToggleAndRead(t *testing.T) {
+	ctx := context.Background()
+	author, reader := setupUsers(t)
+	fid := setupForum(t)
+
+	th, p, err := testStore.CreateThread(ctx, fid, author, "作者", "点赞主题", "内容", "<p>c</p>", false, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 赞 → 取消
+	liked, count, err := testStore.LikeToggle(ctx, p.ID, reader)
+	if err != nil || !liked || count != 1 {
+		t.Fatalf("首次点赞: liked=%v count=%d err=%v", liked, count, err)
+	}
+	liked, count, err = testStore.LikeToggle(ctx, p.ID, reader)
+	if err != nil || liked || count != 0 {
+		t.Fatalf("取消点赞: liked=%v count=%d err=%v", liked, count, err)
+	}
+	// 阅读打点 + 信任等级升级（0→1：3 天 + 20 帖）
+	if _, err := testStore.pool.Exec(ctx,
+		`UPDATE users SET days_visited=3, posts_read=18 WHERE id=$1`, reader); err != nil {
+		t.Fatal(err)
+	}
+	testStore.RecordRead(ctx, reader, th.ID, 1) // +1 → 19
+	testStore.RecordRead(ctx, reader, th.ID, 1) // 重复读，不增加
+	testStore.RecordRead(ctx, reader, th.ID, 2) // +1 → 20 达标
+	testStore.MaybeUpgradeTrust(ctx, reader)    // 帖子页视角的升级检查
+	var tl int
+	var reads int64
+	if err := testStore.pool.QueryRow(ctx,
+		`SELECT trust_level, posts_read FROM users WHERE id=$1`, reader).Scan(&tl, &reads); err != nil {
+		t.Fatal(err)
+	}
+	if reads != 20 || tl != 1 {
+		t.Fatalf("阅读后 read=%d tl=%d，期望 20/1", reads, tl)
+	}
+}
+
+func TestSearch(t *testing.T) {
+	ctx := context.Background()
+	author, _ := setupUsers(t)
+	fid := setupForum(t)
+
+	th, p, err := testStore.CreateThread(ctx, fid, author, "作者", "搜索引擎测试主题", "这是关于稀疏索引与倒排的内容", "<p>x</p>", false, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = th
+	// 清空索引后重建（验证存量补齐路径）
+	if _, err := testPool.(*pgxpool.Pool).Exec(ctx, `UPDATE posts SET search_data=NULL`); err != nil {
+		t.Fatal(err)
+	}
+	if n, err := testStore.ReindexSearch(ctx); err != nil || n == 0 {
+		t.Fatalf("重建索引: n=%d err=%v", n, err)
+	}
+	// 中文命中（bigram）
+	hits, total, err := testStore.Search(ctx, "搜索引擎", 1, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if total == 0 || len(hits) == 0 || hits[0].ThreadID != th.ID {
+		t.Fatalf("中文搜索未命中: total=%d", total)
+	}
+	// 英文命中
+	hits, _, err = testStore.Search(ctx, "倒排", 1, 10)
+	if err != nil || len(hits) == 0 {
+		t.Fatalf("命中查询失败: %v", err)
+	}
+	// 无关词
+	_, total, _ = testStore.Search(ctx, "完全不相关的词组", 1, 10)
+	if total != 0 {
+		t.Fatalf("无关词不应命中: %d", total)
+	}
+	_ = p
+}

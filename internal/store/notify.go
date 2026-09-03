@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+// store/notify.go：上传记录与站内通知（@提及）。
 package store
 
 import (
