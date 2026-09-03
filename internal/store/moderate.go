@@ -11,8 +11,13 @@ import (
 
 // ---- 发帖审核（阶段三）----
 
-// SetThreadApproved 审核通过主题（连同其待审核楼层）。
+// SetThreadApproved 审核通过主题（连同其待审核楼层），
+// 待审核内容自此进入公开口径：回补作者计数并重算主题/版块统计。
 func (s *Store) SetThreadApproved(ctx context.Context, tid int64) error {
+	authors, err := s.ApproveThreadPendingAuthors(ctx, tid)
+	if err != nil {
+		return err
+	}
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return err
@@ -24,7 +29,20 @@ func (s *Store) SetThreadApproved(ctx context.Context, tid int64) error {
 	if _, err := tx.Exec(ctx, `UPDATE posts SET pending=false WHERE thread_id=$1 AND pending`, tid); err != nil {
 		return err
 	}
-	return tx.Commit(ctx)
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+	for _, a := range authors {
+		_ = s.BumpUsersPostCount(ctx, a.UID, int64(a.Count))
+	}
+	if err := s.RecomputeThreadLastPost(ctx, tid); err != nil {
+		return err
+	}
+	var fid int64
+	if err := s.pool.QueryRow(ctx, `SELECT forum_id FROM threads WHERE id=$1`, tid).Scan(&fid); err != nil {
+		return err
+	}
+	return s.RecomputeForumStats(ctx, fid)
 }
 
 func (s *Store) SetPostApproved(ctx context.Context, pid int64) error {
@@ -135,6 +153,7 @@ func (s *Store) PrunePosts(ctx context.Context, author string, forumID int64, be
 	defer tx.Rollback(ctx)
 
 	var n int64
+	var affectedThreadIDs []int64
 	// 单条 CTE 链：定位目标 → 软删 → 差值递减计数。
 	// 注意：同一语句内各 CTE 共享语句开始时的快照，重算不能依赖删除后的可见性，
 	// 因此用 RETURNING 的删除行数做差值，而非重新 count。
@@ -152,12 +171,6 @@ func (s *Store) PrunePosts(ctx context.Context, author string, forumID int64, be
 			UPDATE threads t SET post_count = GREATEST(t.post_count - a.removed, 0)
 			FROM affected a WHERE t.id = a.thread_id
 			RETURNING t.forum_id, a.removed
-		), affected_forums AS (
-			SELECT forum_id, sum(removed) AS removed FROM upd_threads GROUP BY forum_id
-		), upd_forums AS (
-			UPDATE forums f SET post_count = GREATEST(f.post_count - a.removed, 0)
-			FROM affected_forums a WHERE f.id = a.forum_id
-			RETURNING 1
 		), affected_users AS (
 			SELECT author_id, count(*) AS removed FROM del GROUP BY author_id
 		), upd_users AS (
@@ -165,11 +178,18 @@ func (s *Store) PrunePosts(ctx context.Context, author string, forumID int64, be
 			FROM affected_users a WHERE u.id = a.author_id
 			RETURNING 1
 		)
-		SELECT (SELECT count(*) FROM del)`, args...).Scan(&n); err != nil {
+		SELECT (SELECT count(*) FROM del), COALESCE((SELECT array_agg(DISTINCT thread_id) FROM del), '{}')`, args...).Scan(&n, &affectedThreadIDs); err != nil {
 		return 0, err
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return 0, err
+	}
+	// 受影响版块的公开口径统计（含最后发表）统一重算
+	for _, tid := range affectedThreadIDs {
+		var fid int64
+		if err := s.pool.QueryRow(ctx, `SELECT forum_id FROM threads WHERE id=$1`, tid).Scan(&fid); err == nil {
+			_ = s.RecomputeForumStats(ctx, fid)
+		}
 	}
 	return n, nil
 }

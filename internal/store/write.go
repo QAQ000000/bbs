@@ -15,8 +15,6 @@ import (
 // $1 版块, $2 用户, $3 用户名, $4 主题id, $5 主题标题, $6 是否同时 +主题数
 const bumpForumSQL = `UPDATE forums SET
 	post_count = post_count + 1,
-	today_count = CASE WHEN today_date = current_date THEN today_count + 1 ELSE 1 END,
-	today_date = current_date,
 	last_post_at = now(),
 	last_post_uid = $2,
 	last_post_author = $3,
@@ -50,11 +48,13 @@ func (s *Store) CreateThread(ctx context.Context, forumID, authorID int64, autho
 	if _, err := tx.Exec(ctx, `UPDATE threads SET first_post_id=$1, post_count=1 WHERE id=$2`, pid, tid); err != nil {
 		return nil, nil, err
 	}
-	if _, err := tx.Exec(ctx, bumpForumSQL, forumID, authorID, authorName, tid, title, true); err != nil {
-		return nil, nil, err
-	}
-	if _, err := tx.Exec(ctx, `UPDATE users SET post_count=post_count+1 WHERE id=$1`, authorID); err != nil {
-		return nil, nil, err
+	if !pending {
+		if _, err := tx.Exec(ctx, bumpForumSQL, forumID, authorID, authorName, tid, title, true); err != nil {
+			return nil, nil, err
+		}
+		if _, err := tx.Exec(ctx, `UPDATE users SET post_count=post_count+1 WHERE id=$1`, authorID); err != nil {
+			return nil, nil, err
+		}
 	}
 
 	if err := tx.Commit(ctx); err != nil {
@@ -104,11 +104,13 @@ func (s *Store) CreateReply(ctx context.Context, threadID, authorID int64, autho
 	if err := tx.QueryRow(ctx, `SELECT name FROM forums WHERE id=$1`, th.ForumID).Scan(&forum.Name); err != nil {
 		return nil, nil, err
 	}
-	if _, err := tx.Exec(ctx, bumpForumSQL, th.ForumID, authorID, authorName, threadID, th.Title, false); err != nil {
-		return nil, nil, err
-	}
-	if _, err := tx.Exec(ctx, `UPDATE users SET post_count=post_count+1 WHERE id=$1`, authorID); err != nil {
-		return nil, nil, err
+	if !pending {
+		if _, err := tx.Exec(ctx, bumpForumSQL, th.ForumID, authorID, authorName, threadID, th.Title, false); err != nil {
+			return nil, nil, err
+		}
+		if _, err := tx.Exec(ctx, `UPDATE users SET post_count=post_count+1 WHERE id=$1`, authorID); err != nil {
+			return nil, nil, err
+		}
 	}
 
 	if err := tx.Commit(ctx); err != nil {
@@ -210,17 +212,10 @@ func (s *Store) DeletePost(ctx context.Context, postID int64) (deletedThread boo
 			WHERE u.id = x.author_id`, tid); err != nil {
 			return false, 0, err
 		}
-		var pc int
-		if err := tx.QueryRow(ctx, `SELECT post_count FROM threads WHERE id=$1`, tid).Scan(&pc); err != nil {
-			return false, 0, err
-		}
-		if _, err := tx.Exec(ctx, `UPDATE forums SET thread_count=thread_count-1, post_count=post_count-$2 WHERE id=$1`,
-			forumID, pc); err != nil {
-			return false, 0, err
-		}
 		if err := tx.Commit(ctx); err != nil {
 			return false, 0, err
 		}
+		_ = s.RecomputeForumStats(ctx, forumID)
 		return true, tid, nil
 	}
 
@@ -234,11 +229,12 @@ func (s *Store) DeletePost(ctx context.Context, postID int64) (deletedThread boo
 	if _, err := tx.Exec(ctx, `UPDATE threads SET post_count=post_count-1 WHERE id=$1`, tid); err != nil {
 		return false, 0, err
 	}
-	if _, err := tx.Exec(ctx, `UPDATE forums SET post_count=post_count-1 WHERE id=(SELECT forum_id FROM threads WHERE id=$1)`, tid); err != nil {
-		return false, 0, err
-	}
 	if err := tx.Commit(ctx); err != nil {
 		return false, 0, err
+	}
+	var forumID2 int64
+	if err := s.pool.QueryRow(ctx, `SELECT forum_id FROM threads WHERE id=$1`, tid).Scan(&forumID2); err == nil {
+		_ = s.RecomputeForumStats(ctx, forumID2)
 	}
 	return false, tid, nil
 }

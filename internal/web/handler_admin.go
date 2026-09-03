@@ -174,14 +174,16 @@ func (s *Server) adminUsers(w http.ResponseWriter, r *http.Request) {
 	if totalPage < 1 {
 		totalPage = 1
 	}
+	viewer := User(r)
 	data := struct {
 		Common
 		Users     []*store.AdminUser
 		Keyword   string
+		ViewerID  int64
 		Page      []PageItem
 		PageNum   int
 		TotalPage int
-	}{s.adminCommon(r, "users"), users, kw, nil, page, totalPage}
+	}{s.adminCommon(r, "users"), users, kw, viewer.ID, nil, page, totalPage}
 	data.Page = BuildPage(page, totalPage, func(n int) string {
 		u := "/admin/users?"
 		if kw != "" {

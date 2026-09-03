@@ -15,7 +15,7 @@
 		{{range .Users}}
 		<tr id="urow{{.ID}}">
 			<td class="xg1">{{.ID}}</td>
-			<td><a href="{{userURL .ID}}" target="_blank">{{.Username}}</a></td>
+			<td><a href="{{userURL .ID}}" target="_blank">{{.Username}}</a>{{if eq .ID $.ViewerID}} <span class="xg1">（你）</span>{{end}}</td>
 			<td>
 				<form method="post" action="/admin/users/group" class="inline-form">
 					<input type="hidden" name="_csrf" value="{{$.CSRF}}">
@@ -36,6 +36,7 @@
 				{{else}}<span class="xg1">正常</span>{{end}}
 			</td>
 			<td class="ops-cell">
+				{{if ne .ID $.ViewerID}}
 				<form method="post" action="/admin/users/ban" class="inline-form cl">
 					<input type="hidden" name="_csrf" value="{{$.CSRF}}">
 					<input type="hidden" name="uid" value="{{.ID}}">
@@ -55,6 +56,7 @@
 					<input type="hidden" name="uid" value="{{.ID}}">
 					<button type="submit" class="pn pn-sm">解禁</button>
 				</form>
+				{{end}}
 				{{end}}
 				<form method="post" action="/admin/users/delete" class="inlineform" data-confirm="确定删除用户 {{.Username}} 吗？仅可删除无发帖记录的用户。">
 					<input type="hidden" name="_csrf" value="{{$.CSRF}}">

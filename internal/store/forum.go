@@ -11,11 +11,15 @@ import (
 
 // ---- 版块与分类 ----
 
-const forumCols = `id, category_id, name, description,
-	 thread_count, post_count, today_count,
-	 coalesce(last_post_at, 'epoch'::timestamptz), last_post_at IS NOT NULL,
-	 coalesce(last_post_uid,0), coalesce(last_post_author,''),
-	 coalesce(last_thread_id,0), coalesce(last_thread_title,''), coalesce(moderators,'')`
+// forumCols 今日帖数为读取时实时计算（公开口径：不含待审核与已删除），杜绝计数漂移。
+const forumCols = `f.id, f.category_id, f.name, f.description,
+	 (SELECT count(*) FROM posts p JOIN threads t ON t.id=p.thread_id
+	   WHERE t.forum_id=f.id AND NOT p.deleted AND NOT p.pending
+	     AND p.created_at >= current_date) AS today_count,
+	 f.thread_count, f.post_count,
+	 coalesce(f.last_post_at, 'epoch'::timestamptz), f.last_post_at IS NOT NULL,
+	 coalesce(f.last_post_uid,0), coalesce(f.last_post_author,''),
+	 coalesce(f.last_thread_id,0), coalesce(f.last_thread_title,''), coalesce(f.moderators,'')`
 
 func scanForum(row pgx.Row) (*Forum, error) {
 	var f Forum
@@ -32,7 +36,7 @@ func scanForum(row pgx.Row) (*Forum, error) {
 
 // CategoriesWithForums 首页数据：全部分类及其版块。
 func (s *Store) CategoriesWithForums(ctx context.Context) ([]*Category, error) {
-	rows, err := s.pool.Query(ctx, `SELECT `+forumCols+` FROM forums ORDER BY category_id, displayorder, id`)
+	rows, err := s.pool.Query(ctx, `SELECT `+forumCols+` FROM forums f ORDER BY f.category_id, f.displayorder, f.id`)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +72,7 @@ func (s *Store) CategoriesWithForums(ctx context.Context) ([]*Category, error) {
 }
 
 func (s *Store) Forum(ctx context.Context, id int64) (*Forum, error) {
-	return scanForum(s.pool.QueryRow(ctx, `SELECT `+forumCols+` FROM forums WHERE id=$1`, id))
+	return scanForum(s.pool.QueryRow(ctx, `SELECT `+forumCols+` FROM forums f WHERE f.id=$1`, id))
 }
 
 // ---- 主题列表 ----

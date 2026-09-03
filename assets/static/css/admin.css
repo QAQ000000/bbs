@@ -18,7 +18,7 @@
 #admin-menu a:hover { background: #f4f7fa; text-decoration: none; }
 #admin-menu li.a a { background: #eef4fa; border-left-color: var(--c-primary); color: var(--c-primary); font-weight: 600; }
 
-#admin-main { margin-left: 195px; }
+#admin-main { margin-left: 195px; display: flow-root; }
 .admin-head { margin: 4px 0 12px; }
 .admin-head h2 { font-size: 19px; }
 .search-form { margin: 0 0 8px; }

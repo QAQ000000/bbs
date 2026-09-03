@@ -4,6 +4,8 @@ package store
 
 import (
 	"context"
+	"html"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -133,17 +135,84 @@ type SearchHit struct {
 	Rank       float64
 }
 
+// mdLinkRe 摘要剥离：[文本](链接) → 文本（含图片前缀 !）。
+var mdLinkRe = regexp.MustCompile(`!?\[([^\]]*)\]\([^)]*\)`)
+
+// mdMarksRe 摘要剥离：标题井号、围栏代码、强调记号、引用符（保留 <mark> 高亮）。
+var mdMarksRe = regexp.MustCompile("(^|\\n)[ \\t]*#{1,6} |```|[*_`~>|]")
+
+func stripMarkdown(s string) string {
+	s = mdLinkRe.ReplaceAllString(s, "$1")
+	s = mdMarksRe.ReplaceAllString(s, "$1")
+	s = strings.Join(strings.Fields(s), " ")
+	return strings.TrimSpace(s)
+}
+
+// buildExcerpt 从 Markdown 原文构建纯文本摘要，命中词包 <mark>（先转义再包裹，防注入）。
+func buildExcerpt(md string, tokens []string) string {
+	plain := stripMarkdown(md)
+	runes := []rune(plain)
+	lower := strings.ToLower(plain)
+
+	pos := -1
+	for _, tk := range tokens {
+		if tk == "" {
+			continue
+		}
+		if i := strings.Index(lower, tk); i >= 0 {
+			r := len([]rune(lower[:i]))
+			if pos < 0 || r < pos {
+				pos = r
+			}
+		}
+	}
+	const window = 70
+	start, end := 0, len(runes)
+	if pos >= 0 {
+		start = pos - 30
+		if start < 0 {
+			start = 0
+		}
+		end = pos + window
+		if end > len(runes) {
+			end = len(runes)
+		}
+	} else {
+		if end > 120 {
+			end = 120
+		}
+	}
+	out := string(runes[start:end])
+	out = html.EscapeString(out)
+	for _, tk := range tokens {
+		if tk == "" {
+			continue
+		}
+		esc := html.EscapeString(tk)
+		out = strings.ReplaceAll(out, esc, "<mark>"+esc+"</mark>")
+	}
+	if start > 0 {
+		out = "…" + out
+	}
+	if end < len(runes) {
+		out += "…"
+	}
+	return out
+}
+
 // Search 全文搜索：命中楼层聚合到主题，按 ts_rank 降序分页。
 func (s *Store) Search(ctx context.Context, q string, page, size int) ([]*SearchHit, int, error) {
 	tq := SearchQueryTokens(q)
 	if tq == "" {
 		return nil, 0, nil
 	}
+	tokens := strings.Fields(tq)
 	offset := (page - 1) * size
 	// 取足够多的命中做主题级去重分页（小型论坛数据量下足够）
+	// 摘要不用 ts_headline：simple 配置对原文分词为单字，与 bigram 词素不匹配，永远无法高亮
 	rows, err := s.pool.Query(ctx,
 		`SELECT t.id, t.title, t.forum_id, f.name, u.username, t.created_at,
-			ts_headline('simple', p.content_md, q, 'MaxWords=30, MinWords=12, StartSel=<mark>, StopSel=</mark>, MaxFragments=1'),
+			left(p.content_md, 800),
 			ts_rank(p.search_data, q) AS score
 		 FROM posts p
 		 JOIN threads t ON t.id = p.thread_id AND NOT t.deleted AND NOT t.pending
@@ -161,10 +230,12 @@ func (s *Store) Search(ctx context.Context, q string, page, size int) ([]*Search
 	var hits []*SearchHit
 	for rows.Next() {
 		var h SearchHit
+		var raw string
 		if err := rows.Scan(&h.ThreadID, &h.Title, &h.ForumID, &h.ForumName, &h.AuthorName,
-			&h.CreatedAt, &h.Excerpt, &h.Rank); err != nil {
+			&h.CreatedAt, &raw, &h.Rank); err != nil {
 			return nil, 0, err
 		}
+		h.Excerpt = buildExcerpt(raw, tokens)
 		if seen[h.ThreadID] {
 			continue
 		}

@@ -87,6 +87,11 @@ func main() {
 		logger.Info("已补齐搜索索引", "posts", n)
 	}
 
+	// 版块公开口径统计全量重算（修复历史漂移：删除未回补、测试残留等）
+	if err := st.RecomputeAllForumStats(ctx); err != nil {
+		logger.Warn("版块统计重算失败", "err", err)
+	}
+
 	if *flagSeed {
 		if err := seed(ctx, pool, st); err != nil {
 			logger.Error("灌入演示数据失败", "err", err)

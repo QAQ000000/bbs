@@ -219,6 +219,27 @@ func seed(ctx context.Context, pool *pgxpool.Pool, st *store.Store) error {
 		UPDATE users u SET post_count = (SELECT count(*) FROM posts p WHERE p.author_id = u.id AND NOT p.deleted)`); err != nil {
 		return err
 	}
+	// 用户档案真实感：注册时间错开在过去、最近登录、老用户为正式成员（TL1）
+	// 管理员为资深成员（TL2）
+	stamps := map[string]struct {
+		daysAgo int
+		tl      int
+	}{
+		"admin":    {60, 2},
+		"码农老张":  {45, 1},
+		"前端小美":  {38, 1},
+		"DBA老王":   {30, 1},
+		"潜水员":    {20, 1},
+	}
+	for name, st2 := range stamps {
+		if _, err := pool.Exec(ctx, `
+			UPDATE users SET created_at = now() - make_interval(days => $2),
+				last_login_at = now() - interval '2 hours',
+				trust_level = $3
+			WHERE username = $1`, name, st2.daysAgo, st2.tl); err != nil {
+			return err
+		}
+	}
 	slog.Info("演示数据灌入完成", "threads", threadsAdded, "posts", postsAdded, "users", len(users))
 	return nil
 }

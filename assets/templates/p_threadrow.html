@@ -22,8 +22,8 @@
 		<em>{{.ViewCount}}</em>
 	</td>
 	<td class="by lp">
-		<cite>{{if .LastPostName}}<a href="{{userURL .LastPostUID}}">{{.LastPostName}}</a>{{else}}—{{end}}</cite>
-		<em>{{timefmt .LastPostAt}}</em>
+		<cite>{{if .LastPostName}}<a href="{{userURL .LastPostUID}}">{{.LastPostName}}</a>{{else}}<a href="{{userURL .AuthorID}}">{{.AuthorName}}</a>{{end}}</cite>
+		<em>{{if .LastPostName}}{{timefmt .LastPostAt}}{{else}}{{timefmt .CreatedAt}}{{end}}</em>
 	</td>
 </tr>
 </tbody>{{end}}

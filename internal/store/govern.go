@@ -59,19 +59,21 @@ func (s *Store) RestoreThread(ctx context.Context, tid int64) error {
 	if _, err := tx.Exec(ctx, `UPDATE posts SET deleted=false WHERE thread_id=$1 AND deleted`, tid); err != nil {
 		return err
 	}
-	// 按作者加回发帖计数
-	if _, err := tx.Exec(ctx, `
+
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+	// 公开口径统计与作者计数统一重算/回补
+	if _, err := s.pool.Exec(ctx, `
 		UPDATE users u SET post_count = u.post_count + x.n
 		FROM (SELECT author_id, count(*) AS n FROM posts WHERE thread_id=$1 AND NOT deleted GROUP BY author_id) x
 		WHERE u.id = x.author_id`, tid); err != nil {
 		return err
 	}
-	if _, err := tx.Exec(ctx,
-		`UPDATE forums SET thread_count=thread_count+$2, post_count=post_count+$3 WHERE id=$1`,
-		forumID, restored, postCount); err != nil {
+	if err := s.RecomputeThreadLastPost(ctx, tid); err != nil {
 		return err
 	}
-	return tx.Commit(ctx)
+	return s.RecomputeForumStats(ctx, forumID)
 }
 
 // PurgeThread 彻底删除回收站中的主题（计数已在软删时扣减）。

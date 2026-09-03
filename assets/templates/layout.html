@@ -13,10 +13,7 @@
 	<div class="z"><a href="/" class="nvhm">{{.SiteName}}</a></div>
 	<div class="y">
 		{{if .User}}
-			<strong><a href="{{userURL .User.ID}}" class="vwmy">{{.User.Username}}</a></strong><span class="pipe">|</span>
-			<a href="/notify" title="通知" class="notify-link{{if gt .NotifyCount 0}} has-unread{{end}}">🔔{{if gt .NotifyCount 0}} <em class="notify-num">{{.NotifyCount}}</em>{{end}}</a><span class="pipe">|</span>
-			<a href="{{userURL .User.ID}}">个人中心</a><span class="pipe">|</span>
-			<form method="post" action="/logout" class="inlineform"><input type="hidden" name="_csrf" value="{{.CSRF}}"><button type="submit" class="linklike">退出</button></form>
+			<strong><a href="{{userURL .User.ID}}" class="vwmy">{{.User.Username}}</a></strong>
 		{{else}}
 			<a href="/login">登录</a><span class="pipe">|</span><a href="/register">注册</a>
 		{{end}}
