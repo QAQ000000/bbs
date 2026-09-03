@@ -143,6 +143,16 @@ func (g *gzipResponseWriter) Flush() {
 	}
 }
 
+// isStaticPath 无需动态缓存控制的路径。
+func isStaticPath(p string) bool {
+	for _, pre := range []string{"/static/", "/uploads/", "/avatar/", "/smiley/", "/favicon.ico", "/robots.txt"} {
+		if strings.HasPrefix(p, pre) {
+			return true
+		}
+	}
+	return false
+}
+
 // authMW 解析会话 Cookie，注入用户/会话/闪现消息。
 func (s *Server) authMW(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -160,8 +170,12 @@ func (s *Server) authMW(next http.Handler) http.Handler {
 				}
 			}
 		}
-		if u := User(r); u != nil { // 从上下文取
-			_ = u
+		if !isStaticPath(r.URL.Path) {
+			if User(r) != nil {
+				w.Header().Set("Cache-Control", "no-store") // 登录态页面禁止本地缓存
+			} else {
+				w.Header().Set("Cache-Control", "no-cache") // 匿名动态页：允许存储但需回源
+			}
 		}
 		if c, err := r.Cookie(cookieFlash); err == nil && c.Value != "" {
 			if b, err := base64.RawURLEncoding.DecodeString(c.Value); err == nil {

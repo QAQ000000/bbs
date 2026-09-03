@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{if .Title}}{{.Title}} - {{end}}{{.SiteName}}</title>
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/static/css/app.css">
+<link rel="stylesheet" href="/static/css/app.css?v={{.AssetQuery}}">
 </head>
 <body{{if .User}} data-authed="1"{{end}}>
 
@@ -61,7 +61,7 @@
 </div></div>
 
 <button id="scrolltop" title="回到顶部" aria-label="回到顶部">↑</button>
-<script src="/static/js/app.js" defer></script>
-<script src="/static/js/live.js" defer></script>
+<script src="/static/js/app.js?v={{.AssetQuery}}" defer></script>
+<script src="/static/js/live.js?v={{.AssetQuery}}" defer></script>
 </body>
 </html>

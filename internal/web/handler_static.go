@@ -15,9 +15,8 @@ import (
 
 var staticFS = assets.Static()
 
-// handleStatic 内嵌静态资源：强缓存头 + 协商 ETag。
+// handleStatic 内嵌静态资源：长缓存；失效靠模板引用的内容指纹版本参数（assetQuery）。
 func (s *Server) handleStatic(w http.ResponseWriter, r *http.Request) {
-	// 伪装静态目录下的表情等资源按内容指纹做长缓存
 	w.Header().Set("Cache-Control", "public, max-age=86400")
 	handler := http.StripPrefix("/static/", http.FileServerFS(staticFS))
 	handler.ServeHTTP(w, r)

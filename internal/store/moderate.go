@@ -145,7 +145,7 @@ func (s *Store) PrunePosts(ctx context.Context, author string, forumID int64, be
 			JOIN users u ON u.id = p.author_id`+w+`
 		), del AS (
 			UPDATE posts SET deleted=true WHERE id IN (SELECT id FROM target)
-			RETURNING thread_id
+			RETURNING thread_id, author_id
 		), affected AS (
 			SELECT thread_id, count(*) AS removed FROM del GROUP BY thread_id
 		), upd_threads AS (
@@ -157,6 +157,12 @@ func (s *Store) PrunePosts(ctx context.Context, author string, forumID int64, be
 		), upd_forums AS (
 			UPDATE forums f SET post_count = GREATEST(f.post_count - a.removed, 0)
 			FROM affected_forums a WHERE f.id = a.forum_id
+			RETURNING 1
+		), affected_users AS (
+			SELECT author_id, count(*) AS removed FROM del GROUP BY author_id
+		), upd_users AS (
+			UPDATE users u SET post_count = GREATEST(u.post_count - a.removed, 0)
+			FROM affected_users a WHERE u.id = a.author_id
 			RETURNING 1
 		)
 		SELECT (SELECT count(*) FROM del)`, args...).Scan(&n); err != nil {

@@ -23,23 +23,13 @@ func (s *Store) RecycleThreads(ctx context.Context, page, size int) ([]*Thread, 
 	}
 	rows, err := s.pool.Query(ctx,
 		`SELECT `+threadCols+` `+threadJoins+`
-		 WHERE t.deleted ORDER BY t.last_post_at DESC LIMIT $`+strconv.Itoa(1)+
-			` OFFSET $2`, size, (page-1)*size)
+		 WHERE t.deleted ORDER BY t.last_post_at DESC LIMIT $1 OFFSET $2`, size, (page-1)*size)
+	// 统一走 collectThreads 扫描，列变更时不会遗漏
+	list, err := collectThreads(rows, err)
 	if err != nil {
 		return nil, 0, err
 	}
-	defer rows.Close()
-	var out []*Thread
-	for rows.Next() {
-		var t Thread
-		if err := rows.Scan(&t.ID, &t.ForumID, &t.AuthorID, &t.AuthorName, &t.Title,
-			&t.Sticky, &t.Digest, &t.Closed, &t.PostCount, &t.ViewCount,
-			&t.CreatedAt, &t.LastPostAt, &t.LastPostUID, &t.LastPostName, &t.FirstPostID); err != nil {
-			return nil, 0, err
-		}
-		out = append(out, &t)
-	}
-	return out, total, rows.Err()
+	return list, total, nil
 }
 
 // RestoreThread 从回收站恢复主题：连同其软删楼层一并恢复，并回补版块计数。
@@ -67,6 +57,13 @@ func (s *Store) RestoreThread(ctx context.Context, tid int64) error {
 		return err
 	}
 	if _, err := tx.Exec(ctx, `UPDATE posts SET deleted=false WHERE thread_id=$1 AND deleted`, tid); err != nil {
+		return err
+	}
+	// 按作者加回发帖计数
+	if _, err := tx.Exec(ctx, `
+		UPDATE users u SET post_count = u.post_count + x.n
+		FROM (SELECT author_id, count(*) AS n FROM posts WHERE thread_id=$1 AND NOT deleted GROUP BY author_id) x
+		WHERE u.id = x.author_id`, tid); err != nil {
 		return err
 	}
 	if _, err := tx.Exec(ctx,

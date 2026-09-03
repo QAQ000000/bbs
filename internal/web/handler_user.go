@@ -102,10 +102,12 @@ func (s *Server) registerForm(w http.ResponseWriter, r *http.Request) {
 	}
 	d := struct {
 		Common
-		Next  string
-		CSRF  string
-		Error string
-	}{s.common(r), nextOf(r), s.anonCSRF(r, w), ""}
+		Next     string
+		CSRF     string
+		Error    string
+		Username string
+		Email    string
+	}{s.common(r), nextOf(r), s.anonCSRF(r, w), "", "", ""}
 	_ = s.rd.Render(w, "page_register.html", &d)
 }
 

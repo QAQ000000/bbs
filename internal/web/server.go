@@ -86,6 +86,7 @@ func (s *Server) common(r *http.Request) Common {
 	if u := c.User; u != nil {
 		c.NotifyCount = s.st.UnreadCount(r.Context(), u.ID)
 	}
+	c.AssetQuery = assetQuery
 	if f, ok := r.Context().Value(ctxFlash).(string); ok {
 		c.Flash = f
 	}

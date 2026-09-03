@@ -203,6 +203,13 @@ func (s *Store) DeletePost(ctx context.Context, postID int64) (deletedThread boo
 		if _, err := tx.Exec(ctx, `UPDATE posts SET deleted=true WHERE thread_id=$1`, tid); err != nil {
 			return false, 0, err
 		}
+		// 回补各作者的发帖计数
+		if _, err := tx.Exec(ctx, `
+			UPDATE users u SET post_count = GREATEST(u.post_count - x.n, 0)
+			FROM (SELECT author_id, count(*) AS n FROM posts WHERE thread_id=$1 AND deleted GROUP BY author_id) x
+			WHERE u.id = x.author_id`, tid); err != nil {
+			return false, 0, err
+		}
 		var pc int
 		if err := tx.QueryRow(ctx, `SELECT post_count FROM threads WHERE id=$1`, tid).Scan(&pc); err != nil {
 			return false, 0, err
@@ -218,6 +225,10 @@ func (s *Store) DeletePost(ctx context.Context, postID int64) (deletedThread boo
 	}
 
 	if _, err := tx.Exec(ctx, `UPDATE posts SET deleted=true WHERE id=$1`, postID); err != nil {
+		return false, 0, err
+	}
+	if _, err := tx.Exec(ctx,
+		`UPDATE users SET post_count = GREATEST(post_count-1, 0) WHERE id=$1`, uid); err != nil {
 		return false, 0, err
 	}
 	if _, err := tx.Exec(ctx, `UPDATE threads SET post_count=post_count-1 WHERE id=$1`, tid); err != nil {

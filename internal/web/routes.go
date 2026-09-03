@@ -4,6 +4,7 @@ package web
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"dzforum/internal/store"
 )
@@ -130,7 +131,7 @@ func pathID(r *http.Request, name string) int64 {
 	return n
 }
 
-// renderError 统一错误页。
+// renderError 统一错误页：后台路径使用后台布局，其余用前台布局。
 func (s *Server) renderError(w http.ResponseWriter, r *http.Request, code int, title, msg string) {
 	w.WriteHeader(code)
 	data := struct {
@@ -138,6 +139,10 @@ func (s *Server) renderError(w http.ResponseWriter, r *http.Request, code int, t
 		Title string
 		Msg   string
 	}{s.common(r), title, msg}
+	if strings.HasPrefix(r.URL.Path, "/admin") {
+		_ = s.rd.Render(w, "admin_error.html", &data)
+		return
+	}
 	_ = s.rd.Render(w, "page_error.html", &data)
 }
 

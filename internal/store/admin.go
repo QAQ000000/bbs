@@ -376,20 +376,23 @@ func (s *Store) SetUserGroup(ctx context.Context, uid int64, groupID int) error 
 	return err
 }
 
-// DeleteUser 删号（仅允许无发帖记录的用户；会话级联删除）。
+// DeleteUser 删号（实时校验是否还有未删除的发帖；会话级联删除）。
 func (s *Store) DeleteUser(ctx context.Context, uid int64) error {
 	var n int64
-	if err := s.pool.QueryRow(ctx, `SELECT post_count FROM users WHERE id=$1`, uid).Scan(&n); err != nil {
+	if err := s.pool.QueryRow(ctx,
+		`SELECT count(*) FROM posts WHERE author_id=$1 AND NOT deleted`, uid).Scan(&n); err != nil {
+		return err
+	}
+	if n > 0 {
+		return errors.New("该用户仍有未删除的发帖，不能直接删号，请先处理其内容或使用禁言")
+	}
+	if _, err := s.pool.Exec(ctx, `DELETE FROM users WHERE id=$1`, uid); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrNotFound
 		}
 		return err
 	}
-	if n > 0 {
-		return errors.New("该用户有发帖记录，不能直接删号，请先处理其内容或使用禁言")
-	}
-	_, err := s.pool.Exec(ctx, `DELETE FROM users WHERE id=$1`, uid)
-	return err
+	return nil
 }
 
 // BannedCount 当前禁言中的用户数（仪表盘）。

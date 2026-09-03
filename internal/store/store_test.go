@@ -129,7 +129,7 @@ func TestThreadCounters(t *testing.T) {
 		t.Fatalf("编辑后版本应为 2: %d", pAfter.Version)
 	}
 
-	// 删除一条回复：计数同步
+	// 删除一条回复：主题与作者计数同步
 	posts, _ := testStore.Posts(ctx, th.ID, 1, 10, true)
 	if _, _, err := testStore.DeletePost(ctx, posts[2].ID); err != nil {
 		t.Fatal(err)
@@ -137,6 +137,14 @@ func TestThreadCounters(t *testing.T) {
 	th3, _ := testStore.Thread(ctx, th.ID)
 	if th3.PostCount != 2 {
 		t.Fatalf("删回复后 post_count 应为 2: %d", th3.PostCount)
+	}
+	var authorCount int64
+	if err := testStore.pool.QueryRow(ctx,
+		`SELECT post_count FROM users WHERE id=$1`, replier).Scan(&authorCount); err != nil {
+		t.Fatal(err)
+	}
+	if authorCount != 1 {
+		t.Fatalf("回复者 post_count 应回补为 1: %d", authorCount)
 	}
 }
 
