@@ -11,6 +11,8 @@ import (
 	"os"
 	"testing"
 
+	"golang.org/x/crypto/bcrypt"
+
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"dzforum/internal/db"
@@ -344,5 +346,30 @@ func TestModeratorRelationTable(t *testing.T) {
 	ids, err = testStore.ModeratorForumIDs(ctx, uid)
 	if err != nil || len(ids) != 1 || ids[0] != fid {
 		t.Fatalf("改名后丢权: ids=%v err=%v", ids, err)
+	}
+}
+
+// TestChangePasswordClearsFlag 改密成功后必须改密标志清除（-seed 强制改密闭环）。
+func TestChangePasswordClearsFlag(t *testing.T) {
+	ctx := context.Background()
+	author, _ := setupUsers(t)
+	if _, err := testStore.pool.Exec(ctx,
+		`UPDATE users SET must_change_password=true WHERE id=$1`, author); err != nil {
+		t.Fatal(err)
+	}
+	if err := testStore.ChangePassword(ctx, author, "pass123456", "newpass12345", ""); err != nil {
+		t.Fatal(err)
+	}
+	var mc bool
+	var hash string
+	if err := testStore.pool.QueryRow(ctx,
+		`SELECT must_change_password, password_hash FROM users WHERE id=$1`, author).Scan(&mc, &hash); err != nil {
+		t.Fatal(err)
+	}
+	if mc {
+		t.Fatal("改密后 must_change_password 应清除")
+	}
+	if bcrypt.CompareHashAndPassword([]byte(hash), []byte("newpass12345")) != nil {
+		t.Fatal("新密码哈希不匹配")
 	}
 }

@@ -95,6 +95,12 @@ func (s *Server) loginSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 	s.st.TouchLogin(r.Context(), u.ID)
 	s.setSessionCookie(w, token, s.cfg.CookieTTL)
+	if u.MustChangePassword {
+		// -seed 初始账号：首次登录强制进资料设置改密
+		s.setFlash(w, "首次登录：请先修改初始密码")
+		http.Redirect(w, r, "/profile?must=1", http.StatusSeeOther)
+		return
+	}
 	s.setFlash(w, "欢迎回来，"+u.Username+"！")
 	http.Redirect(w, r, next, http.StatusSeeOther)
 }
@@ -260,6 +266,16 @@ func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 	s.setSessionCookie(w, "", -1)
 	s.setFlash(w, "已退出登录")
 	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+// checkMustChangePassword 初始密码未改的写入口拦截（-seed 账号强制改密，ROADMAP 5.1）。
+func (s *Server) checkMustChangePassword(w http.ResponseWriter, r *http.Request) bool {
+	if u := User(r); u != nil && u.MustChangePassword {
+		s.renderError(w, r, http.StatusForbidden, "请先修改初始密码",
+			"检测到您仍在使用初始密码，请先在「资料设置」中修改密码，再进行此操作。")
+		return false
+	}
+	return true
 }
 
 // ---- 个人页 ----

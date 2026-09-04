@@ -2,6 +2,8 @@
 package web
 
 import (
+	"context"
+	"encoding/json"
 	"io/fs"
 	"net/http"
 	"os"
@@ -69,10 +71,25 @@ func safeSmileyName(s string) bool {
 	return !strings.Contains(s, "..")
 }
 
-// GET /api/status — 简单健康检查。
+// GET /api/status — 健康检查：DB 可达、schema 迁移版本、治理队列积压。
+// 面向监控与运维自检；不含连接数等内部细节。
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	_, _ = w.Write([]byte(`{"ok":true,"ts":"` + time.Now().Format(time.RFC3339) + `"}`))
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	defer cancel()
+	st := map[string]any{"ok": true, "ts": time.Now().Format(time.RFC3339)}
+	v, err := s.st.SchemaVersion(ctx)
+	if err != nil {
+		st["ok"] = false
+		st["db"] = "down"
+	} else {
+		st["db"] = "up"
+		st["schema"] = v
+		th, po := s.st.PendingCounts(ctx)
+		st["pending"] = map[string]int64{"threads": th, "posts": po, "reports": s.st.OpenReportCount(ctx)}
+	}
+	b, _ := json.Marshal(st)
+	_, _ = w.Write(b)
 }
 
 // GET /captcha/{id} — 算术验证码 SVG（一次性挑战，no-store）。

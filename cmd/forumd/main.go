@@ -8,10 +8,10 @@ package main
 import (
 	"context"
 	"flag"
-	"strconv"
 	"log/slog"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -26,9 +26,14 @@ import (
 func main() {
 	cfg := config.FromEnv()
 	flagSeed := flag.Bool("seed", false, "灌入演示数据后启动")
+	flagCheck := flag.Bool("check-backup", false, "上线检查：DSN 可写、pg_dump 在 PATH、数据目录可写，然后退出")
 	flagImport := flag.String("import-smileys", "", "从指定目录导入图片表情包（结构：<包名>/<图片文件>），导入后退出")
 	flagCodes := flag.String("codes", "", "可选：表情代码映射 JSON（配合 -import-smileys）")
 	flag.Parse()
+
+	if *flagCheck {
+		os.Exit(runCheckBackup(cfg))
+	}
 
 	if *flagImport != "" {
 		if err := importSmileys(*flagImport, cfg.SmileyDir, *flagCodes); err != nil {

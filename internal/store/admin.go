@@ -489,3 +489,10 @@ func (s *Store) DBSize(ctx context.Context) string {
 	_ = s.pool.QueryRow(ctx, `SELECT pg_size_pretty(pg_database_size(current_database()))`).Scan(&sz)
 	return sz
 }
+
+// SchemaVersion 当前 schema_migrations 版本（健康检查用）。
+func (s *Store) SchemaVersion(ctx context.Context) (int, error) {
+	var v int
+	err := s.pool.QueryRow(ctx, `SELECT coalesce(max(version),0) FROM schema_migrations`).Scan(&v)
+	return v, err
+}

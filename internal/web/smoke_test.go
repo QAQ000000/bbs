@@ -345,11 +345,63 @@ func TestStaticAssets(t *testing.T) {
 	}
 }
 
-// TestAPIJSON JSON 端点基本可用。
+// TestAPIJSON 健康检查端点：ok、schema 迁移版本与队列积压结构。
 func TestAPIJSON(t *testing.T) {
 	w := smokeGet(t, "/api/status", nil)
-	if w.Code != 200 || !strings.Contains(w.Body.String(), `"ok":true`) {
-		t.Fatalf("/api/status 异常: %d %s", w.Code, w.Body.String())
+	body := w.Body.String()
+	if w.Code != 200 || !strings.Contains(body, `"ok":true`) {
+		t.Fatalf("/api/status 异常: %d %s", w.Code, body)
+	}
+	if !strings.Contains(body, `"schema":`) {
+		t.Fatal("健康检查缺 schema 迁移版本")
+	}
+	if !strings.Contains(body, `"pending":`) || !strings.Contains(body, `"reports":`) {
+		t.Fatal("健康检查缺队列积压字段")
+	}
+}
+
+// TestMustChangePasswordGate 阶段五回归：-seed 账号未改密时，
+// 内容写入口与管理后台被拦，资料设置页出现强制提示。
+func TestMustChangePasswordGate(t *testing.T) {
+	ctx := context.Background()
+	if _, err := smokePool.Exec(ctx,
+		`UPDATE users SET must_change_password=true WHERE id=$1`, 2); err != nil {
+		t.Fatal(err)
+	}
+	defer smokePool.Exec(ctx, `UPDATE users SET must_change_password=false WHERE id=$1`, 2)
+
+	// 发帖表单 GET 403
+	w := smokeGet(t, "/new?fid=1", userCookie)
+	if w.Code != http.StatusForbidden || !strings.Contains(w.Body.String(), "初始密码") {
+		t.Fatalf("未改密发帖表单应 403: %d %s", w.Code, firstLine(w.Body.String()))
+	}
+	// 回复提交 403
+	w = smokePost(t, "/reply/1", userCSRF, "content=x", userCookie)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("未改密回复提交应 403: %d", w.Code)
+	}
+
+	// 管理员被标记时后台拒绝（改密前锁死后台）
+	if _, err := smokePool.Exec(ctx,
+		`UPDATE users SET must_change_password=true WHERE id=$1`, 1); err != nil {
+		t.Fatal(err)
+	}
+	w = smokeGet(t, "/admin", adminCookie)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("未改密管理员访问后台应 403: %d", w.Code)
+	}
+	// 资料设置页仍可访问且出现强制提示
+	w = smokeGet(t, "/profile", adminCookie)
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "首次登录") {
+		t.Fatalf("资料设置应可达且含强制提示: %d", w.Code)
+	}
+	// 管理员改密后（旧密码验证通过）门禁解除 —— 恢复标志即可，密码不变
+	if _, err := smokePool.Exec(ctx,
+		`UPDATE users SET must_change_password=false WHERE id=$1`, 1); err != nil {
+		t.Fatal(err)
+	}
+	if w = smokeGet(t, "/admin", adminCookie); w.Code != http.StatusOK {
+		t.Fatalf("清除标志后后台应恢复: %d", w.Code)
 	}
 }
 

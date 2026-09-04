@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -59,6 +60,11 @@ func (s *Server) uploadImage(w http.ResponseWriter, r *http.Request) {
 	sets := s.sets(r)
 	if !sets.UploadEnabled {
 		http.Error(w, `{"error":"本站已切换为仅外链模式，请使用外部图片/附件链接"}`, http.StatusForbidden)
+		return
+	}
+	// 磁盘阈值守护（ROADMAP 5.5）：占用达上限即拒绝新上传
+	if gb := sets.UploadMaxDiskGB; gb > 0 && s.uploadDirBytes() >= int64(gb)<<30 {
+		http.Error(w, `{"error":"站点存储已达上限，暂时无法上传，请联系管理员"}`, http.StatusInsufficientStorage)
 		return
 	}
 	kind := r.FormValue("kind")
@@ -174,6 +180,28 @@ func (s *Server) likesList(w http.ResponseWriter, r *http.Request) {
 func (s *Server) serveUploads(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "public, max-age=604800")
 	http.StripPrefix("/uploads/", http.FileServer(http.Dir(s.cfg.UploadDir))).ServeHTTP(w, r)
+}
+
+// uploadDirBytes 上传目录磁盘占用（5 分钟缓存，避免每次上传全树遍历）。
+func (s *Server) uploadDirBytes() int64 {
+	s.uploadMu.Lock()
+	defer s.uploadMu.Unlock()
+	if time.Now().Before(s.uploadSizeAt) {
+		return s.uploadSize
+	}
+	var total int64
+	_ = filepath.WalkDir(s.cfg.UploadDir, func(_ string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return nil
+		}
+		if info, err := d.Info(); err == nil {
+			total += info.Size()
+		}
+		return nil
+	})
+	s.uploadSize = total
+	s.uploadSizeAt = time.Now().Add(5 * time.Minute)
+	return total
 }
 
 // ---- @提及通知 ----

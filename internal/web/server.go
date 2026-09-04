@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"dzforum/internal/config"
@@ -37,6 +38,10 @@ type Server struct {
 	mailer  *mail.Mailer
 	limiter *limiter.Limiter
 	prod    bool
+
+	uploadMu     sync.Mutex // 上传目录占用缓存（5 分钟）
+	uploadSize   int64
+	uploadSizeAt time.Time
 }
 
 func New(cfg config.Config, st *store.Store, hub *live.Hub, logger *slog.Logger) (*Server, error) {

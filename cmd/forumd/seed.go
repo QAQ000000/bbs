@@ -45,7 +45,8 @@ func seed(ctx context.Context, pool *pgxpool.Pool, st *store.Store) error {
 			return fmt.Errorf("创建用户 %s: %w", u.name, err)
 		}
 		if u.admin {
-			if _, err := pool.Exec(ctx, `UPDATE users SET group_id=1 WHERE id=$1`, created.ID); err != nil {
+			if _, err := pool.Exec(ctx,
+				`UPDATE users SET group_id=1, must_change_password=true WHERE id=$1`, created.ID); err != nil {
 				return err
 			}
 		}
@@ -130,7 +131,7 @@ func seed(ctx context.Context, pool *pgxpool.Pool, st *store.Store) error {
 		{
 			forum: "PostgreSQL", author: "DBA老王", title: "PostgreSQL 18 升级踩坑记录与性能对比",
 			created: 6 * 24 * time.Hour,
-			md: "把生产库从 15 升到 **PostgreSQL 18**，记录几个要点：\n\n### 升级步骤\n\n1. `pg_upgrade --check` 预检\n2. 停写窗口内原地升级\n3. `ANALYZE` 刷新统计信息\n\n### 性能对比\n\n| 场景 | PG15 | PG18 |\n| --- | --- | --- |\n| 大表顺序扫描 | 4.2s | 1.9s |\n| 复杂聚合 | 880ms | 520ms |\n\n异步 I/O 的提升比预期还大，读密集业务直接起飞 :D",
+			md:      "把生产库从 15 升到 **PostgreSQL 18**，记录几个要点：\n\n### 升级步骤\n\n1. `pg_upgrade --check` 预检\n2. 停写窗口内原地升级\n3. `ANALYZE` 刷新统计信息\n\n### 性能对比\n\n| 场景 | PG15 | PG18 |\n| --- | --- | --- |\n| 大表顺序扫描 | 4.2s | 1.9s |\n| 复杂聚合 | 880ms | 520ms |\n\n异步 I/O 的提升比预期还大，读密集业务直接起飞 :D",
 			replies: []reply{
 				{"码农老张", "异步 I/O 那块提升确实明显，我们读密集场景快了 30%。", 8 * time.Hour},
 				{"潜水员", "收藏了，正好下周要升级。", 26 * time.Hour},
@@ -139,7 +140,7 @@ func seed(ctx context.Context, pool *pgxpool.Pool, st *store.Store) error {
 		{
 			forum: "Go 语言", author: "前端小美", title: "请教：SSE 和 WebSocket 该怎么选？",
 			created: 3 * 24 * time.Hour,
-			md: "想给管理后台加实时通知，查了一下有两派方案：\n\n- **SSE**：单向推送，HTTP 协议，自带断线重连\n- **WebSocket**：双向，需要额外的心跳与重连逻辑\n\n我的场景是纯服务端推送，是不是 SSE 就够了？大家怎么选的？",
+			md:      "想给管理后台加实时通知，查了一下有两派方案：\n\n- **SSE**：单向推送，HTTP 协议，自带断线重连\n- **WebSocket**：双向，需要额外的心跳与重连逻辑\n\n我的场景是纯服务端推送，是不是 SSE 就够了？大家怎么选的？",
 			replies: []reply{
 				{"码农老张", "服务端单向推送选 SSE 就够了，自带断线重连；双向交互才需要 WebSocket。", 40 * time.Minute},
 				{"DBA老王", "本站的实时刷新就是用 SSE 实现的，开两个窗口试试就知道效果了 :)", 20 * time.Minute},
@@ -148,7 +149,7 @@ func seed(ctx context.Context, pool *pgxpool.Pool, st *store.Store) error {
 		{
 			forum: "前端开发", author: "前端小美", title: "原生 JS 写了个轻量 Markdown 编辑器，求拍砖",
 			created: 30 * time.Hour,
-			md: "不想引入重型依赖，用原生 JS 实现了论坛的发帖编辑器：\n\n- 工具栏：加粗 / 斜体 / 引用 / 代码块 / 链接 / 图片\n- 表情面板：复用老社区的表情素材\n- 实时预览：服务端统一渲染，保证所见即所得\n- 草稿：自动保存到 `localStorage`\n\n代码不到 200 行，有兴趣的可以看看本站的发帖页 :P",
+			md:      "不想引入重型依赖，用原生 JS 实现了论坛的发帖编辑器：\n\n- 工具栏：加粗 / 斜体 / 引用 / 代码块 / 链接 / 图片\n- 表情面板：复用老社区的表情素材\n- 实时预览：服务端统一渲染，保证所见即所得\n- 草稿：自动保存到 `localStorage`\n\n代码不到 200 行，有兴趣的可以看看本站的发帖页 :P",
 			replies: []reply{
 				{"潜水员", "表情面板好评，QQ 表情包爷青回 :weixiao:", 4 * time.Hour},
 			},
@@ -156,7 +157,7 @@ func seed(ctx context.Context, pool *pgxpool.Pool, st *store.Store) error {
 		{
 			forum: "灌水乐园", author: "潜水员", title: "今天你摸鱼了吗？（每日打卡）",
 			created: 10 * time.Hour,
-			md: "如题，评论区打卡 :)",
+			md:      "如题，评论区打卡 :)",
 			replies: []reply{
 				{"前端小美", "摸了，顺手把表情包全试了一遍 :kiss:", 2 * time.Hour},
 				{"码农老张", "楼里全是表情，哈哈哈哈 :lol", 30 * time.Minute},
@@ -225,11 +226,11 @@ func seed(ctx context.Context, pool *pgxpool.Pool, st *store.Store) error {
 		daysAgo int
 		tl      int
 	}{
-		"admin":    {60, 2},
+		"admin": {60, 2},
 		"码农老张":  {45, 1},
 		"前端小美":  {38, 1},
-		"DBA老王":   {30, 1},
-		"潜水员":    {20, 1},
+		"DBA老王": {30, 1},
+		"潜水员":   {20, 1},
 	}
 	for name, st2 := range stamps {
 		if _, err := pool.Exec(ctx, `

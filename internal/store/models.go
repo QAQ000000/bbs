@@ -8,18 +8,19 @@ import (
 
 // User 论坛用户。group_id：0=会员 1=管理员 2=版主。
 type User struct {
-	ID            int64     `db:"id"`
-	Username      string    `db:"username"`
-	PasswordHash  string    `db:"password_hash"`
-	Email         string    `db:"email"`
-	GroupID       int       `db:"group_id"`
-	PostCount     int64     `db:"post_count"`
-	Signature     string    `db:"signature"`
-	CreatedAt     time.Time `db:"created_at"`
-	TrustLevel    int       `db:"trust_level"`
-	PostsRead     int64     `db:"posts_read"`
-	DaysVisited   int       `db:"days_visited"`
-	EmailVerified bool      `db:"email_verified"`
+	ID                 int64     `db:"id"`
+	Username           string    `db:"username"`
+	PasswordHash       string    `db:"password_hash"`
+	Email              string    `db:"email"`
+	GroupID            int       `db:"group_id"`
+	PostCount          int64     `db:"post_count"`
+	Signature          string    `db:"signature"`
+	CreatedAt          time.Time `db:"created_at"`
+	TrustLevel         int       `db:"trust_level"`
+	PostsRead          int64     `db:"posts_read"`
+	DaysVisited        int       `db:"days_visited"`
+	EmailVerified      bool      `db:"email_verified"`
+	MustChangePassword bool      `db:"must_change_password"` // -seed 初始账号首次登录强制改密
 }
 
 func (u *User) IsAdmin() bool { return u.GroupID == 1 }

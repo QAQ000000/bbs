@@ -20,9 +20,10 @@ type SiteSettings struct {
 	SiteClosedReason string
 	ModerateEnabled  bool // 新用户发帖需审核
 
-	UploadEnabled bool // 本站上传开关（关闭 = 仅外链模式）
-	MaxImageMB    int  // 图片上传上限（MB）
-	MaxFileMB     int  // 附件上传上限（MB）
+	UploadEnabled   bool // 本站上传开关（关闭 = 仅外链模式）
+	MaxImageMB      int  // 图片上传上限（MB）
+	MaxFileMB       int  // 附件上传上限（MB）
+	UploadMaxDiskGB int  // 上传目录磁盘占用上限（GB），超过即拒绝新上传
 
 	CaptchaEnabled     bool // 注册算术验证码
 	EmailVerifyEnabled bool // 邮箱验证开关（SMTP 未启用时自动失效）
@@ -39,6 +40,7 @@ func defaultSettings() SiteSettings {
 		UploadEnabled:    true,
 		MaxImageMB:       8,
 		MaxFileMB:        20,
+		UploadMaxDiskGB:  10,
 	}
 }
 
@@ -149,5 +151,10 @@ func applySettings(st *SiteSettings, kv map[string]string) {
 	}
 	if v, ok := kv["email_verify_enabled"]; ok {
 		st.EmailVerifyEnabled = v == "1"
+	}
+	if v, ok := kv["upload_max_disk_gb"]; ok {
+		if n, err := strconv.Atoi(v); err == nil && n >= 1 && n <= 1024 {
+			st.UploadMaxDiskGB = n
+		}
 	}
 }

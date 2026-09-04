@@ -71,6 +71,9 @@ func (s *Server) newThreadForm(w http.ResponseWriter, r *http.Request) {
 	if !s.checkNotBanned(w, r) {
 		return
 	}
+	if !s.checkMustChangePassword(w, r) {
+		return
+	}
 	fid, _ := strconv.ParseInt(r.URL.Query().Get("fid"), 10, 64)
 	if fid <= 0 {
 		s.forumPicker(w, r)
@@ -136,6 +139,9 @@ func (s *Server) newThreadSubmit(w http.ResponseWriter, r *http.Request) {
 	if !s.checkNotBanned(w, r) {
 		return
 	}
+	if !s.checkMustChangePassword(w, r) {
+		return
+	}
 	fid, _ := strconv.ParseInt(r.URL.Query().Get("fid"), 10, 64)
 	if fid <= 0 {
 		s.setFlash(w, "请先选择版块")
@@ -194,6 +200,9 @@ func (s *Server) replyForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !s.checkNotBanned(w, r) {
+		return
+	}
+	if !s.checkMustChangePassword(w, r) {
 		return
 	}
 	tid := pathID(r, "tid")
@@ -271,6 +280,9 @@ func (s *Server) replySubmit(w http.ResponseWriter, r *http.Request) {
 	if !s.checkNotBanned(w, r) {
 		return
 	}
+	if !s.checkMustChangePassword(w, r) {
+		return
+	}
 	tid := pathID(r, "tid")
 	content := r.PostFormValue("content")
 	if msg := validateContent("", content, false); msg != "" {
@@ -310,6 +322,9 @@ func (s *Server) editForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !s.checkNotBanned(w, r) {
+		return
+	}
+	if !s.checkMustChangePassword(w, r) {
 		return
 	}
 	pid := pathID(r, "pid")
@@ -365,6 +380,9 @@ func (s *Server) editSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !s.checkNotBanned(w, r) {
+		return
+	}
+	if !s.checkMustChangePassword(w, r) {
 		return
 	}
 	pid := pathID(r, "pid")
@@ -433,6 +451,9 @@ func (s *Server) deletePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !s.checkNotBanned(w, r) {
+		return
+	}
+	if !s.checkMustChangePassword(w, r) {
 		return
 	}
 	pid := pathID(r, "pid")

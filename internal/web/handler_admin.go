@@ -26,6 +26,11 @@ func (s *Server) requireAdmin(w http.ResponseWriter, r *http.Request) bool {
 		s.renderError(w, r, http.StatusForbidden, "无权访问", "该区域仅管理员可访问。")
 		return false
 	}
+	if u.MustChangePassword {
+		s.renderError(w, r, http.StatusForbidden, "请先修改初始密码",
+			"检测到您仍在使用初始密码，请先在「资料设置」中修改密码，再使用管理后台。")
+		return false
+	}
 	return true
 }
 
@@ -57,19 +62,27 @@ func (s *Server) adminDash(w http.ResponseWriter, r *http.Request) {
 		s.renderError(w, r, http.StatusInternalServerError, "加载失败", err.Error())
 		return
 	}
+	used := s.uploadDirBytes()
+	limit := s.sets(r).UploadMaxDiskGB
+	usedGB := float64(used) / (1 << 30)
 	data := struct {
 		Common
-		Stats     store.SiteStats
-		Recycle   int64
-		Banned    int64
-		DBSize    string
-		Subs      int
-		Uptime    string
-		GoVersion string
+		Stats       store.SiteStats
+		Recycle     int64
+		Banned      int64
+		DBSize      string
+		Subs        int
+		Uptime      string
+		GoVersion   string
+		UploadGB    string
+		UploadLimit int
+		UploadWarn  bool
 	}{s.adminCommon(r, "dash"), st,
 		s.st.RecycleCount(r.Context()), s.st.BannedCount(r.Context()),
 		s.st.DBSize(r.Context()), s.hub.Count(),
-		time.Since(s.start).Round(time.Second).String(), runtime.Version()}
+		time.Since(s.start).Round(time.Second).String(), runtime.Version(),
+		strconv.FormatFloat(usedGB, 'f', 2, 64), limit,
+		limit > 0 && usedGB >= float64(limit)*0.9}
 	_ = s.rd.Render(w, "admin_dash.html", &data)
 }
 

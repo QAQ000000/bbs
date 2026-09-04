@@ -63,7 +63,10 @@ POST /api/draft   {"context": "...", "content": "...", "csrf": "..."}
 
 ```
 GET /api/status
-→ {"ok": true, "ts": "..."}   健康检查（不含内部连接数）
+→ {"ok": true, "ts": "...", "db": "up", "schema": 2,
+   "pending": {"threads": 0, "posts": 0, "reports": 0}}
+db=up/down 为数据库可达性，schema 为 schema_migrations 迁移版本，
+pending 为治理队列积压（待审主题/回复/待处理举报）。不含内部连接数等细节。
 ```
 
 ## 头像

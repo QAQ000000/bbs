@@ -169,7 +169,8 @@ func (s *Store) ChangePassword(ctx context.Context, uid int64, oldPassword, newP
 	if err != nil {
 		return err
 	}
-	if _, err := s.pool.Exec(ctx, `UPDATE users SET password_hash=$2 WHERE id=$1`, uid, string(newHash)); err != nil {
+	if _, err := s.pool.Exec(ctx,
+		`UPDATE users SET password_hash=$2, must_change_password=false WHERE id=$1`, uid, string(newHash)); err != nil {
 		return err
 	}
 	if keepRawToken != "" {

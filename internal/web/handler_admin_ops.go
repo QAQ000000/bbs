@@ -365,6 +365,7 @@ func (s *Server) adminSettingsSave(w http.ResponseWriter, r *http.Request) {
 		"upload_enabled":       upload,
 		"max_image_mb":         strings.TrimSpace(r.PostFormValue("max_image_mb")),
 		"max_file_mb":          strings.TrimSpace(r.PostFormValue("max_file_mb")),
+		"upload_max_disk_gb":   strings.TrimSpace(r.PostFormValue("upload_max_disk_gb")),
 		"captcha_enabled":      captcha,
 		"email_verify_enabled": emailVerify,
 		"site_closed":          closed,

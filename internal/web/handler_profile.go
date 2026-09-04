@@ -17,18 +17,22 @@ import (
 
 type profilePage struct {
 	Common
-	Profile   *store.User
-	Section   string // 出错表单："profile" | "password"，空则无错误
-	Error     string
-	Signature string
-	Email     string
-	EmailGate bool // 邮箱验证闸门生效中（显示验证提示）
+	Profile    *store.User
+	Section    string // 出错表单："profile" | "password"，空则无错误
+	Error      string
+	Signature  string
+	Email      string
+	EmailGate  bool // 邮箱验证闸门生效中（显示验证提示）
+	MustChange bool // 初始密码未改（-seed 账号强制改密）
 }
 
 func (s *Server) renderProfile(w http.ResponseWriter, r *http.Request, d profilePage) {
 	d.Common = s.common(r)
 	d.Title = "资料设置"
 	d.EmailGate = s.emailGateEnabled()
+	if u := User(r); u != nil && u.MustChangePassword {
+		d.MustChange = true
+	}
 	_ = s.rd.Render(w, "page_profile.html", &d)
 }
 

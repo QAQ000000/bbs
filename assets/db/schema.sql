@@ -13,7 +13,8 @@ CREATE TABLE IF NOT EXISTS users (
     created_at    timestamptz NOT NULL DEFAULT now(),
     last_login_at timestamptz,
     banned_until  timestamptz,                      -- 禁言截止（NULL=未禁言）
-    ban_reason    text        NOT NULL DEFAULT ''
+    ban_reason    text        NOT NULL DEFAULT '',
+    must_change_password boolean NOT NULL DEFAULT false  -- -seed 初始账号首次登录强制改密
 );
 CREATE UNIQUE INDEX IF NOT EXISTS users_username_lower_idx ON users (lower(username));
 
@@ -114,6 +115,7 @@ CREATE INDEX IF NOT EXISTS admin_logs_created_idx ON admin_logs (created_at DESC
 -- 存量库增量列（新库由上方 CREATE 直接包含）
 ALTER TABLE users ADD COLUMN IF NOT EXISTS banned_until timestamptz;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS ban_reason text NOT NULL DEFAULT '';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password boolean NOT NULL DEFAULT false;
 
 -- ---- 后台（阶段二）----
 

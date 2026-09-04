@@ -33,16 +33,18 @@
 				<th>邮箱验证</th>
 				<td><label><input type="checkbox" name="email_verify_enabled" value="1"{{if .Settings.EmailVerifyEnabled}} checked{{end}}> 新注册邮箱需验证；未验证者发布外链内容进审核队列（SMTP 未启用时自动失效）</label></td>
 			</tr>
-			<tr>
-				<th>本站上传</th>
-				<td>
-					<label><input type="checkbox" name="upload_enabled" value="1"{{if .Settings.UploadEnabled}} checked{{end}}> 开放图片/附件上传到本站（关闭 = 仅外链模式）</label>
-					<p class="xg1 tip">图片上限
-						<input type="number" name="max_image_mb" value="{{.Settings.MaxImageMB}}" min="1" max="1024" class="px px-inline px-num"> MB，
-						附件上限
-						<input type="number" name="max_file_mb" value="{{.Settings.MaxFileMB}}" min="1" max="1024" class="px px-inline px-num"> MB</p>
-				</td>
-			</tr>
+				<tr>
+					<th>本站上传</th>
+					<td>
+						<label><input type="checkbox" name="upload_enabled" value="1"{{if .Settings.UploadEnabled}} checked{{end}}> 开放图片/附件上传到本站（关闭 = 仅外链模式）</label>
+						<p class="xg1 tip">图片上限
+							<input type="number" name="max_image_mb" value="{{.Settings.MaxImageMB}}" min="1" max="1024" class="px px-inline px-num"> MB，
+							附件上限
+							<input type="number" name="max_file_mb" value="{{.Settings.MaxFileMB}}" min="1" max="1024" class="px px-inline px-num"> MB，
+							目录占用达
+							<input type="number" name="upload_max_disk_gb" value="{{.Settings.UploadMaxDiskGB}}" min="1" max="1024" class="px px-inline px-num"> GB 后拒绝新上传并在仪表盘告警</p>
+					</td>
+				</tr>
 			<tr>
 				<th>关闭站点</th>
 				<td>

@@ -69,21 +69,19 @@
 
 ---
 
-## 阶段五：运维硬化（能独自跑生产）
+## 阶段五：运维硬化（能独自跑生产）✅ 2026-09-05
 
 **目标**：把「看文档手工做」变成「产品里必须过」。
 
-| # | 任务 | 落点 |
-| --- | --- | --- |
-| 5.1 | `-seed` 强制改密：种子管理员首次登录强制进改密页（`users.must_change_password` 标志） | `seed.go`、登录后跳转中间态 |
-| 5.2 | 启用编号迁移：`db.Migrate` 读 `schema_migrations.max(version)`，顺序执行 `assets/db/migrations/NNN_*.sql`，`schema.sql` 只保留基线 | `internal/db/db.go`、迁移文件目录 |
-| 5.3 | 健康检查升级：`/api/status` 迁移版本、DB 可达、队列积压（审核/举报条数）；不含内部连接数（口径已收） | `handler_static.go` |
-| 5.4 | 备份自检命令：`forumd -check-backup` 验证 DSN 可写、`pg_dump` 在 PATH、data 目录可写，输出上线检查单 | `cmd/forumd/main.go` |
-| 5.5 | 磁盘守护：上传目录超阈值（后台可设 GB 数）拒绝新上传并在仪表盘告警 | `handler_notify.go` 上传路径、`admin_dash.html` |
+| # | 任务 | 落点 | 状态 |
+| --- | --- | --- | --- |
+| 5.1 | `-seed` 强制改密：种子管理员带 `must_change_password` 标志，登录重定向资料设置页；改密前内容写入口（发帖/回复/编辑/删除）与整个管理后台 403 拦截，改密成功自动清除标志 | `migrations/002`、`seed.go`、`loginSubmit`、`checkMustChangePassword` | ✅ |
+| 5.2 | 启用编号迁移：启动先幂等重放 schema.sql，再按序执行 `db/migrations/NNN_*.sql`（> max(version)，逐条登记版本）；002 迁移已实战验证存量库升级 | `assets.Migrations`、`db.Migrate` | ✅ |
+| 5.3 | 健康检查升级：`/api/status` 返回 DB 可达、schema 版本、治理队列积压（待审主题/回复/举报）；不含内部连接数 | `handler_static.go`、`store.SchemaVersion` | ✅ |
+| 5.4 | `forumd -check-backup`：DSN 可写（临时表探测）、schema 版本、pg_dump 在 PATH、数据目录可写，失败退出码 1 | `cmd/forumd/check.go` | ✅ |
+| 5.5 | 磁盘守护：设置项「目录占用上限 GB」，达上限拒绝新上传（507），仪表盘显示占用并在 ≥90% 时告警 | `settings.go`、`uploadImage`、`uploadDirBytes`（5min 缓存）、`admin_dash.html` | ✅ |
 
-**验收**：新装站点首次登录必须改密；破坏性迁移演练（改一列类型）走编号迁移成功；检查单命令绿。
-
-**依赖**：5.2 是后续所有 schema 变更的前置，应最先做。
+**验收**（已达成）：生产库经 002 迁移升级至版本 2；`-check-backup` 全项通过；未改密账号发帖/后台被 403 且资料页出现强制提示、改密后自动解除；健康检查含 schema 与积压字段；仪表盘显示上传占用。
 
 ---
 

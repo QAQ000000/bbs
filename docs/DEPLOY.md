@@ -151,19 +151,29 @@ journalctl -u gobbs -n 20        # 确认"论坛服务已启动"与迁移/索引
 ```
 
 - schema 迁移全部幂等，随启动自动执行，可安全回滚到旧二进制
+- schema.sql 幂等重放之外，破坏性变更走 `db/migrations/NNN_*.sql` 编号迁移，
+  启动日志出现「已应用编号迁移 version=N」即表示存量库完成升级
 - 分词器/渲染逻辑升级时，启动日志会显示"已补齐搜索索引 N 条"自动重建
 - 模板与静态资源已 embed 进二进制，无需同步文件
 
 ## 7. 监控与健康检查
 
-- `GET /api/status` → `{"ok":true,"subs":12,"ts":"..."}`（subs 为 SSE 实时连接数），可接入拨测
+- `GET /api/status` → `{"ok":true,"db":"up","schema":2,"pending":{...},"ts":"..."}`，可接入拨测：
+  - `db` 数据库可达性；`schema` 为 `schema_migrations` 迁移版本（与发布版本核对）
+  - `pending` 为治理队列积压（待审主题/回复/待处理举报），持续增长说明该去后台处理了
+- `forumd -check-backup`：上线检查单（DSN 可写、schema 版本、pg_dump 在 PATH、
+  数据目录可写），任一项失败退出码为 1，可直接用于部署脚本断言；
+  注意 systemd/部署环境需把 PostgreSQL 的 `bin` 目录加入 PATH（如
+  `Environment=PATH=/usr/local/bin:/usr/bin:/www/server/pgsql/bin`），否则 pg_dump 检查会失败
 - 日志：stdout（systemd → journald），访问日志含路径与耗时；`panic` 会被中间件捕获并记 ERROR
 
 ## 8. 上线检查单
 
-- [ ] 默认管理员 `admin/admin123456` 已改密
+- [ ] `./bin/forumd -check-backup` 全项通过（需 pg_dump 在 PATH）
+- [ ] 默认管理员已改密（`-seed` 站点首次登录会被强制改密后方可发帖/进后台）
 - [ ] `FORUM_PROD=1`（HTTPS）
 - [ ] `client_max_body_size` 与后台"上传限额"匹配
 - [ ] `/api/live` 无缓冲（否则实时刷新失效）
 - [ ] 备份 cron 已配置且试跑过一次恢复
+- [ ] `/api/status` 的 `schema` 版本与本次发布一致
 - [ ] 发布前跑 `scripts/check-clean.sh`（仓库不含第三方素材）
