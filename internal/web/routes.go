@@ -51,6 +51,9 @@ func (s *Server) routes() http.Handler {
 	m.HandleFunc("POST /profile/save", s.profileSave)
 	m.HandleFunc("POST /profile/password", s.profilePassword)
 	m.HandleFunc("POST /report/{pid}", s.reportSubmit)
+	m.HandleFunc("GET /captcha/{id}", s.captchaImage)
+	m.HandleFunc("GET /verify", s.verifyEmail)
+	m.HandleFunc("POST /profile/verify-resend", s.profileVerifyResend)
 
 	// 发帖
 	m.HandleFunc("GET /new", s.newThreadForm)

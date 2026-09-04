@@ -21,9 +21,9 @@ type Config struct {
 
 // Mailer 异步发送队列。
 type Mailer struct {
-	cfg  Config
-	ch   chan message
-	log  *slog.Logger
+	cfg Config
+	ch  chan message
+	log *slog.Logger
 }
 
 type message struct {
@@ -77,6 +77,28 @@ func (m *Mailer) NotifyMention(to, fromName, threadTitle, link, excerpt string) 
 		"",
 		"查看完整内容：" + link,
 		"",
+		"--",
+		m.cfg.SiteName,
+	}, "\n")
+	select {
+	case m.ch <- message{to: to, subject: subject, body: body}:
+	default:
+		m.log.Warn("邮件队列已满，丢弃一封提醒", "to", to)
+	}
+}
+
+// NotifyEmailVerify 邮箱验证邮件（异步；队列满则丢弃）。
+func (m *Mailer) NotifyEmailVerify(to, link string) {
+	if !m.Enabled() || to == "" {
+		return
+	}
+	subject := fmt.Sprintf("[%s] 邮箱验证", m.cfg.SiteName)
+	body := strings.Join([]string{
+		"感谢注册！请通过下面的链接验证您的邮箱地址：",
+		"",
+		link,
+		"",
+		"链接 24 小时内有效。如果不是您本人操作，请忽略本邮件。",
 		"--",
 		m.cfg.SiteName,
 	}, "\n")

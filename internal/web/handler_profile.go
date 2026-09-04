@@ -4,6 +4,8 @@ package web
 import (
 	"errors"
 	"net/http"
+	"net/url"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -20,11 +22,13 @@ type profilePage struct {
 	Error     string
 	Signature string
 	Email     string
+	EmailGate bool // 邮箱验证闸门生效中（显示验证提示）
 }
 
 func (s *Server) renderProfile(w http.ResponseWriter, r *http.Request, d profilePage) {
 	d.Common = s.common(r)
 	d.Title = "资料设置"
+	d.EmailGate = s.emailGateEnabled()
 	_ = s.rd.Render(w, "page_profile.html", &d)
 }
 
@@ -132,5 +136,31 @@ func (s *Server) profilePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.setFlash(w, "密码已修改，其他设备已退出登录")
+	http.Redirect(w, r, "/profile", http.StatusSeeOther)
+}
+
+// profileVerifyResend POST /profile/verify-resend：重发验证邮件（3 次/小时）。
+func (s *Server) profileVerifyResend(w http.ResponseWriter, r *http.Request) {
+	if !s.requireLogin(w, r) {
+		return
+	}
+	u := User(r)
+	if !s.checkCSRF(r) {
+		s.renderError(w, r, http.StatusForbidden, "操作被拒绝", "表单已过期，请刷新重试。")
+		return
+	}
+	if !s.emailGateEnabled() || u.Email == "" || u.EmailVerified {
+		http.Redirect(w, r, "/profile", http.StatusSeeOther)
+		return
+	}
+	if !s.allowKey("verify:"+strconv.FormatInt(u.ID, 10), 3, time.Hour) {
+		s.renderError(w, r, http.StatusTooManyRequests, "操作过于频繁", "验证邮件发送过于频繁，请一小时后再试。")
+		return
+	}
+	if raw, err := s.st.CreateEmailVerify(r.Context(), u.ID); err == nil {
+		link := s.cfg.SiteURL + "/verify?token=" + url.QueryEscape(raw)
+		s.mailer.NotifyEmailVerify(u.Email, link)
+	}
+	s.setFlash(w, "验证邮件已发送，请查收（24 小时内有效）")
 	http.Redirect(w, r, "/profile", http.StatusSeeOther)
 }

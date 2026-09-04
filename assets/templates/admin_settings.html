@@ -26,6 +26,14 @@
 				<td><label><input type="checkbox" name="moderate_enabled" value="1"{{if .Settings.ModerateEnabled}} checked{{end}}> 新用户发的主题与回复需管理员或版主审核后公开（管理员与版主本人不受限）</label></td>
 			</tr>
 			<tr>
+				<th>注册验证码</th>
+				<td><label><input type="checkbox" name="captcha_enabled" value="1"{{if .Settings.CaptchaEnabled}} checked{{end}}> 注册时需输入算术验证码（自绘 SVG，零第三方依赖）</label></td>
+			</tr>
+			<tr>
+				<th>邮箱验证</th>
+				<td><label><input type="checkbox" name="email_verify_enabled" value="1"{{if .Settings.EmailVerifyEnabled}} checked{{end}}> 新注册邮箱需验证；未验证者发布外链内容进审核队列（SMTP 未启用时自动失效）</label></td>
+			</tr>
+			<tr>
 				<th>本站上传</th>
 				<td>
 					<label><input type="checkbox" name="upload_enabled" value="1"{{if .Settings.UploadEnabled}} checked{{end}}> 开放图片/附件上传到本站（关闭 = 仅外链模式）</label>

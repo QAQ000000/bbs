@@ -184,6 +184,34 @@ func (s *Store) ChangePassword(ctx context.Context, uid int64, oldPassword, newP
 	return nil
 }
 
+// CreateEmailVerify 生成邮箱验证令牌（24h 有效；库中存哈希，同用户覆盖旧令牌）。
+func (s *Store) CreateEmailVerify(ctx context.Context, uid int64) (string, error) {
+	raw := newToken(24)
+	_, err := s.pool.Exec(ctx, `
+		INSERT INTO email_verifications (uid, token_hash, expires_at)
+		VALUES ($1,$2, now() + interval '24 hours')
+		ON CONFLICT (uid) DO UPDATE SET
+			token_hash = EXCLUDED.token_hash, expires_at = EXCLUDED.expires_at, created_at = now()`,
+		uid, hashToken(raw))
+	return raw, err
+}
+
+// ConsumeEmailVerify 一次性消费验证令牌并标记用户邮箱已验证，返回用户 id。
+func (s *Store) ConsumeEmailVerify(ctx context.Context, raw string) (int64, error) {
+	var uid int64
+	err := s.pool.QueryRow(ctx,
+		`DELETE FROM email_verifications WHERE token_hash=$1 AND expires_at > now() RETURNING uid`,
+		hashToken(raw)).Scan(&uid)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, ErrNotFound
+	}
+	if err != nil {
+		return 0, err
+	}
+	_, err = s.pool.Exec(ctx, `UPDATE users SET email_verified=true WHERE id=$1`, uid)
+	return uid, err
+}
+
 // UpdatePassword 重设密码（bcrypt）。
 func (s *Store) UpdatePassword(ctx context.Context, uid int64, password string) error {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)

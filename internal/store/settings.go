@@ -23,6 +23,9 @@ type SiteSettings struct {
 	UploadEnabled bool // 本站上传开关（关闭 = 仅外链模式）
 	MaxImageMB    int  // 图片上传上限（MB）
 	MaxFileMB     int  // 附件上传上限（MB）
+
+	CaptchaEnabled     bool // 注册算术验证码
+	EmailVerifyEnabled bool // 邮箱验证开关（SMTP 未启用时自动失效）
 }
 
 func defaultSettings() SiteSettings {
@@ -140,5 +143,11 @@ func applySettings(st *SiteSettings, kv map[string]string) {
 		if n, err := strconv.Atoi(v); err == nil && n >= 1 && n <= 1024 {
 			st.MaxFileMB = n
 		}
+	}
+	if v, ok := kv["captcha_enabled"]; ok {
+		st.CaptchaEnabled = v == "1"
+	}
+	if v, ok := kv["email_verify_enabled"]; ok {
+		st.EmailVerifyEnabled = v == "1"
 	}
 }

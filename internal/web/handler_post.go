@@ -2,6 +2,7 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -472,25 +473,38 @@ func (s *Server) deletePost(w http.ResponseWriter, r *http.Request) {
 
 // 审核原因码。
 const (
-	reasonManual      = "manual"       // 站点开启了发帖审核
-	reasonNewUserLink = "newuser_link" // 新用户内容含链接
+	reasonManual          = "manual"           // 站点开启了发帖审核
+	reasonNewUserLink     = "newuser_link"     // 新用户内容含链接
+	reasonEmailUnverified = "email_unverified" // 邮箱验证开启但用户邮箱未验证
 )
 
 // ReasonLabels 原因码中文说明（审核队列展示）。
 var ReasonLabels = map[string]string{
-	reasonManual:      "发帖审核开关开启",
-	reasonNewUserLink: "新用户内容含链接",
+	reasonManual:          "发帖审核开关开启",
+	reasonNewUserLink:     "新用户内容含链接",
+	reasonEmailUnverified: "邮箱未验证",
+}
+
+// emailGateEnabled 邮箱验证闸门是否生效：开关开启且 SMTP 可用（否则自动降级）。
+func (s *Server) emailGateEnabled() bool {
+	return s.st.Settings(context.Background()).EmailVerifyEnabled && s.mailer.Enabled()
 }
 
 // moderationDecision 决定该用户此内容是否进入审核队列及原因：
-// 站点审核开关（manual）；或新用户（发帖<5 且注册<7天）内容含链接（newuser_link，不受开关限制）。
+// 站点审核开关（manual）；或新用户内容含链接（newuser_link）；或邮箱验证开启但
+// 用户邮箱未验证且内容含链接（email_unverified，SMTP 关闭时闸门自动失效）。
 func (s *Server) moderationDecision(r *http.Request, u *store.User, content string) (bool, string) {
 	if u == nil || hasPoint(u, perm.ContentModerate) {
 		return false, ""
 	}
 	hasLink := strings.Contains(content, "http://") || strings.Contains(content, "https://")
-	if hasLink && !perm.TrustAllowed(perm.TrustLevel(u.TrustLevel), perm.PostLinkDirect) {
-		return true, reasonNewUserLink
+	if hasLink {
+		if !perm.TrustAllowed(perm.TrustLevel(u.TrustLevel), perm.PostLinkDirect) {
+			return true, reasonNewUserLink
+		}
+		if s.emailGateEnabled() && u.Email != "" && !u.EmailVerified {
+			return true, reasonEmailUnverified
+		}
 	}
 	if s.sets(r).ModerateEnabled {
 		return true, reasonManual

@@ -55,19 +55,17 @@
 
 ---
 
-## 阶段四：反垃圾（注册入口收口）
+## 阶段四：反垃圾（注册入口收口）✅ 2026-09-05
 
 **目标**：批量注册与灌水号的成本显著高于收益。
 
-| # | 任务 | 落点 |
-| --- | --- | --- |
-| 4.1 | 注册验证码：自绘算术/汉字验证码（零第三方依赖，SVG 输出，会话绑定一次性），后台可开关 | `internal/captcha`、`page_register.html`、settings 加 `captcha_enabled` |
-| 4.2 | 邮箱验证（可选开关）：注册后未验证仅不能发外链（复用 TL0 链接规则）；验证邮件复用现有 SMTP 队列 | `users.email_verified` 列、`mail.VerifyAddress` |
-| 4.3 | 注册限流已有（5/h、20/d），补用户名黑名单前缀（admin、moderator 等保留名） | `registerSubmit` 校验 |
+| # | 任务 | 落点 | 状态 |
+| --- | --- | --- | --- |
+| 4.1 | 注册算术验证码：`internal/captcha` 自绘 SVG（表达式数字/噪声全走 crypto/rand，答案进程内存储、一次性、10min 过期），`/captcha/{id}` 输出，后台开关 | `internal/captcha/`、`page_register.html`、`settings.captcha_enabled` | ✅ |
+| 4.2 | 邮箱验证（可选开关）：`email_verifications` 表（哈希令牌 24h、一用户一令牌）、注册即发验证邮件、`/verify` 一次性消费、资料页未验证横幅 + 重发（3 次/h）；未验证发外链入队（`email_unverified` 原因码）；SMTP 关闭时闸门自动失效 | `schema.sql`、`store.CreateEmailVerify/ConsumeEmailVerify`、`mail.NotifyEmailVerify`、`moderationDecision` | ✅ |
+| 4.3 | 保留用户名：精确表（admin/root/system/管理员/版主…）+ 前缀表（admin/moderator/gobbs/official），大小写不敏感 | `registerSubmit`、`reservedName` | ✅ |
 
-**验收**：开验证码后脚本注册被拦；保留名无法注册；SMTP 关闭时邮箱验证自动降级为不启用（fail-open 但日志提示）。
-
-**依赖**：4.2 依赖 SMTP 可用性；两者均可后台开关，站点可按需只开 4.1。
+**验收**（已达成）：后台开验证码后注册页出现算术题、错误答案被拒、关闭后恢复；保留名注册被拒；captcha 包单测（通过/一次性/错误消费/SVG 渲染）；冒烟测试 `TestRegisterGate`（开关切换 + 页面控件 + 错误验证码 + 保留名）。验证码挑战全量 crypto/rand。
 
 ---
 

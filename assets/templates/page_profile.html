@@ -9,6 +9,16 @@
 		<div class="bm bmw">
 			<div class="bm_h"><h2>基本资料</h2></div>
 			<div class="bm_c">
+				{{if .EmailGate}}
+					{{if not .Profile.Email}}<div class="flash">提示：尚未设置邮箱。填写并保存后可进行验证；未验证时发布外链内容将进入审核。</div>
+					{{else if not .Profile.EmailVerified}}<div class="flash">邮箱尚未验证：发布外链内容将进入审核队列。
+						<form method="post" action="/profile/verify-resend" class="inlineform">
+							<input type="hidden" name="_csrf" value="{{.CSRF}}">
+							<button type="submit" class="linklike">重发验证邮件</button>
+						</form>
+					</div>
+					{{end}}
+				{{end}}
 				{{if eq .Section "profile"}}{{with .Error}}<div class="flash" data-flash>{{.}}</div>{{end}}{{end}}
 				<form method="post" action="/profile/save" class="profile-form">
 					<input type="hidden" name="_csrf" value="{{.CSRF}}">

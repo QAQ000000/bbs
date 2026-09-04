@@ -428,6 +428,55 @@ func TestReportFlow(t *testing.T) {
 	}
 }
 
+// TestRegisterGate 阶段四回归：验证码开关、保留用户名。
+// 结束时恢复设置（captcha_enabled=0），保持种子状态可复跑。
+func TestRegisterGate(t *testing.T) {
+	settingsOn := "site_name=GoBBS 冒烟站&threads_per_page=20&posts_per_page=10" +
+		"&register_enabled=1&moderate_enabled=0&upload_enabled=1&max_image_mb=8&max_file_mb=20" +
+		"&captcha_enabled=1&email_verify_enabled=0&site_closed=0&site_closed_reason="
+	if w := smokePost(t, "/admin/settings", adminCSRF, settingsOn, adminCookie); w.Code != http.StatusSeeOther {
+		t.Fatalf("开启验证码设置 → %d", w.Code)
+	}
+	defer func() {
+		settingsOff := strings.Replace(settingsOn, "captcha_enabled=1", "captcha_enabled=0", 1)
+		if w := smokePost(t, "/admin/settings", adminCSRF, settingsOff, adminCookie); w.Code != http.StatusSeeOther {
+			t.Fatalf("恢复设置 → %d", w.Code)
+		}
+	}()
+
+	// 注册页出现验证码控件
+	body := smokeGet(t, "/register", nil).Body.String()
+	if !strings.Contains(body, "captcha_id") || !strings.Contains(body, "/captcha/") {
+		t.Fatal("开启后注册页缺验证码控件")
+	}
+
+	// 匿名会话（自取匿名 CSRF Cookie）
+	w := smokeGet(t, "/register", nil)
+	var anonCookie *http.Cookie
+	for _, c := range w.Result().Cookies() {
+		if c.Name == "forum_csrf" {
+			anonCookie = c
+		}
+	}
+	anonCSRF := ""
+	if anonCookie != nil {
+		anonCSRF = anonCookie.Value
+	}
+
+	// 错误验证码被拒
+	w = smokePost(t, "/register", anonCSRF,
+		"username=spamuser01&email=&password=pass123456&captcha_id=invalid&captcha=99", anonCookie)
+	if !strings.Contains(w.Body.String(), "验证码不正确") {
+		t.Fatalf("错误验证码应被拒: %s", firstLine(w.Body.String()))
+	}
+	// 保留用户名（前缀命中）被拒
+	w = smokePost(t, "/register", anonCSRF,
+		"username=administrator2&email=&password=pass123456&captcha_id=invalid&captcha=1", anonCookie)
+	if !strings.Contains(w.Body.String(), "系统保留") {
+		t.Fatalf("保留用户名应被拒: %s", firstLine(w.Body.String()))
+	}
+}
+
 func firstLine(s string) string {
 	if i := strings.Index(s, "\n"); i > 0 {
 		return s[:i]

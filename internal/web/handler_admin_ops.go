@@ -348,17 +348,27 @@ func (s *Server) adminSettingsSave(w http.ResponseWriter, r *http.Request) {
 	if r.PostFormValue("upload_enabled") == "" {
 		upload = "0"
 	}
+	captcha := "0"
+	if r.PostFormValue("captcha_enabled") == "1" {
+		captcha = "1"
+	}
+	emailVerify := "0"
+	if r.PostFormValue("email_verify_enabled") == "1" {
+		emailVerify = "1"
+	}
 	kv := map[string]string{
-		"site_name":          strings.TrimSpace(r.PostFormValue("site_name")),
-		"threads_per_page":   strings.TrimSpace(r.PostFormValue("threads_per_page")),
-		"posts_per_page":     strings.TrimSpace(r.PostFormValue("posts_per_page")),
-		"register_enabled":   reg,
-		"moderate_enabled":   moderate,
-		"upload_enabled":     upload,
-		"max_image_mb":       strings.TrimSpace(r.PostFormValue("max_image_mb")),
-		"max_file_mb":        strings.TrimSpace(r.PostFormValue("max_file_mb")),
-		"site_closed":        closed,
-		"site_closed_reason": strings.TrimSpace(r.PostFormValue("site_closed_reason")),
+		"site_name":            strings.TrimSpace(r.PostFormValue("site_name")),
+		"threads_per_page":     strings.TrimSpace(r.PostFormValue("threads_per_page")),
+		"posts_per_page":       strings.TrimSpace(r.PostFormValue("posts_per_page")),
+		"register_enabled":     reg,
+		"moderate_enabled":     moderate,
+		"upload_enabled":       upload,
+		"max_image_mb":         strings.TrimSpace(r.PostFormValue("max_image_mb")),
+		"max_file_mb":          strings.TrimSpace(r.PostFormValue("max_file_mb")),
+		"captcha_enabled":      captcha,
+		"email_verify_enabled": emailVerify,
+		"site_closed":          closed,
+		"site_closed_reason":   strings.TrimSpace(r.PostFormValue("site_closed_reason")),
 	}
 	if err := s.st.SaveSettings(r.Context(), kv); err != nil {
 		s.setFlash(w, "保存失败："+err.Error())

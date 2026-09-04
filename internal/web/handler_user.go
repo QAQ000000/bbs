@@ -4,11 +4,13 @@ package web
 import (
 	"errors"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
 	"unicode/utf8"
 
+	"dzforum/internal/captcha"
 	"dzforum/internal/perm"
 	"dzforum/internal/store"
 )
@@ -108,15 +110,58 @@ func (s *Server) registerForm(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
+	d := s.registerPageData(w, r, nextOf(r), "", "", "")
+	_ = s.rd.Render(w, "page_register.html", &d)
+}
+
+// registerPageData 注册页数据；captcha 开启时生成新挑战。
+func (s *Server) registerPageData(w http.ResponseWriter, r *http.Request, next, errMsg, username, email string) struct {
+	Common
+	Next           string
+	CSRF           string
+	Error          string
+	Username       string
+	Email          string
+	CaptchaEnabled bool
+	CaptchaID      string
+} {
 	d := struct {
 		Common
-		Next     string
-		CSRF     string
-		Error    string
-		Username string
-		Email    string
-	}{s.common(r), nextOf(r), s.anonCSRF(r, w), "", "", ""}
-	_ = s.rd.Render(w, "page_register.html", &d)
+		Next           string
+		CSRF           string
+		Error          string
+		Username       string
+		Email          string
+		CaptchaEnabled bool
+		CaptchaID      string
+	}{s.common(r), next, s.anonCSRF(r, w), errMsg, username, email,
+		s.sets(r).CaptchaEnabled, ""}
+	if d.CaptchaEnabled {
+		d.CaptchaID, _ = captcha.New()
+	}
+	return d
+}
+
+// reservedName 保留用户名（ROADMAP 阶段四）：精确命中或前缀命中均拒绝。
+var reservedNameExact = map[string]bool{
+	"admin": true, "administrator": true, "root": true, "system": true,
+	"moderator": true, "staff": true, "owner": true, "official": true, "guest": true,
+	"管理员": true, "版主": true, "官方": true, "系统": true, "站务": true,
+}
+
+var reservedNamePrefixes = []string{"admin", "moderator", "gobbs", "official"}
+
+func reservedName(name string) bool {
+	low := strings.ToLower(name)
+	if reservedNameExact[low] {
+		return true
+	}
+	for _, p := range reservedNamePrefixes {
+		if strings.HasPrefix(low, p) {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Server) registerSubmit(w http.ResponseWriter, r *http.Request) {
@@ -138,19 +183,16 @@ func (s *Server) registerSubmit(w http.ResponseWriter, r *http.Request) {
 	password := r.PostFormValue("password")
 	next := safeNext(r.PostFormValue("next"))
 
-	var fail = func(msg string) {
-		d := struct {
-			Common
-			Next     string
-			CSRF     string
-			Error    string
-			Username string
-			Email    string
-		}{s.common(r), next, s.anonCSRF(r, w), msg, username, email}
+	fail := func(msg string) {
+		d := s.registerPageData(w, r, next, msg, username, email)
 		_ = s.rd.Render(w, "page_register.html", &d)
 	}
 	if !usernameRe.MatchString(username) {
 		fail("用户名需为 2-15 位中文、字母、数字或下划线")
+		return
+	}
+	if reservedName(username) {
+		fail("该用户名为系统保留，请换一个")
 		return
 	}
 	if utf8.RuneCountInString(password) < 6 {
@@ -159,6 +201,12 @@ func (s *Server) registerSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 	if email != "" && !emailRe.MatchString(email) {
 		fail("邮箱格式不正确")
+		return
+	}
+	// 算术验证码（后台开关；挑战一次性，失败需换新题）
+	if s.sets(r).CaptchaEnabled &&
+		!captcha.Verify(r.PostFormValue("captcha_id"), strings.TrimSpace(r.PostFormValue("captcha"))) {
+		fail("验证码不正确，请输入图片中算式的结果")
 		return
 	}
 	u, err := s.st.CreateUser(r.Context(), username, password, email)
@@ -170,6 +218,13 @@ func (s *Server) registerSubmit(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	// 邮箱验证开关开启且邮件可用：注册即发验证邮件（24h 有效）
+	if s.emailGateEnabled() && email != "" {
+		if raw, err := s.st.CreateEmailVerify(r.Context(), u.ID); err == nil {
+			link := s.cfg.SiteURL + "/verify?token=" + url.QueryEscape(raw)
+			s.mailer.NotifyEmailVerify(email, link)
+		}
+	}
 	token, _, err := s.st.CreateSession(r.Context(), u.ID)
 	if err != nil {
 		s.renderError(w, r, http.StatusInternalServerError, "注册失败", err.Error())
@@ -178,6 +233,21 @@ func (s *Server) registerSubmit(w http.ResponseWriter, r *http.Request) {
 	s.setSessionCookie(w, token, s.cfg.CookieTTL)
 	s.setFlash(w, "注册成功，欢迎加入！")
 	http.Redirect(w, r, next, http.StatusSeeOther)
+}
+
+// verifyEmail GET /verify?token=...：邮箱验证一次性消费。
+func (s *Server) verifyEmail(w http.ResponseWriter, r *http.Request) {
+	if !s.allow(r, "verify", 30, time.Hour) {
+		s.renderError(w, r, http.StatusTooManyRequests, "操作过于频繁", "请稍后再试。")
+		return
+	}
+	if _, err := s.st.ConsumeEmailVerify(r.Context(), r.URL.Query().Get("token")); err != nil {
+		s.renderError(w, r, http.StatusBadRequest, "链接无效",
+			"验证链接无效或已过期（有效期 24 小时）。请在资料设置中重发验证邮件。")
+		return
+	}
+	s.setFlash(w, "邮箱验证成功")
+	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
 // ---- 退出 ----

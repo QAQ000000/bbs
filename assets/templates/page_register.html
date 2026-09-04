@@ -22,6 +22,16 @@
 						<input type="password" name="password" id="password" class="px" required autocomplete="new-password">
 						<p class="xg1 tip">至少 6 位</p>
 					</div>
+					{{if .CaptchaEnabled}}
+					<div class="form-row">
+						<label for="captcha">验证码</label>
+						<div class="captcha-row">
+							<input type="hidden" name="captcha_id" value="{{.CaptchaID}}">
+							<img src="/captcha/{{.CaptchaID}}" alt="算术验证码" width="130" height="44" class="captcha-img">
+							<input type="text" name="captcha" id="captcha" class="px" required autocomplete="off" inputmode="numeric" placeholder="计算结果">
+						</div>
+					</div>
+					{{end}}
 					<div class="submit-row">
 						<button type="submit" class="pn pnc">注册</button>
 						<span class="xg1">已有账号？<a href="/login{{if .Next}}?next={{.Next}}{{end}}">直接登录</a></span>

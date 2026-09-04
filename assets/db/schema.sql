@@ -205,6 +205,15 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS trust_level     smallint NOT NULL DEF
 ALTER TABLE users ADD COLUMN IF NOT EXISTS posts_read      bigint   NOT NULL DEFAULT 0;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS days_visited    int      NOT NULL DEFAULT 0;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS last_visit_date date;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified  boolean  NOT NULL DEFAULT false; -- 邮箱验证开关开启时注册用户需验证
+
+-- email_verifications 邮箱验证令牌（库中存哈希，24h 有效，一用户一令牌）
+CREATE TABLE IF NOT EXISTS email_verifications (
+    uid        bigint      PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    token_hash text        NOT NULL UNIQUE,
+    expires_at timestamptz NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
 
 -- ---- 上传与通知 ----
 

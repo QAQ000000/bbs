@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"dzforum/assets"
+	"dzforum/internal/captcha"
 )
 
 var staticFS = assets.Static()
@@ -72,4 +73,29 @@ func safeSmileyName(s string) bool {
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	_, _ = w.Write([]byte(`{"ok":true,"ts":"` + time.Now().Format(time.RFC3339) + `"}`))
+}
+
+// GET /captcha/{id} — 算术验证码 SVG（一次性挑战，no-store）。
+func (s *Server) captchaImage(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if len(id) < 10 || len(id) > 64 {
+		http.NotFound(w, r)
+		return
+	}
+	for _, c := range id {
+		ok := c == '_' || c == '-' ||
+			(c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
+		if !ok {
+			http.NotFound(w, r)
+			return
+		}
+	}
+	svg := captcha.Image(id)
+	if svg == "" {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", "image/svg+xml")
+	w.Header().Set("Cache-Control", "no-store")
+	_, _ = w.Write([]byte(svg))
 }
