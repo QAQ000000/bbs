@@ -249,6 +249,21 @@ CREATE TABLE IF NOT EXISTS password_resets (
 -- 邮箱部分唯一索引（空串不限；注册/改邮箱冲突由索引兜底）
 CREATE UNIQUE INDEX IF NOT EXISTS users_email_unique_idx ON users (email) WHERE email <> '';
 
+-- reports 举报（ROADMAP 阶段三）：会员举报楼层，staff 在审核队列处理
+CREATE TABLE IF NOT EXISTS reports (
+    id         bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    post_id    bigint      NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+    reporter   bigint      NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    reason     text        NOT NULL DEFAULT '',
+    status     text        NOT NULL DEFAULT 'open',   -- open / resolved / dismissed
+    handled_by bigint      NOT NULL DEFAULT 0,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    handled_at timestamptz
+);
+-- 同一用户对同一楼层只允许一条未处理举报
+CREATE UNIQUE INDEX IF NOT EXISTS reports_open_unique_idx ON reports (post_id, reporter) WHERE status = 'open';
+CREATE INDEX IF NOT EXISTS reports_status_idx ON reports (status, id DESC);
+
 -- 迁移版本基线：schema.sql 整体幂等重放；后续破坏性变更以递增 version 的
 -- 编号迁移文件处理并在本表登记（当前全部历史合并为基线 1）
 CREATE TABLE IF NOT EXISTS schema_migrations (

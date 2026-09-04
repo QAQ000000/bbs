@@ -101,17 +101,26 @@ func (s *Server) adminModerate(w http.ResponseWriter, r *http.Request) {
 		s.renderError(w, r, http.StatusInternalServerError, "加载失败", err.Error())
 		return
 	}
+	reports, err := s.st.OpenReports(r.Context(), 50, s.staffForumScope(r))
+	if err != nil {
+		s.renderError(w, r, http.StatusInternalServerError, "加载失败", err.Error())
+		return
+	}
 	if threads == nil {
 		threads = []*store.PendingThreadRow{}
 	}
 	if posts == nil {
 		posts = []*store.PendingPostRow{}
 	}
+	if reports == nil {
+		reports = []*store.ReportRow{}
+	}
 	data := struct {
 		Common
 		Threads []*store.PendingThreadRow
 		Posts   []*store.PendingPostRow
-	}{s.adminCommon(r, "moderate"), threads, posts}
+		Reports []*store.ReportRow
+	}{s.adminCommon(r, "moderate"), threads, posts, reports}
 	_ = s.rd.Render(w, "admin_moderate.html", &data)
 }
 

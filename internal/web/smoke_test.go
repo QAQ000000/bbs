@@ -395,6 +395,39 @@ func TestProfileFlow(t *testing.T) {
 	}
 }
 
+// TestReportFlow 阶段三回归：举报提交 → 队列可见 → 驳回后消失；引用预填；匿名拒绝。
+func TestReportFlow(t *testing.T) {
+	// 匿名举报 → 302 跳登录
+	w := smokePost(t, "/report/2", "", "reason=x", nil)
+	if w.Code != http.StatusFound || !strings.HasPrefix(w.Header().Get("Location"), "/login") {
+		t.Fatalf("匿名举报应跳登录: %d %s", w.Code, w.Header().Get("Location"))
+	}
+	// user01 举报 2 楼（admin 的回复）
+	w = smokePost(t, "/report/2", userCSRF, "reason=测试举报理由", userCookie)
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("举报提交 → %d，期望 303: %s", w.Code, firstLine(w.Body.String()))
+	}
+	// 审核队列可见（含理由与楼层号）
+	body := smokeGet(t, "/admin/moderate", adminCookie).Body.String()
+	if !strings.Contains(body, "测试举报理由") || !strings.Contains(body, "待处理举报") {
+		t.Fatal("审核队列未显示举报")
+	}
+	// 驳回后消失
+	w = smokePost(t, "/admin/report/handle", adminCSRF, "id=1&op=dismiss", adminCookie)
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("驳回 → %d，期望 303: %s", w.Code, firstLine(w.Body.String()))
+	}
+	body = smokeGet(t, "/admin/moderate", adminCookie).Body.String()
+	if strings.Contains(body, "测试举报理由") {
+		t.Fatal("驳回后举报仍显示")
+	}
+	// 引用预填：/reply/1?quote=2 应含引用块
+	body = smokeGet(t, "/reply/1?quote=2", userCookie).Body.String()
+	if !strings.Contains(body, "引用 admin") {
+		t.Fatal("引用预填缺失")
+	}
+}
+
 func firstLine(s string) string {
 	if i := strings.Index(s, "\n"); i > 0 {
 		return s[:i]

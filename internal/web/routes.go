@@ -50,6 +50,7 @@ func (s *Server) routes() http.Handler {
 	m.HandleFunc("GET /profile", s.profileForm)
 	m.HandleFunc("POST /profile/save", s.profileSave)
 	m.HandleFunc("POST /profile/password", s.profilePassword)
+	m.HandleFunc("POST /report/{pid}", s.reportSubmit)
 
 	// 发帖
 	m.HandleFunc("GET /new", s.newThreadForm)
@@ -90,6 +91,7 @@ func (s *Server) routes() http.Handler {
 	m.HandleFunc("GET /admin/moderate", s.adminModerate)
 	m.HandleFunc("POST /admin/moderate/thread", s.adminModerateThread)
 	m.HandleFunc("POST /admin/moderate/post", s.adminModeratePost)
+	m.HandleFunc("POST /admin/report/handle", s.adminReportHandle)
 	m.HandleFunc("GET /admin/prune", s.adminPrune)
 	m.HandleFunc("POST /admin/prune/execute", s.adminPruneExecute)
 	m.HandleFunc("POST /admin/announcements/add", s.adminAnnounceAdd)

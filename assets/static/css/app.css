@@ -403,6 +403,23 @@ h1, h2, h3, h4 { margin: 0; font-weight: 600; }
 
 /* ---- 点赞浮层 ---- */
 .like-count[data-likes-toggle] { cursor: pointer; border-bottom: 1px dotted var(--c-accent); }
+
+/* ---- 引用 / 举报 ---- */
+.quotebtn { margin-left: 10px; font-size: 13px; }
+.report-box { display: inline-block; margin-left: 10px; position: relative; font-size: 13px; }
+.report-box summary { list-style: none; cursor: pointer; color: var(--c-link); }
+.report-box summary::-webkit-details-marker { display: none; }
+.report-box[open] summary { color: var(--c-accent); }
+.report-form {
+	position: absolute; z-index: 95; top: 22px; left: 0; width: 260px;
+	padding: 10px; background: #fff; border: 1px solid var(--c-border); border-radius: 6px;
+	box-shadow: 0 4px 16px rgba(20,40,70,.15);
+}
+.report-form textarea {
+	width: 100%; padding: 6px 8px; border: 1px solid var(--c-border); border-radius: var(--radius);
+	font: inherit; color: inherit; resize: vertical;
+}
+.report-form button { margin-top: 6px; }
 .likes-pop {
 	position: absolute; z-index: 90; padding: 8px 10px;
 	background: #fff; border: 1px solid var(--c-border); border-radius: 6px;

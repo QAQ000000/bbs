@@ -69,4 +69,38 @@
 		</tbody>
 	</table>
 </div>
+
+<div class="panel">
+	<h3>待处理举报（{{len .Reports}}）</h3>
+	<table class="admin-table">
+		<thead><tr><th>被举报楼层</th><th>作者</th><th>内容摘要</th><th>举报理由</th><th>举报人 / 时间</th><th class="ops-cell">操作</th></tr></thead>
+		<tbody>
+		{{range .Reports}}
+		<tr>
+			<td><a href="{{threadURL .TID}}" target="_blank">{{.ThreadTtl}}</a> <span class="xg1">#{{.Floor}} 楼</span></td>
+			<td>{{.AuthorName}}</td>
+			<td class="detail-cell xg1">{{.Excerpt}}</td>
+			<td class="detail-cell">{{if .Reason}}{{.Reason}}{{else}}<span class="xg1">（未填写）</span>{{end}}</td>
+			<td class="xg1">{{.Reporter}} · {{timefmt .CreatedAt}}</td>
+			<td class="ops-cell">
+				<form method="post" action="/admin/report/handle" class="inlineform" data-confirm="删除被举报楼层，确定吗？">
+					<input type="hidden" name="_csrf" value="{{$.CSRF}}">
+					<input type="hidden" name="id" value="{{.ID}}">
+					<input type="hidden" name="op" value="delete">
+					<button type="submit" class="pn pn-sm pn-danger">删除楼层</button>
+				</form>
+				<form method="post" action="/admin/report/handle" class="inlineform">
+					<input type="hidden" name="_csrf" value="{{$.CSRF}}">
+					<input type="hidden" name="id" value="{{.ID}}">
+					<input type="hidden" name="op" value="dismiss">
+					<button type="submit" class="pn pn-sm">驳回</button>
+				</form>
+			</td>
+		</tr>
+		{{else}}
+		<tr><td colspan="6" class="empty">没有待处理的举报</td></tr>
+		{{end}}
+		</tbody>
+	</table>
+</div>
 {{end}}

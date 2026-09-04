@@ -27,6 +27,17 @@
 					{{if .CanLike}}<button type="button" class="linklike likebtn" data-pid="{{.ID}}" title="点赞">👍 赞</button>{{end}}
 					<span class="like-count" data-lc="{{.ID}}"{{if gt .LikeCount 0}} data-likes-toggle="{{.ID}}"{{end}}>{{if gt .LikeCount 0}}👍 ×{{.LikeCount}}{{end}}</span>
 				</span>
+				{{if .Quotable}}<a href="/reply/{{.ThreadID}}?quote={{.ID}}" class="linklike quotebtn" title="引用回复">引用</a>{{end}}
+				{{if .CanReport}}
+				<details class="report-box">
+					<summary class="linklike reportbtn" title="举报">举报</summary>
+					<form method="post" action="/report/{{.ID}}" class="report-form">
+						<input type="hidden" name="_csrf" value="{{.CSRF}}">
+						<textarea name="reason" rows="2" maxlength="200" placeholder="举报理由（选填，200 字内）"></textarea>
+						<button type="submit" class="pn pn-sm">提交举报</button>
+					</form>
+				</details>
+				{{end}}
 				{{if .Editable}}
 				<a href="/edit/{{.ID}}" class="editp">编辑</a>
 				<form method="post" action="/delete/{{.ID}}" class="inlineform delform" data-confirm="确定删除该楼层吗？{{if eq .Floor 1}}删除首楼将删除整个主题。{{end}}">

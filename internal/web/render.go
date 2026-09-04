@@ -130,22 +130,26 @@ type Common struct {
 
 type PostVM struct {
 	store.Post
-	HTML     template.HTML
-	Avatar   template.HTML
-	Editable bool
-	CanLike  bool   // 可点赞（登录且非本人楼层）
-	CSRF     string // 删除表单用
+	HTML      template.HTML
+	Avatar    template.HTML
+	Editable  bool
+	CanLike   bool   // 可点赞（登录且非本人楼层）
+	Quotable  bool   // 可引用（登录即可）
+	CanReport bool   // 可举报（登录且非本人楼层）
+	CSRF      string // 删除表单用
 }
 
 // PostVMOf 构建楼层视图模型；viewer 为 nil 时（SSE 广播）无编辑权限。
 func PostVMOf(p *store.Post, viewer *store.User, csrf string) *PostVM {
 	return &PostVM{
-		Post:     *p,
-		HTML:     toHTML(p.ContentHTML),
-		Avatar:   toHTML(avatar.HTML(p.AuthorID, p.AuthorName)),
-		Editable: canEditContent(viewer, p.AuthorID),
-		CanLike:  viewer != nil && viewer.ID != p.AuthorID,
-		CSRF:     csrf,
+		Post:      *p,
+		HTML:      toHTML(p.ContentHTML),
+		Avatar:    toHTML(avatar.HTML(p.AuthorID, p.AuthorName)),
+		Editable:  canEditContent(viewer, p.AuthorID),
+		CanLike:   viewer != nil && viewer.ID != p.AuthorID,
+		Quotable:  viewer != nil,
+		CanReport: viewer != nil && viewer.ID != p.AuthorID,
+		CSRF:      csrf,
 	}
 }
 

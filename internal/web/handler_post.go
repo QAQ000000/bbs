@@ -213,7 +213,44 @@ func (s *Server) replyForm(w http.ResponseWriter, r *http.Request) {
 	d.Thread = th
 	d.Common.Title = "回复主题：" + th.Title
 	d.DraftContext = "reply:" + strconv.FormatInt(tid, 10)
+	// 引用回复（ROADMAP 阶段三）：?quote=pid 服务端预填 Markdown 引用块
+	if qs := r.URL.Query().Get("quote"); qs != "" {
+		if qpid, err := strconv.ParseInt(qs, 10, 64); err == nil && qpid > 0 {
+			if qp, err := s.st.Post(r.Context(), qpid); err == nil && qp.ThreadID == tid {
+				d.Content = buildQuote(qp)
+			}
+		}
+	}
 	_ = s.rd.Render(w, "page_editor.html", &d)
+}
+
+// buildQuote 生成引用 Markdown 块（截取原文前 ~140 字，逐行加 >）。
+func buildQuote(p *store.Post) string {
+	text := strings.TrimSpace(p.ContentMD)
+	if text == "" {
+		return ""
+	}
+	var lines []string
+	total := 0
+	for _, l := range strings.Split(text, "\n") {
+		l = strings.TrimSpace(l)
+		if l == "" {
+			continue
+		}
+		lines = append(lines, l)
+		total += utf8.RuneCountInString(l)
+		if total > 140 {
+			break
+		}
+	}
+	if len(lines) == 0 {
+		return ""
+	}
+	joined := "> " + strings.Join(lines, "\n> ")
+	if total > 140 {
+		joined += " …"
+	}
+	return "引用 " + p.AuthorName + "（" + strconv.Itoa(p.Floor) + " 楼）：\n" + joined + "\n\n"
 }
 
 func (s *Server) replySubmit(w http.ResponseWriter, r *http.Request) {
