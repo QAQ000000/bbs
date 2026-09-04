@@ -162,6 +162,7 @@ func TestPageSmoke(t *testing.T) {
 		minLen int
 	}{
 		{"首页", "/", nil, 2500},
+		{"最新回复页", "/latest", nil, 2000},
 		{"版块页", "/forum-1-1.html", nil, 2000},
 		{"帖子页", "/thread-1-1-1.html", nil, 2500},
 		{"搜索页", "/search?q=%E5%86%85%E5%AE%B9", nil, 1500},
@@ -170,6 +171,7 @@ func TestPageSmoke(t *testing.T) {
 		{"重置页(无效令牌走错误页)", "/reset?token=invalid", nil, 800},
 		{"注册页", "/register", nil, 2000},
 		{"个人空间", "/user/2", nil, 1500},
+		{"发帖选版块(无fid)", "/new", userCookie, 1200},
 		{"发帖表单", "/new?fid=1", userCookie, 2500},
 		{"回复表单", "/reply/1", userCookie, 2500},
 		{"编辑表单", "/edit/1", userCookie, 2500},

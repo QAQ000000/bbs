@@ -11,7 +11,33 @@
 	<span>会员 <em>{{.Stats.Members}}</em></span>
 </div></div>
 
-{{range .Announcements}}<div class="bm"><div class="bm_c announce">📢 {{.Content}}</div></div>{{end}}
+<div class="home-top cl">
+	<div class="lt">
+		<div class="bm bmw">
+			<div class="bm_h cl"><h2 class="z">最新回复</h2><a href="/latest" class="y xg1 more">更多 ›</a></div>
+			<div class="bm_c">
+				{{if .Recent}}
+				<ul class="latest-list">
+					{{range .Recent}}<li>
+						<span class="lt-title"><a href="{{threadURL .ID}}" class="xst">{{.Title}}</a></span>
+						<span class="lt-meta">{{if .ForumName}}<a href="{{forumURL .ForumID}}">{{.ForumName}}</a><span class="pipe">·</span>{{end}}{{.Replies}} 回复<span class="pipe">·</span>{{timefmt .LastPostAt}}</span>
+					</li>{{end}}
+				</ul>
+				{{else}}<p class="xg1">还没有内容，<a href="/new">发表第一个主题</a>吧！</p>{{end}}
+			</div>
+		</div>
+	</div>
+	<div class="an">
+		<div class="bm bmw">
+			<div class="bm_h"><h2>公告</h2></div>
+			<div class="bm_c">
+				{{if .Announcements}}
+					{{range .Announcements}}<div class="announce-item">📢 {{.Content}}</div>{{end}}
+				{{else}}<p class="xg1">暂无公告。</p>{{end}}
+			</div>
+		</div>
+	</div>
+</div>
 
 <div id="ct" class="wp cl" data-live="forums={{.Topics}}">
 	<div class="mn">

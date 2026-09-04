@@ -332,6 +332,35 @@ h1, h2, h3, h4 { margin: 0; font-weight: 600; }
 /* ---- 公告横幅 ---- */
 .announce { padding: 9px 15px; background: #fffaf0; border-left: 3px solid var(--c-accent); color: #8a5a00; font-size: 13.5px; }
 
+/* ---- 首页：最新回复 + 公告双栏（窄屏堆叠）---- */
+.home-top { display: flex; gap: 14px; align-items: stretch; margin: 0 auto 14px; width: min(1200px, 100% - 20px); }
+.home-top .lt { flex: 1 1 auto; min-width: 0; }
+.home-top .an { flex: 0 0 300px; min-width: 0; }
+.home-top .bm_h .more { font-weight: 400; margin: 2px 10px 0 0; }
+.latest-list { list-style: none; margin: 0; padding: 0; }
+.latest-list li {
+	display: flex; gap: 8px; padding: 6px 2px; align-items: baseline;
+	border-bottom: 1px dashed #eef1f5; font-size: 13.5px;
+}
+.latest-list li:last-child { border-bottom: 0; }
+.latest-list .lt-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.latest-list .lt-meta { flex: none; color: var(--c-text-sub); font-size: 12px; white-space: nowrap; }
+.latest-list .lt-meta a { color: var(--c-text-sub); }
+.announce-item { padding: 7px 0; border-bottom: 1px dashed #f0e6cc; color: #8a5a00; font-size: 13px; overflow-wrap: anywhere; }
+.announce-item:last-child { border-bottom: 0; }
+@media (max-width: 800px) {
+	.home-top { flex-direction: column; gap: 12px; }
+	.home-top .an { flex: 1 1 auto; }
+}
+@media (max-width: 600px) {
+	.latest-list .lt-meta .pipe { margin: 0 3px; }
+}
+
+/* ---- 发帖版块选择器 ---- */
+.picker-form { margin: 10px 0 6px; }
+.picker-form .px { width: min(360px, 100%); margin-right: 8px; }
+.lt-forum { font-size: 12px; margin-right: 4px; }
+
 /* ---- 待审核提示 ---- */
 .pending-tip { margin: 8px 0 4px; padding: 7px 12px; border-radius: 3px; background: #fff8e1; border: 1px solid #f0d896; color: #8a6d00; font-size: 13px; }
 

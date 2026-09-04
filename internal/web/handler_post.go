@@ -71,6 +71,10 @@ func (s *Server) newThreadForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fid, _ := strconv.ParseInt(r.URL.Query().Get("fid"), 10, 64)
+	if fid <= 0 {
+		s.forumPicker(w, r)
+		return
+	}
 	forum, err := s.st.Forum(r.Context(), fid)
 	if errors.Is(err, store.ErrNotFound) {
 		s.renderError(w, r, http.StatusNotFound, "版块不存在", "请从正确的入口发帖。")
@@ -96,6 +100,24 @@ func (s *Server) anonCSRFifNeeded(r *http.Request, w http.ResponseWriter) string
 	return s.anonCSRF(r, w)
 }
 
+// forumPicker 未指定版块时的选择页（GET /new 不带 fid，纯 HTML 表单零 JS）。
+func (s *Server) forumPicker(w http.ResponseWriter, r *http.Request) {
+	cats, err := s.st.CategoriesWithForums(r.Context())
+	if err != nil {
+		s.renderError(w, r, http.StatusInternalServerError, "加载失败", err.Error())
+		return
+	}
+	if cats == nil {
+		cats = []*store.Category{}
+	}
+	data := struct {
+		Common
+		Categories []*store.Category
+	}{s.common(r), cats}
+	data.Title = "发表新主题"
+	_ = s.rd.Render(w, "page_newforum.html", &data)
+}
+
 func (s *Server) newThreadSubmit(w http.ResponseWriter, r *http.Request) {
 	if !s.requireLogin(w, r) {
 		return
@@ -114,6 +136,11 @@ func (s *Server) newThreadSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fid, _ := strconv.ParseInt(r.URL.Query().Get("fid"), 10, 64)
+	if fid <= 0 {
+		s.setFlash(w, "请先选择版块")
+		http.Redirect(w, r, "/new", http.StatusSeeOther)
+		return
+	}
 	subject := r.PostFormValue("subject")
 	content := r.PostFormValue("content")
 	if msg := validateContent(subject, content, true); msg != "" {

@@ -13,6 +13,36 @@ import (
 
 // ---- 首页 ----
 
+// latestItem 最新主题条目：主题行 + 版块名（首页「最新回复」与 /latest 共用）。
+type latestItem struct {
+	*store.Thread
+	ForumName string
+}
+
+func forumNameMap(cats []*store.Category) map[int64]string {
+	m := map[int64]string{}
+	for _, c := range cats {
+		for _, f := range c.Forums {
+			m[f.ID] = f.Name
+		}
+	}
+	return m
+}
+
+func (s *Server) latestItems(r *http.Request, page, size int) ([]latestItem, int, error) {
+	threads, total, err := s.st.LatestThreads(r.Context(), page, size)
+	if err != nil {
+		return nil, 0, err
+	}
+	cats, _ := s.st.CategoriesWithForums(r.Context())
+	names := forumNameMap(cats)
+	items := make([]latestItem, 0, len(threads))
+	for _, t := range threads {
+		items = append(items, latestItem{t, names[t.ForumID]})
+	}
+	return items, total, nil
+}
+
 func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 	cats, err := s.st.CategoriesWithForums(r.Context())
 	if err != nil {
@@ -25,16 +55,55 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	announces, _ := s.st.Announcements(r.Context(), true, 3)
+	recent, _, err := s.latestItems(r, 1, 10)
+	if err != nil {
+		recent = []latestItem{}
+	}
 	data := struct {
 		Common
 		Stats         store.SiteStats
 		Categories    []*store.Category
 		Announcements []*store.Announcement
+		Recent        []latestItem
 		Topics        string
-	}{s.common(r), stats, cats, announces, homeTopics(cats)}
+	}{s.common(r), stats, cats, announces, recent, homeTopics(cats)}
 	data.NavActive = "home"
 	data.Title = ""
 	_ = s.rd.Render(w, "page_home.html", &data)
+}
+
+// ---- 全站最新 ----
+
+func (s *Server) latestPage(w http.ResponseWriter, r *http.Request) {
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	if page < 1 {
+		page = 1
+	}
+	const size = 20
+	items, total, err := s.latestItems(r, page, size)
+	if err != nil {
+		s.renderError(w, r, http.StatusInternalServerError, "加载失败", err.Error())
+		return
+	}
+	totalPage := (total + size - 1) / size
+	if totalPage < 1 {
+		totalPage = 1
+	}
+	if page > totalPage {
+		http.Redirect(w, r, "/latest?page="+strconv.Itoa(totalPage), http.StatusFound)
+		return
+	}
+	data := struct {
+		Common
+		Items     []latestItem
+		Page      []PageItem
+		PageNum   int
+		TotalPage int
+	}{s.common(r), items, nil, page, totalPage}
+	data.Page = BuildPage(page, totalPage, func(n int) string { return "/latest?page=" + strconv.Itoa(n) })
+	data.Title = "最新回复"
+	data.NavActive = "latest"
+	_ = s.rd.Render(w, "page_latest.html", &data)
 }
 
 func homeTopics(cats []*store.Category) string {

@@ -151,6 +151,25 @@ func (s *Store) RecentRepliesOfUser(ctx context.Context, uid int64, limit int) (
 	return collectThreads(rows, err)
 }
 
+// LatestThreads 全站最新主题分页（公开口径，按最后发表时间排序）。
+// 首页「最新回复」块与 /latest 页共用。
+func (s *Store) LatestThreads(ctx context.Context, page, size int) ([]*Thread, int, error) {
+	var total int
+	if err := s.pool.QueryRow(ctx,
+		`SELECT count(*) FROM threads WHERE NOT deleted AND NOT pending`).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+	rows, err := s.pool.Query(ctx,
+		`SELECT `+threadCols+` `+threadJoins+`
+		 WHERE NOT t.deleted AND NOT t.pending
+		 ORDER BY t.last_post_at DESC LIMIT $1 OFFSET $2`, size, (page-1)*size)
+	list, err := collectThreads(rows, err)
+	if err != nil {
+		return nil, 0, err
+	}
+	return list, total, nil
+}
+
 func collectThreads(rows pgx.Rows, err error) ([]*Thread, error) {
 	if err != nil {
 		return nil, err

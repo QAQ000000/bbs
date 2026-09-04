@@ -1,0 +1,26 @@
+{{define "content"}}
+<div id="pt" class="bm cl"><div class="z">
+	<a href="/" class="nvhm">{{.SiteName}}</a> <em>›</em> <span>发表新主题</span>
+</div></div>
+
+<div id="ct" class="wp cl">
+	<div class="mn">
+		<div class="bm bmw">
+			<div class="bm_h"><h2>选择版块</h2></div>
+			<div class="bm_c">
+				<p class="xg1">请选择要发表主题的版块：</p>
+				<form method="get" action="/new" class="picker-form">
+					<select name="fid" class="px" required>
+						<option value="" disabled selected>— 选择版块 —</option>
+						{{range .Categories}}{{if .Forums}}<optgroup label="{{.Name}}">
+							{{range .Forums}}<option value="{{.ID}}">{{.Name}}</option>{{end}}
+						</optgroup>{{end}}{{end}}
+					</select>
+					<button type="submit" class="pn pnc">下一步</button>
+				</form>
+				<p class="xg1">也可以从 <a href="/">版块列表</a> 进入对应版块发帖。</p>
+			</div>
+		</div>
+	</div>
+</div>
+{{end}}

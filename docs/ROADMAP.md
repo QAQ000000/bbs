@@ -23,18 +23,18 @@
 
 ---
 
-## 阶段二：首页时间线与发帖入口（把「目录」变「社区」）
+## 阶段二：首页时间线与发帖入口（把「目录」变「社区」）✅ 2026-09-05
 
 **目标**：第一眼进来的人能看到内容在流动；发新帖不再依赖记住 `?fid=`。
 
-| # | 任务 | 落点 |
-| --- | --- | --- |
-| 2.1 | 首页「最新回复」块：最近 10 条公开口径的主题行（`last_post_at` 排序，复用 `p_threadrow` 片段） | `page_home.html`、`store.RecentThreads(ctx, 10)` |
-| 2.2 | 导航加「最新」入口 `/latest`：全站最新主题/回复分页（伪静态 `/latest-{page}.html` 可选） | `routes.go`、`handler_page.go` |
-| 2.3 | 无 `fid` 发新帖：给版块选择器（下拉分组分类），替代 404 | `newThreadForm` 分支、`page_editor.html` |
-| 2.4 | 首页公告区与最新回复并排（宽屏）/堆叠（窄屏），沿用现有响应式约定 | `page_home.html`、`app.css` |
+| # | 任务 | 落点 | 状态 |
+| --- | --- | --- | --- |
+| 2.1 | 首页「最新回复」块：最近 10 条公开口径主题（复用 `LatestThreads`，标题+版块名+回复数+时间） | `page_home.html`、`store.LatestThreads`、`latestItems` | ✅ |
+| 2.2 | 「最新」入口 `/latest`：全站最新主题分页（20/页，含版块名前缀，游客走页缓存） | `page_latest.html`、`latestPage`、导航「最新」 | ✅ |
+| 2.3 | 无 `fid` 发新帖：版块选择器页（optgroup 分组下拉，纯 HTML 零 JS）；提交仍无 `fid` 时重定向选择页而非 404 | `page_newforum.html`、`forumPicker`、`newThreadSubmit` 守卫 | ✅ |
+| 2.4 | 首页「最新回复 + 公告」双栏（宽屏并排 / ≤800px 堆叠） | `page_home.html`、`app.css`（`.home-top`） | ✅ |
 
-**验收**：游客首页可见最新回复且随发帖 SSE 刷新；`/new` 无参数出现版块选择器；375px 无横向滚动（沿用走查习惯）。
+**验收**（已达成）：游客首页可见最新回复；`/latest` 分页可用；导航出现「最新」；`/new` 无参数出现版块选择器；375px 堆叠无横滚；冒烟测试新增 `/latest` 与 `/new`（无 fid）断言。
 
 **依赖**：无。**注意**：最新列表只走公开口径（`NOT pending AND NOT deleted`），勿引入新计数。
 

@@ -11,6 +11,7 @@ import (
 func (s *Server) routes() http.Handler {
 	m := s.mux
 	m.HandleFunc("GET /{$}", s.cachedPage(s.handleHome))
+	m.HandleFunc("GET /latest", s.cachedPage(s.latestPage))
 	m.HandleFunc("GET /search", s.cachedPage(s.searchPage))
 
 	// 静态与杂项
