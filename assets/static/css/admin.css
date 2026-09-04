@@ -3,7 +3,7 @@
 .admin-body { background: #eef1f5; }
 
 #admin-hd { background: #223140; color: #cfd8e0; }
-#admin-hd .admin-hd-wp { margin: 0 auto; width: 1280px; max-width: 97vw; padding: 10px 0; font-size: 13px; }
+#admin-hd .admin-hd-wp { margin: 0 auto; width: min(1280px, 100% - 20px); padding: 10px 0; font-size: 13px; }
 #admin-hd a, #admin-hd .linklike { color: #cfd8e0; }
 #admin-hd a:hover { color: #fff; }
 #admin-hd .logo-go { color: #4a9ce8; font-weight: 800; }
@@ -11,7 +11,7 @@
 #admin-hd .admin-tag { font-size: 12px; color: #8fa4b8; margin-left: 6px; }
 #admin-hd .admin-user { color: #fff; font-weight: 600; }
 
-.admin-wrap { margin: 15px auto 30px; width: 1280px; max-width: 97vw; min-height: 70vh; }
+.admin-wrap { margin: 15px auto 30px; width: min(1280px, 100% - 20px); min-height: 70vh; }
 #admin-menu-toggle { display: none; }
 #admin-menu-backdrop { display: none; }
 .admin-menu-head { display: none; }

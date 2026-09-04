@@ -31,7 +31,7 @@ p { margin: .4em 0; }
 h1, h2, h3, h4 { margin: 0; font-weight: 600; }
 
 /* ---- 工具类（沿用 Discuz 命名习惯）---- */
-.wp { margin: 0 auto; width: 1200px; max-width: 96vw; }
+.wp { margin: 0 auto; width: min(1200px, 100% - 20px); }
 .cl::after { content: ""; display: table; clear: both; }
 .z { float: left; }
 .y { float: right; }
