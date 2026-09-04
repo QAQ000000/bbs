@@ -19,10 +19,9 @@ func (s *Server) routes() http.Handler {
 	// 静态与杂项
 	m.HandleFunc("GET /static/", s.handleStatic)
 	m.HandleFunc("GET /favicon.ico", s.handleFavicon)
-	m.HandleFunc("GET /robots.txt", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		_, _ = w.Write([]byte("User-agent: *\nAllow: /\n"))
-	})
+	m.HandleFunc("GET /robots.txt", s.handleRobots)
+	m.HandleFunc("GET /sitemap.xml", s.sitemap)
+	m.HandleFunc("GET /rss", s.rss)
 
 	// 实时
 	m.HandleFunc("GET /api/live", s.handleLive)

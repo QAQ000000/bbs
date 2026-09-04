@@ -203,8 +203,8 @@ func (s *Server) registerSubmit(w http.ResponseWriter, r *http.Request) {
 		fail("该用户名为系统保留，请换一个")
 		return
 	}
-	if utf8.RuneCountInString(password) < 6 {
-		fail("密码至少 6 位")
+	if utf8.RuneCountInString(password) < 8 {
+		fail("密码至少 8 位")
 		return
 	}
 	if email != "" && !emailRe.MatchString(email) {

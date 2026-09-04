@@ -47,8 +47,12 @@ const (
 	TrustSenior  TrustLevel = 2 // 资深成员
 )
 
-// PostLinkDirect 直接发含链接内容而不进审核队列。
-const PostLinkDirect Point = "post.link.direct"
+// PostLinkDirect 直接发含链接内容而不进审核队列；
+// SkipModerate 资深成员（TL2）在全站发帖审核开启时免审核。
+const (
+	PostLinkDirect Point = "post.link.direct"
+	SkipModerate   Point = "post.skip.moderate"
+)
 
 // rolePerms 角色 → 权限点映射（唯一权威清单）。
 // 管理员拥有全部权限点；版主拥有内容治理面；会员拥有基础面。
@@ -83,6 +87,8 @@ func TrustAllowed(t TrustLevel, p Point) bool {
 	switch p {
 	case PostLinkDirect:
 		return t >= TrustMember
+	case SkipModerate:
+		return t >= TrustSenior
 	}
 	return false
 }

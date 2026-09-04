@@ -92,6 +92,16 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(b)
 }
 
+// GET /robots.txt — 抓取规则 + sitemap 指引。
+func (s *Server) handleRobots(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	body := "User-agent: *\nAllow: /\n"
+	if s.cfg.SiteURL != "" {
+		body += "Sitemap: " + s.cfg.SiteURL + "/sitemap.xml\n"
+	}
+	_, _ = w.Write([]byte(body))
+}
+
 // GET /captcha/{id} — 算术验证码 SVG（一次性挑战，no-store）。
 func (s *Server) captchaImage(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")

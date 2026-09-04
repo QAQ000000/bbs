@@ -490,6 +490,23 @@ func (s *Store) DBSize(ctx context.Context) string {
 	return sz
 }
 
+// MoveThread 主题跨版块移动：迁移主题并重算新旧两个版块的公开口径统计。
+func (s *Store) MoveThread(ctx context.Context, tid, newForumID int64) (int64, error) {
+	var oldForumID int64
+	err := s.pool.QueryRow(ctx,
+		"UPDATE threads SET forum_id=$2 WHERE id=$1 RETURNING forum_id", tid, newForumID).
+		Scan(&oldForumID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			err = ErrNotFound
+		}
+		return 0, err
+	}
+	s.RecomputeForumStats(ctx, oldForumID)
+	s.RecomputeForumStats(ctx, newForumID)
+	return oldForumID, nil
+}
+
 // SchemaVersion 当前 schema_migrations 版本（健康检查用）。
 func (s *Store) SchemaVersion(ctx context.Context) (int, error) {
 	var v int

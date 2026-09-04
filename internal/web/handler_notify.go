@@ -210,9 +210,10 @@ var mentionRe = regexp.MustCompile(`@([\p{Han}a-zA-Z0-9_]{2,15})`)
 
 // notifyMentions 解析内容中的 @用户名 并生成通知；返回被提及的人数。
 // pending（待审核）内容不通知。
-func (s *Server) notifyMentions(r *http.Request, from *store.User, content string, th *store.Thread, p *store.Post) int {
+// notifyMentions 解析并投递 @提及 通知；返回被提及的用户 id 集合（供回复通知去重）。
+func (s *Server) notifyMentions(r *http.Request, from *store.User, content string, th *store.Thread, p *store.Post) map[int64]bool {
 	if p.Pending {
-		return 0
+		return nil
 	}
 	names := mentionRe.FindAllStringSubmatch(content, -1)
 	seen := map[string]bool{}
@@ -229,19 +230,15 @@ func (s *Server) notifyMentions(r *http.Request, from *store.User, content strin
 		}
 	}
 	if len(unique) == 0 {
-		return 0
+		return nil
 	}
 	users, err := s.st.UsersByNames(r.Context(), unique)
 	if err != nil || len(users) == 0 {
-		return 0
+		return nil
 	}
 	excerpt := truncate(strings.TrimSpace(content), 60)
-	link := s.cfg.SiteURL + ThreadURL(th.ID, 1) + "#post" + strconv.FormatInt(p.ID, 10)
 	rows := make([]*store.Notification, 0, len(users))
 	for _, target := range users {
-		if s.mailer.Enabled() {
-			s.mailer.NotifyMention(target.Email, from.Username, th.Title, link, excerpt)
-		}
 		rows = append(rows, &store.Notification{
 			UID:      target.ID,
 			FromUID:  from.ID,
@@ -252,17 +249,66 @@ func (s *Server) notifyMentions(r *http.Request, from *store.User, content strin
 			Excerpt:  excerpt,
 		})
 	}
-	if err := s.st.AddNotifications(r.Context(), rows); err != nil {
-		return 0
-	}
-	// 每个被提及者一条实时提醒
+	s.deliverNotifications(r, from, users, rows, excerpt, func(target *store.User, link string) {
+		if s.mailer.Enabled() {
+			s.mailer.NotifyMention(target.Email, from.Username, th.Title, link, excerpt)
+		}
+	})
+	out := map[int64]bool{}
 	for _, target := range users {
+		out[target.ID] = true
+	}
+	return out
+}
+
+// notifyReply 回复通知楼主（ROADMAP 运营 P0）：与 @ 提及去重，不通知自己。
+func (s *Server) notifyReply(r *http.Request, from *store.User, th *store.Thread, p *store.Post, mentioned map[int64]bool) {
+	if p.Pending || th.AuthorID == from.ID || mentioned[th.AuthorID] {
+		return
+	}
+	author, err := s.st.UserByID(r.Context(), th.AuthorID)
+	if err != nil {
+		return
+	}
+	excerpt := truncate(strings.TrimSpace(p.ContentMD), 60)
+	row := &store.Notification{
+		UID:      author.ID,
+		FromUID:  from.ID,
+		FromName: from.Username,
+		Type:     "reply",
+		ThreadID: th.ID,
+		PostID:   p.ID,
+		Excerpt:  excerpt,
+	}
+	s.deliverNotifications(r, from, []*store.User{author}, []*store.Notification{row}, excerpt,
+		func(target *store.User, link string) {
+			if s.mailer.Enabled() {
+				s.mailer.NotifyReply(target.Email, from.Username, th.Title, link, excerpt)
+			}
+		})
+}
+
+// deliverNotifications 落库 + 邮件 + SSE 实时提醒的共用投递通道。
+func (s *Server) deliverNotifications(r *http.Request, from *store.User,
+	targets []*store.User, rows []*store.Notification, excerpt string, mail func(*store.User, string)) {
+	if len(rows) == 0 {
+		return
+	}
+	link := func(target *store.User) string {
+		return s.cfg.SiteURL + ThreadURL(rows[0].ThreadID, 1) + "#post" + strconv.FormatInt(rows[0].PostID, 10)
+	}
+	for _, target := range targets {
+		mail(target, link(target))
+	}
+	if err := s.st.AddNotifications(r.Context(), rows); err != nil {
+		return
+	}
+	for _, target := range targets {
 		count := s.st.UnreadCount(r.Context(), target.ID)
 		s.publish("u:"+strconv.FormatInt(target.ID, 10), eventBody{
 			Type: "notify", FromName: from.Username, NotifyCount: int(count),
 		})
 	}
-	return len(rows)
 }
 
 // ---- 通知页 ----

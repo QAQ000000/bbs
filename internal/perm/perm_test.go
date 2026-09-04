@@ -51,6 +51,12 @@ func TestTrust(t *testing.T) {
 	if TrustAllowed(TrustNewUser, PostLinkDirect) {
 		t.Fatal("新用户发链接应进审核队列")
 	}
+	if !TrustAllowed(TrustSenior, SkipModerate) {
+		t.Fatal("资深成员应免全站发帖审核")
+	}
+	if TrustAllowed(TrustMember, SkipModerate) || TrustAllowed(TrustNewUser, SkipModerate) {
+		t.Fatal("资深成员以下不免审核")
+	}
 }
 
 func TestRoleFromGroupID(t *testing.T) {

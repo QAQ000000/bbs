@@ -42,23 +42,27 @@
 			</tbody>
 		</table>
 
-		<div class="batch-bar cl">
-			<div class="z cl">
-				<select name="op" class="px px-inline px-auto" onchange="document.getElementById('batchform').dataset.confirm = this.value==='delete' ? '确定删除所选主题吗？删除后进入回收站。' : ''">
-					<option value="">-- 批量操作 --</option>
-					<option value="sticky1">置顶（普通）</option>
-					<option value="sticky2">置顶（长期）</option>
-					<option value="sticky3">置顶（全局）</option>
-					<option value="unsticky">取消置顶</option>
-					<option value="digest">设为精华</option>
-					<option value="undigest">取消精华</option>
-					<option value="lock">锁定</option>
-					<option value="unlock">解锁</option>
-					<option value="delete">删除（进回收站）</option>
-				</select>
-				<button type="submit" class="pn pnc pn-sm">执行</button>
+			<div class="batch-bar cl">
+				<div class="z cl">
+					<select name="op" class="px px-inline px-auto" onchange="document.getElementById('batchform').dataset.confirm = this.value==='delete' ? '确定删除所选主题吗？删除后进入回收站。' : ''">
+						<option value="">-- 批量操作 --</option>
+						<option value="sticky1">置顶（普通）</option>
+						<option value="sticky2">置顶（长期）</option>
+						<option value="sticky3">置顶（全局）</option>
+						<option value="unsticky">取消置顶</option>
+						<option value="digest">设为精华</option>
+						<option value="undigest">取消精华</option>
+						<option value="lock">锁定</option>
+						<option value="unlock">解锁</option>
+						<option value="delete">删除（进回收站）</option>
+					</select>
+					<select name="move_to" class="px px-inline px-auto">
+						<option value="0">移动到…</option>
+						{{range .Categories}}{{range .Forums}}<option value="{{.ID}}">→ {{.Name}}</option>{{end}}{{end}}
+					</select>
+					<button type="submit" class="pn pnc pn-sm">执行</button>
+				</div>
 			</div>
-		</div>
 	</form>
 </div>
 

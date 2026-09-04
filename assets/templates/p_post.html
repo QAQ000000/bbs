@@ -38,8 +38,8 @@
 					</form>
 				</details>
 				{{end}}
-				{{if .Editable}}
-				<a href="/edit/{{.ID}}" class="editp">编辑</a>
+				{{if .Editable}}<a href="/edit/{{.ID}}" class="editp">编辑</a>{{end}}
+				{{if .Deletable}}
 				<form method="post" action="/delete/{{.ID}}" class="inlineform delform" data-confirm="确定删除该楼层吗？{{if eq .Floor 1}}删除首楼将删除整个主题。{{end}}">
 					<input type="hidden" name="_csrf" value="{{.CSRF}}">
 					<input type="hidden" name="back" value="">

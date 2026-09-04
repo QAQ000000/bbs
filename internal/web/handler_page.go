@@ -3,6 +3,8 @@ package web
 
 import (
 	"errors"
+	"fmt"
+	"html"
 	"html/template"
 	"net/http"
 	"strconv"
@@ -10,6 +12,7 @@ import (
 	"time"
 
 	"dzforum/internal/markdown"
+	"dzforum/internal/perm"
 	"dzforum/internal/store"
 )
 
@@ -161,6 +164,7 @@ func (s *Server) handleForum(w http.ResponseWriter, r *http.Request, fid int64, 
 		TotalPage int
 	}{s.common(r), forum, stickies, threads, pager, page, totalPages}
 	data.Title = forum.Name
+	data.MetaDesc = forum.Description
 	data.NavActive = "forum" + strconv.FormatInt(fid, 10)
 	_ = s.rd.Render(w, "page_forum.html", &data)
 }
@@ -223,6 +227,16 @@ func (s *Server) handleThread(w http.ResponseWriter, r *http.Request, tid int64,
 	for _, p := range posts {
 		pvm = append(pvm, PostVMOf(p, viewer, common.CSRF))
 	}
+	// 版主删除限管辖版块（管理员不限；删自己的内容始终允许）
+	if viewer != nil && !hasPoint(viewer, perm.AdminPanel) {
+		inScope := inForumScope(s.staffForumScope(r), forum.ID)
+		for _, vm := range pvm {
+			if vm.AuthorID != viewer.ID {
+				vm.Deletable = inScope &&
+					perm.Allowed(perm.RoleFromGroupID(viewer.GroupID), perm.ContentDeleteAny)
+			}
+		}
+	}
 
 	tidInt := tid
 	pager := BuildPage(page, totalPages, func(n int) string { return ThreadURL(tidInt, n) })
@@ -259,7 +273,90 @@ func (s *Server) handleThread(w http.ResponseWriter, r *http.Request, tid int64,
 	}{common, th, forum, pvm, pager, page, totalPages,
 		"thread=" + strconv.FormatInt(tid, 10), quick, perPage}
 	data.Title = th.Title
+	if page == 1 && len(pvm) > 0 {
+		data.MetaDesc = metaDesc(pvm[0].ContentMD)
+	}
 	_ = s.rd.Render(w, "page_thread.html", &data)
+}
+
+// metaDesc 楼层 Markdown 转纯文本摘要（meta description / OG 用，≤150 字）。
+func metaDesc(md string) string {
+	var b strings.Builder
+	for _, line := range strings.Split(md, "\n") {
+		line = strings.TrimSpace(strings.TrimLeft(line, "#>*- "))
+		if line == "" {
+			continue
+		}
+		b.WriteString(line)
+		b.WriteString(" ")
+		if b.Len() > 200 {
+			break
+		}
+	}
+	out := strings.TrimSpace(b.String())
+	r := []rune(out)
+	if len(r) > 150 {
+		out = string(r[:150]) + "…"
+	}
+	return out
+}
+
+// sitemap GET /sitemap.xml：首页 + 版块 + 最近公开主题（≤2000 条）。
+func (s *Server) sitemap(w http.ResponseWriter, r *http.Request) {
+	cats, err := s.st.CategoriesWithForums(r.Context())
+	if err != nil {
+		s.renderError(w, r, http.StatusInternalServerError, "生成失败", err.Error())
+		return
+	}
+	threads, err := s.st.SitemapThreads(r.Context(), 2000)
+	if err != nil {
+		s.renderError(w, r, http.StatusInternalServerError, "生成失败", err.Error())
+		return
+	}
+	var b strings.Builder
+	b.WriteString(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+`)
+	loc := func(p string) string {
+		return "  <url><loc>" + html.EscapeString(s.cfg.SiteURL+p) + "</loc></url>\n"
+	}
+	b.WriteString(loc("/"))
+	for _, c := range cats {
+		for _, f := range c.Forums {
+			b.WriteString(loc(ForumURL(f.ID, 1)))
+		}
+	}
+	for _, t := range threads {
+		b.WriteString("  <url><loc>" + html.EscapeString(s.cfg.SiteURL+ThreadURL(t.ID, 1)) +
+			"</loc><lastmod>" + t.LastPostAt.Format("2006-01-02") + "</lastmod></url>\n")
+	}
+	b.WriteString("</urlset>")
+	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
+	_, _ = w.Write([]byte(b.String()))
+}
+
+// rss GET /rss：全站最新主题 RSS 2.0。
+func (s *Server) rss(w http.ResponseWriter, r *http.Request) {
+	threads, _, err := s.st.LatestThreads(r.Context(), 1, 20)
+	if err != nil {
+		s.renderError(w, r, http.StatusInternalServerError, "生成失败", err.Error())
+		return
+	}
+	var b strings.Builder
+	b.WriteString(`<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel>
+`)
+	fmt.Fprintf(&b, "<title>%s</title>\n<link>%s</link>\n<description>%s 最新主题</description>\n",
+		html.EscapeString(s.sets(r).SiteName), html.EscapeString(s.cfg.SiteURL), html.EscapeString(s.sets(r).SiteName))
+	for _, it := range threads {
+		link := s.cfg.SiteURL + ThreadURL(it.ID, 1)
+		fmt.Fprintf(&b, "<item><title>%s</title><link>%s</link><guid>%s</guid><pubDate>%s</pubDate></item>\n",
+			html.EscapeString(it.Title), html.EscapeString(link), html.EscapeString(link),
+			it.LastPostAt.UTC().Format(time.RFC1123Z))
+	}
+	b.WriteString("</channel></rss>")
+	w.Header().Set("Content-Type", "application/rss+xml; charset=utf-8")
+	_, _ = w.Write([]byte(b.String()))
 }
 
 // ---- 条款与隐私（ROADMAP 阶段六）----

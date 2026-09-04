@@ -109,6 +109,29 @@ func (m *Mailer) NotifyEmailVerify(to, link string) {
 	}
 }
 
+// NotifyReply 回复通知邮件（异步；队列满则丢弃）。
+func (m *Mailer) NotifyReply(to, fromName, threadTitle, link, excerpt string) {
+	if !m.Enabled() || to == "" {
+		return
+	}
+	subject := fmt.Sprintf("[%s] %s 回复了主题《%s》", m.cfg.SiteName, fromName, threadTitle)
+	body := strings.Join([]string{
+		fromName + " 回复了你参与的主题《" + threadTitle + "》：",
+		"",
+		"> " + excerpt,
+		"",
+		"查看回复：" + link,
+		"",
+		"--",
+		m.cfg.SiteName,
+	}, "\n")
+	select {
+	case m.ch <- message{to: to, subject: subject, body: body}:
+	default:
+		m.log.Warn("邮件队列已满，丢弃一封提醒", "to", to)
+	}
+}
+
 func (m *Mailer) worker() {
 	for msg := range m.ch {
 		if err := m.send(msg); err != nil {

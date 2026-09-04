@@ -32,7 +32,7 @@
 			<div class="bm_h"><h2>公告</h2></div>
 			<div class="bm_c">
 				{{if .Announcements}}
-					{{range .Announcements}}<div class="announce-item">📢 {{.Content}}</div>{{end}}
+					{{range .Announcements}}<div class="announce-item">📢 {{markdown .Content}}</div>{{end}}
 				{{else}}<p class="xg1">暂无公告。</p>{{end}}
 			</div>
 		</div>

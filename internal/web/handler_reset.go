@@ -98,8 +98,8 @@ func (s *Server) resetSubmit(w http.ResponseWriter, r *http.Request) {
 		s.renderError(w, r, http.StatusBadRequest, "链接无效", "重置链接无效或已过期。请重新申请。")
 		return
 	}
-	if len([]rune(password)) < 6 {
-		fail("密码至少 6 位")
+	if len([]rune(password)) < 8 {
+		fail("密码至少 8 位")
 		return
 	}
 	if err := s.st.UpdatePassword(r.Context(), uid, password); err != nil {

@@ -100,6 +100,28 @@
 
 ---
 
+## 阶段七：口径修正与运营 P0（外部评审收缩版）✅ 2026-09-05
+
+**背景**：外部评审提出「中小论坛 vs 主流社区 CMS」目标裁决。按既定定位先落地双路线都需要的 P0：
+版主删除管辖口径修复、回复通知楼主、移帖、SEO 最小集、Logo 接入，以及设计债清理。
+
+| # | 任务 | 落点 | 状态 |
+| --- | --- | --- | --- |
+| 7.1 | 版主删除限管辖：前台编辑/删除按钮拆分（`Deletable` 独立），帖子页按 `staffForumScope` 收窄，`/delete` 提交侧强制校验（自己的内容始终可删） | `render.go`、`p_post.html`、`handleThread`、`deletePost` | ✅ |
+| 7.2 | 回复通知楼主：`notifyMentions` 重构出共用投递通道 `deliverNotifications`，新增 `notifyReply`（与 @ 去重、不通知自己），通知页区分「回复了你的主题」 | `handler_notify.go`、`mail.NotifyReply`、`page_notify.html` | ✅ |
+| 7.3 | 移帖：`store.MoveThread`（重算新旧版块公开口径），后台内容管理批量操作加「移动到…」，双版块 SSE 广播；版主仅限管辖版块之间互移 | `admin.go`、`handler_admin_ops.go`、`admin_threads.html` | ✅ |
+| 7.4 | SEO 最小集：帖子页 meta description（首楼摘要）+ Open Graph，版块页 description，`/sitemap.xml`（版块+公开主题≤2000），`/rss`（最新 20），robots 指向 sitemap | `layout.html`、`handler_page.go`、`handleRobots` | ✅ |
+| 7.5 | Logo 接入：`FORUM_SITE_LOGO` 非默认值时渲染自定义 Logo，否则保留双色字标 | `layout.html` | ✅ |
+| 7.6 | 设计债：密码策略统一 ≥8（注册/重置/改密）；TL2 权益落地（全站审核开启时资深成员免审核，`post.skip.moderate`）；公告支持 Markdown；隐私政策措辞与实际采集对齐；后台用户列表表头修正 | `handler_user.go`、`handler_reset.go`、`perm.go`、`page_home.html`、`settings.go`、`admin_users.html` | ✅ |
+
+**验收**（已达成）：冒烟新增 `TestModeratorScope`（管辖内可见可删/管辖外按钮隐藏+提交 403/管理员不受限）、`TestReplyNotification`、`TestMoveThread`（含越权移动不生效）、`TestSEO`；生产库 sitemap/RSS 通过 XML 校验。
+
+### 待裁决：是否转向「主流社区 CMS」
+
+评审指出 CMS 路线需要：版块读写权限矩阵、前台版主工具条、可配置权限入库、禁言≠封禁、头像、附件挂楼层、版块筛选、搜索过滤、安装向导、标签/订阅/积分等（工期差一个数量级），且与本文「明确不做」清单冲突。**维持当前定位则到此为止**；若决定转 CMS，从「版块权限 + 前台版主工具 + 权限矩阵入库」开始，并先改本文档目标。
+
+---
+
 ## 明确不做（保持定位）
 
 - Redis / 消息队列 / 外接搜索引擎 / WebSocket

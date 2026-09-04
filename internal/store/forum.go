@@ -5,6 +5,7 @@ package store
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -149,6 +150,32 @@ func (s *Store) RecentRepliesOfUser(ctx context.Context, uid int64, limit int) (
 		           WHERE p.thread_id = t.id AND p.author_id=$1 AND p.floor > 1) DESC
 		 LIMIT $2`, uid, limit)
 	return collectThreads(rows, err)
+}
+
+// SitemapThread 站点地图条目。
+type SitemapThread struct {
+	ID         int64
+	LastPostAt time.Time
+}
+
+// SitemapThreads 公开主题（不含待审/已删）按最后活跃倒序，供 sitemap 使用。
+func (s *Store) SitemapThreads(ctx context.Context, limit int) ([]*SitemapThread, error) {
+	rows, err := s.pool.Query(ctx,
+		`SELECT id, last_post_at FROM threads WHERE NOT deleted AND NOT pending
+		 ORDER BY last_post_at DESC LIMIT $1`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []*SitemapThread
+	for rows.Next() {
+		var t SitemapThread
+		if err := rows.Scan(&t.ID, &t.LastPostAt); err != nil {
+			return nil, err
+		}
+		out = append(out, &t)
+	}
+	return out, rows.Err()
 }
 
 // LatestThreads 全站最新主题分页（公开口径，按最后发表时间排序）。

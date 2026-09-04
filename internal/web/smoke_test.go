@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -31,8 +32,13 @@ var (
 	smokePool   *pgxpool.Pool
 	adminCookie *http.Cookie
 	userCookie  *http.Cookie
+	modCookie   *http.Cookie
 	adminCSRF   string
 	userCSRF    string
+	modCSRF     string
+	smokeFid2   int64
+	smokeTid2   int64
+	smokePid2   int64 // 版块二主题的首楼 id（版主管辖回归用）
 )
 
 func TestMain(m *testing.M) {
@@ -72,6 +78,16 @@ func TestMain(m *testing.M) {
 		fmt.Println("FATAL:", err)
 		os.Exit(1)
 	}
+	// mod01 先建（SaveForum 同步 forum_moderators 需要）
+	mod, err := st.CreateUser(ctx, "mod01", "mod123456", "mod@test.local")
+	if err != nil {
+		fmt.Println("FATAL:", err)
+		os.Exit(1)
+	}
+	if _, err := pool.Exec(ctx, `UPDATE users SET group_id=2 WHERE id=$1`, mod.ID); err != nil {
+		fmt.Println("FATAL:", err)
+		os.Exit(1)
+	}
 	var fid int64
 	if err := pool.QueryRow(ctx, `INSERT INTO categories (name) VALUES ('冒烟分类') RETURNING id`).Scan(new(int)); err != nil {
 		fmt.Println("FATAL:", err)
@@ -82,10 +98,11 @@ func TestMain(m *testing.M) {
 		fmt.Println("FATAL:", err)
 		os.Exit(1)
 	}
-	if _, err := st.SaveForum(ctx, fid, 1, "冒烟版块", "冒烟测试版块", "admin"); err != nil {
+	if _, err := st.SaveForum(ctx, fid, 1, "冒烟版块", "冒烟测试版块", "mod01"); err != nil {
 		fmt.Println("FATAL:", err)
 		os.Exit(1)
 	}
+	// 主题 1：后续 /thread-1-1-1.html 等硬编码断言依赖此顺序
 	th, _, err := st.CreateThread(ctx, fid, user.ID, user.Username, "冒烟测试主题", "首楼内容 :smile:", "<p>首楼内容</p>", false, "")
 	if err != nil {
 		fmt.Println("FATAL:", err)
@@ -96,16 +113,28 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 	// 软删主题：回收站列表页必须有数据才有回归价值
-	th2, p2, err := st.CreateThread(ctx, fid, user.ID, user.Username, "待回收主题", "x", "<p>x</p>", false, "")
+	thR, pR, err := st.CreateThread(ctx, fid, user.ID, user.Username, "待回收主题", "x", "<p>x</p>", false, "")
 	if err != nil {
 		fmt.Println("FATAL:", err)
 		os.Exit(1)
 	}
-	if _, _, err := st.DeletePost(ctx, p2.ID); err != nil {
+	if _, _, err := st.DeletePost(ctx, pR.ID); err != nil {
 		fmt.Println("FATAL:", err)
 		os.Exit(1)
 	}
-	_ = th2
+	_ = thR
+	// 版主管辖回归用：版块二（无版主）+ 其主题；建在主线种子之后，不干扰 /thread-1-1-1.html
+	if err := pool.QueryRow(ctx,
+		`INSERT INTO forums (category_id, name, description) VALUES (1,'冒烟版块二','无版主管辖') RETURNING id`).Scan(&smokeFid2); err != nil {
+		fmt.Println("FATAL:", err)
+		os.Exit(1)
+	}
+	th2, p2, err := st.CreateThread(ctx, smokeFid2, user.ID, user.Username, "版块二主题", "版块二首楼", "<p>版块二首楼</p>", false, "")
+	if err != nil {
+		fmt.Println("FATAL:", err)
+		os.Exit(1)
+	}
+	smokeTid2, smokePid2 = th2.ID, p2.ID
 	_ = st.SaveAnnouncement(ctx, admin.ID, admin.Username, "冒烟测试公告")
 	_ = st.AddCensorWord(ctx, "敏感词测试", "***")
 
@@ -120,9 +149,15 @@ func TestMain(m *testing.M) {
 		fmt.Println("FATAL:", err)
 		os.Exit(1)
 	}
+	tokM, csrfM, err := st.CreateSession(ctx, mod.ID)
+	if err != nil {
+		fmt.Println("FATAL:", err)
+		os.Exit(1)
+	}
 	adminCookie = &http.Cookie{Name: "forum_session", Value: tokA}
 	userCookie = &http.Cookie{Name: "forum_session", Value: tokU}
-	adminCSRF, userCSRF = csrfA, csrfU
+	modCookie = &http.Cookie{Name: "forum_session", Value: tokM}
+	adminCSRF, userCSRF, modCSRF = csrfA, csrfU, csrfM
 	cfg := config.FromEnv()
 	cfg.SiteName = "GoBBS 冒烟站"
 	hub := live.NewHub()
@@ -574,4 +609,116 @@ func firstLine(s string) string {
 		return s[:120]
 	}
 	return s
+}
+
+// TestModeratorScope 版主管辖口径回归（阶段七）：
+// 管辖版块内可见他人楼层删除按钮且删除成功；管辖外按钮不可见且提交 403。
+func TestModeratorScope(t *testing.T) {
+	// 管辖内：mod01 能看到 admin 回复（post 2）的删除按钮
+	body := smokeGet(t, "/thread-1-1-1.html", modCookie).Body.String()
+	if !strings.Contains(body, `action="/delete/2"`) {
+		t.Fatal("版主在管辖版块应看到他人楼层删除按钮")
+	}
+	// 管辖外：看不到版块二主题首楼的删除按钮
+	body = smokeGet(t, "/thread-"+strconv.FormatInt(smokeTid2, 10)+"-1-1.html", modCookie).Body.String()
+	if strings.Contains(body, `action="/delete/`+strconv.FormatInt(smokePid2, 10)+`"`) {
+		t.Fatal("版主在管辖外不应看到删除按钮")
+	}
+	// 管辖外直接提交删除 → 403
+	w := smokePost(t, "/delete/"+strconv.FormatInt(smokePid2, 10), modCSRF, "back=/", modCookie)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("管辖外删除应 403: %d", w.Code)
+	}
+	// 管理员不受管辖限制
+	body = smokeGet(t, "/thread-"+strconv.FormatInt(smokeTid2, 10)+"-1-1.html", adminCookie).Body.String()
+	if !strings.Contains(body, `action="/delete/`+strconv.FormatInt(smokePid2, 10)+`"`) {
+		t.Fatal("管理员应看到删除按钮")
+	}
+	// 普通用户看不到他人楼层删除按钮
+	body = smokeGet(t, "/thread-1-1-1.html", userCookie).Body.String()
+	own := strings.SplitN(strings.SplitN(body, `id="post1"`, 2)[1], `id="post2"`, 2)[0]
+	if strings.Contains(own, `action="/delete/2"`) {
+		t.Fatal("普通用户不应看到他人楼层删除按钮")
+	}
+}
+
+// TestReplyNotification 回复通知楼主回归：admin 回复 user01 的主题 → user01 通知页出现「回复了你的主题」。
+func TestReplyNotification(t *testing.T) {
+	w := smokePost(t, "/reply/1", adminCSRF, "content=回复通知回归测试", adminCookie)
+	if w.Code != http.StatusFound && w.Code != http.StatusSeeOther {
+		t.Fatalf("回复 → %d，期望 302/303，Location=%q，body=%s",
+			w.Code, w.Header().Get("Location"), firstLine(w.Body.String()))
+	}
+	body := smokeGet(t, "/notify", userCookie).Body.String()
+	if !strings.Contains(body, "回复了你的主题") || !strings.Contains(body, "回复通知回归测试") {
+		t.Fatal("楼主未收到回复通知")
+	}
+}
+
+// TestSEO 阶段七回归：sitemap/rss/robots/meta description/OG。
+func TestSEO(t *testing.T) {
+	w := smokeGet(t, "/sitemap.xml", nil)
+	if w.Code != 200 || !strings.Contains(w.Body.String(), "<urlset") || !strings.Contains(w.Body.String(), "thread-1-1-1.html") {
+		t.Fatalf("sitemap 异常: %d", w.Code)
+	}
+	w = smokeGet(t, "/rss", nil)
+	if w.Code != 200 || !strings.Contains(w.Body.String(), "<rss") || !strings.Contains(w.Body.String(), "冒烟测试主题") {
+		t.Fatalf("rss 异常: %d", w.Code)
+	}
+	w = smokeGet(t, "/robots.txt", nil)
+	if !strings.Contains(w.Body.String(), "Sitemap: ") {
+		t.Fatal("robots 缺 Sitemap 行")
+	}
+	body := smokeGet(t, "/thread-1-1-1.html", nil).Body.String()
+	if !strings.Contains(body, `name="description"`) || !strings.Contains(body, `property="og:title"`) {
+		t.Fatal("帖子页缺 meta description / OG")
+	}
+	if !strings.Contains(body, "首楼内容") {
+		t.Fatal("帖子页 description 未取首楼摘要")
+	}
+	body = smokeGet(t, "/forum-1-1.html", nil).Body.String()
+	if !strings.Contains(body, `name="description"`) || !strings.Contains(body, "冒烟测试版块") {
+		t.Fatal("版块页 description 未取版块简介")
+	}
+}
+
+// TestMoveThread 移帖回归：后台批量移动主题到另一版块，计数与列表同步。
+func TestMoveThread(t *testing.T) {
+	ctx := context.Background()
+	th, _, err := smokeSrv.st.CreateThread(ctx, 1, 2, "user01", "待移动主题", "内容", "<p>内容</p>", false, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := smokePost(t, "/admin/threads/action", adminCSRF,
+		"op=move&move_to="+strconv.FormatInt(smokeFid2, 10)+"&tid="+strconv.FormatInt(th.ID, 10), adminCookie)
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("移动 → %d，期望 303: %s", w.Code, firstLine(w.Body.String()))
+	}
+	// 主题已换版块
+	body := smokeGet(t, "/forum-"+strconv.FormatInt(smokeFid2, 10)+"-1.html", nil).Body.String()
+	if !strings.Contains(body, "待移动主题") {
+		t.Fatal("目标版块未出现被移动主题")
+	}
+	body = smokeGet(t, "/forum-1-1.html", nil).Body.String()
+	if strings.Contains(body, "待移动主题") {
+		t.Fatal("原版块仍显示被移动主题")
+	}
+	// 版主管辖口径：目标版块无版主（scope={0}），mod01 不能把主题移入
+	w = smokePost(t, "/admin/threads/action", modCSRF,
+		"op=move&move_to="+strconv.FormatInt(smokeFid2, 10)+"&tid=1", modCookie)
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("移动（越权）→ %d", w.Code)
+	}
+	if err := smokePool.QueryRow(ctx,
+		`SELECT forum_id FROM threads WHERE id=$1`, th.ID).Scan(new(int)); err != nil {
+		t.Fatal(err)
+	}
+	var fid int64
+	if err := smokePool.QueryRow(ctx,
+		`SELECT forum_id FROM threads WHERE id=1`).Scan(&fid); err != nil {
+		t.Fatal(err)
+	}
+	if fid != 1 {
+		t.Fatalf("越权移动不应生效: thread1 forum=%d", fid)
+	}
 }

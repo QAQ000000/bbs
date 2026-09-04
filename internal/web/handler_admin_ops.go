@@ -181,6 +181,35 @@ func (s *Server) adminThreadAction(w http.ResponseWriter, r *http.Request) {
 		}
 		tids = allowed
 	}
+	if op == "move" {
+		dest := formInt64(r, "move_to")
+		if dest <= 0 {
+			s.setFlash(w, "请先选择目标版块")
+			http.Redirect(w, r, "/admin/threads", http.StatusSeeOther)
+			return
+		}
+		scope := s.staffForumScope(r)
+		moved := 0
+		for _, tid := range tids {
+			th, err := s.st.Thread(r.Context(), tid)
+			if err != nil || !inForumScope(scope, th.ForumID) || !inForumScope(scope, dest) {
+				continue // 版主只能在其管辖版块之间移动
+			}
+			oldFID, err := s.st.MoveThread(r.Context(), tid, dest)
+			if err != nil {
+				continue
+			}
+			moved++
+			s.publish("f:"+strconv.FormatInt(oldFID, 10), eventBody{Type: "thread.delete", TID: tid})
+			if th2, err := s.st.Thread(r.Context(), tid); err == nil {
+				s.broadcastThread("thread.new", th2)
+			}
+		}
+		s.logOp(r, "thread.move", "移动主题 ×"+strconv.Itoa(moved)+" → 版块 #"+strconv.FormatInt(dest, 10))
+		s.setFlash(w, "已移动 "+strconv.Itoa(moved)+" 个主题")
+		http.Redirect(w, r, r.PostFormValue("back"), http.StatusSeeOther)
+		return
+	}
 	affected, err := s.st.AdminThreadAction(r.Context(), op, tids)
 	for _, th := range affected {
 		if op == "delete" {

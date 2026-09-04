@@ -13,7 +13,8 @@
 					{{range .Notifications}}
 					<tr{{if not .Read}} class="unread"{{end}}>
 						<th>
-							<a href="{{threadURL .ThreadID}}#post{{.PostID}}">{{.FromName}} 提到了你</a>
+							{{if eq .Type "reply"}}<a href="{{threadURL .ThreadID}}#post{{.PostID}}">{{.FromName}} 回复了你的主题</a>
+							{{else}}<a href="{{threadURL .ThreadID}}#post{{.PostID}}">{{.FromName}} 提到了你</a>{{end}}
 							<p class="excerpt">{{.Excerpt}}</p>
 						</th>
 						<td class="by xg1">{{timefmt .CreatedAt}}</td>
@@ -21,7 +22,7 @@
 					{{end}}
 				</table>
 				{{else}}
-				<p class="xg1">还没有收到通知。当别人在帖子里 @你 时，这里会出现提醒。</p>
+				<p class="xg1">还没有收到通知。当别人回复你的主题或在帖子里 @你 时，这里会出现提醒。</p>
 				{{end}}
 			</div>
 		</div>

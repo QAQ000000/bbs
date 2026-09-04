@@ -303,7 +303,8 @@ func (s *Server) replySubmit(w http.ResponseWriter, r *http.Request) {
 	if !pending {
 		s.broadcastPost("post.new", th, p)
 		s.broadcastThread("thread.update", th)
-		s.notifyMentions(r, u, content, th, p)
+		mentioned := s.notifyMentions(r, u, content, th, p)
+		s.notifyReply(r, u, th, p, mentioned)
 	}
 	_ = s.st.SaveDraft(r.Context(), u.ID, "reply:"+strconv.FormatInt(tid, 10), "")
 	s.bustPageCache()
@@ -465,8 +466,19 @@ func (s *Server) deletePost(w http.ResponseWriter, r *http.Request) {
 		s.renderError(w, r, http.StatusInternalServerError, "加载失败", err.Error())
 		return
 	}
-	if !canDeleteContent(u, p.AuthorID) {
-		s.renderError(w, r, http.StatusForbidden, "没有权限", "只能删除自己的内容。")
+	// 删除权限：自己的内容（ContentDeleteOwn）始终允许；
+	// ContentDeleteAny 的版主限其管辖版块（管理员不限），与前台按钮口径一致
+	th, err := s.st.Thread(r.Context(), p.ThreadID)
+	if err != nil {
+		s.renderError(w, r, http.StatusInternalServerError, "删除失败", err.Error())
+		return
+	}
+	del := perm.Allowed(perm.RoleFromGroupID(u.GroupID), perm.ContentDeleteOwn) && u.ID == p.AuthorID
+	if !del && perm.Allowed(perm.RoleFromGroupID(u.GroupID), perm.ContentDeleteAny) {
+		del = hasPoint(u, perm.AdminPanel) || inForumScope(s.staffForumScope(r), th.ForumID)
+	}
+	if !del {
+		s.renderError(w, r, http.StatusForbidden, "没有权限", "只能删除自己的内容，或管辖版块内的内容。")
 		return
 	}
 	deletedThread, tid, err := s.st.DeletePost(r.Context(), pid)
@@ -484,11 +496,9 @@ func (s *Server) deletePost(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, r.PostFormValue("back"), http.StatusSeeOther)
 		return
 	}
-	th, err := s.st.Thread(r.Context(), tid)
-	if err == nil {
-		s.broadcastPost("post.delete", th, &store.Post{ID: pid, ThreadID: tid, Floor: p.Floor})
-		s.broadcastThread("thread.update", th)
-	}
+	// th 已在权限校验时取出（同一主题），直接广播
+	s.broadcastPost("post.delete", th, &store.Post{ID: pid, ThreadID: tid, Floor: p.Floor})
+	s.broadcastThread("thread.update", th)
 	http.Redirect(w, r, ThreadURL(tid, 1), http.StatusSeeOther)
 }
 
@@ -527,7 +537,8 @@ func (s *Server) moderationDecision(r *http.Request, u *store.User, content stri
 			return true, reasonEmailUnverified
 		}
 	}
-	if s.sets(r).ModerateEnabled {
+	// 全站审核开关：资深成员（TL2）免审核，其余按开关入队
+	if s.sets(r).ModerateEnabled && !perm.TrustAllowed(perm.TrustLevel(u.TrustLevel), perm.SkipModerate) {
 		return true, reasonManual
 	}
 	return false, ""

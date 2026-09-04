@@ -15,6 +15,7 @@ import (
 
 	"dzforum/assets"
 	"dzforum/internal/avatar"
+	"dzforum/internal/markdown"
 	"dzforum/internal/perm"
 	"dzforum/internal/smiley"
 	"dzforum/internal/store"
@@ -126,6 +127,7 @@ type Common struct {
 	Year        int
 	NotifyCount int64  // 未读通知数（登录用户）
 	AssetQuery  string // 静态资源内容指纹版本参数
+	MetaDesc    string // SEO：页面摘要（帖子页/版块页填充）
 }
 
 type PostVM struct {
@@ -133,6 +135,7 @@ type PostVM struct {
 	HTML      template.HTML
 	Avatar    template.HTML
 	Editable  bool
+	Deletable bool   // 与编辑分离：版主可删管辖版块内容但不可编辑他人内容
 	CanLike   bool   // 可点赞（登录且非本人楼层）
 	Quotable  bool   // 可引用（登录即可）
 	CanReport bool   // 可举报（登录且非本人楼层）
@@ -140,12 +143,14 @@ type PostVM struct {
 }
 
 // PostVMOf 构建楼层视图模型；viewer 为 nil 时（SSE 广播）无编辑权限。
+// Deletable 初值按全局权限点计算，版主管辖范围由页面层（handleThread）收窄。
 func PostVMOf(p *store.Post, viewer *store.User, csrf string) *PostVM {
 	return &PostVM{
 		Post:      *p,
 		HTML:      toHTML(p.ContentHTML),
 		Avatar:    toHTML(avatar.HTML(p.AuthorID, p.AuthorName)),
 		Editable:  canEditContent(viewer, p.AuthorID),
+		Deletable: canDeleteContent(viewer, p.AuthorID),
 		CanLike:   viewer != nil && viewer.ID != p.AuthorID,
 		Quotable:  viewer != nil,
 		CanReport: viewer != nil && viewer.ID != p.AuthorID,
@@ -172,6 +177,7 @@ func funcMap() template.FuncMap {
 			return template.HTML(avatar.Small(uid, name))
 		},
 		"timefmt":  timefmt,
+		"markdown": func(s string) template.HTML { return toHTML(markdown.Render(s)) },
 		"safeHTML": func(s string) template.HTML { return template.HTML(s) },
 		"forumURL": func(fid any) string {
 			switch v := fid.(type) {
