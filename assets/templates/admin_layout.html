@@ -20,7 +20,13 @@
 </div></div>
 
 <div class="admin-wrap cl">
+	<button id="admin-menu-toggle" class="pn" aria-label="打开菜单" aria-expanded="false">☰ 菜单</button>
+	<div id="admin-menu-backdrop" hidden></div>
 	<div id="admin-menu" class="z">
+		<div class="admin-menu-head">
+			<span>导航菜单</span>
+			<button id="admin-menu-close" class="linklike" aria-label="关闭菜单">✕</button>
+		</div>
 		<ul>
 			<li{{if eq .NavActive "dash"}} class="a"{{end}}><a href="/admin">仪表盘</a></li>
 			<li{{if eq .NavActive "moderate"}} class="a"{{end}}><a href="/admin/moderate">审核队列</a></li>

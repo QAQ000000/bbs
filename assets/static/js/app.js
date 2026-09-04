@@ -89,6 +89,28 @@
 		}
 	});
 
+	// ---- 后台移动端抽屉菜单 ----
+	var menuToggle = document.getElementById('admin-menu-toggle');
+	if (menuToggle) {
+		var backdrop = document.getElementById('admin-menu-backdrop');
+		var menuBox = document.getElementById('admin-menu');
+		var setMenu = function (open) {
+			document.body.classList.toggle('admin-menu-open', open);
+			if (backdrop) backdrop.hidden = !open;
+			menuToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+		};
+		menuToggle.addEventListener('click', function () {
+			setMenu(!document.body.classList.contains('admin-menu-open'));
+		});
+		if (backdrop) backdrop.addEventListener('click', function () { setMenu(false); });
+		var closeBtn = document.getElementById('admin-menu-close');
+		if (closeBtn) closeBtn.addEventListener('click', function () { setMenu(false); });
+		// 点菜单项导航前先收起（防止 bfcache 恢复展开态）
+		if (menuBox) menuBox.addEventListener('click', function (e) {
+			if (e.target.closest('a')) setMenu(false);
+		});
+	}
+
 	// ---- Markdown 编辑器 ----
 	document.querySelectorAll('form[data-editor]').forEach(initEditor);
 
