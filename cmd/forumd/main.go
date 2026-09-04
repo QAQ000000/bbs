@@ -65,6 +65,11 @@ func main() {
 	st.StartViewCounter(ctx)
 	defer st.StopViewCounter()
 
+	// 权限矩阵：空表播种默认值并加载到运行时（后台矩阵页保存后即时生效）
+	if err := st.LoadRolePerms(ctx); err != nil {
+		logger.Warn("权限矩阵加载失败", "err", err)
+	}
+
 	// 首次启动以环境配置初始化站点设置（不覆盖已有值）
 	if err := st.EnsureSettingsDefaults(ctx, map[string]string{
 		"site_name":        cfg.SiteName,

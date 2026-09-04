@@ -30,6 +30,8 @@ type SiteSettings struct {
 	RequireConsent     bool   // 注册需勾选同意条款与隐私政策
 	TermsContent       string // 服务条款（Markdown，后台可编辑）
 	PrivacyContent     string // 隐私政策（Markdown，后台可编辑）
+	SiteLogo           string // 站点 Logo 文案（空 = 默认双色字标）
+	FooterText         string // 页脚附加文案
 }
 
 // defaultTerms/defaultPrivacy 内置默认文案：开箱即有合规页面，站长可在后台改写。
@@ -198,5 +200,11 @@ func applySettings(st *SiteSettings, kv map[string]string) {
 	}
 	if v, ok := kv["privacy_content"]; ok {
 		st.PrivacyContent = v
+	}
+	if v, ok := kv["site_logo"]; ok {
+		st.SiteLogo = strings.TrimSpace(v)
+	}
+	if v, ok := kv["footer_text"]; ok {
+		st.FooterText = strings.TrimSpace(v)
 	}
 }

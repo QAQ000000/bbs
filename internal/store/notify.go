@@ -21,6 +21,7 @@ type Upload struct {
 	Path      string
 	Size      int64
 	Mime      string
+	PostID    int64
 	CreatedAt time.Time
 }
 
@@ -30,6 +31,57 @@ func (s *Store) SaveUpload(ctx context.Context, uid int64, name, path string, si
 		`INSERT INTO uploads (uid, name, path, size, mime) VALUES ($1,$2,$3,$4,$5)`,
 		uid, name, path, size, mime)
 	return err
+}
+
+// uploadsPathRe 无需编译期注册：见 LinkUploadsToPost（放在 web 层提取路径，本层收数组）。
+
+// LinkUploadsToPost 把内容中引用的上传挂到楼层：先挂新引用（含本楼层改挂），
+// 再把本楼层已不再引用的旧附件解挂。
+func (s *Store) LinkUploadsToPost(ctx context.Context, uid, postID int64, paths []string) error {
+	if len(paths) == 0 {
+		_, err := s.pool.Exec(ctx,
+			`UPDATE uploads SET post_id=NULL WHERE post_id=$2 AND uid=$1`, uid, postID)
+		return err
+	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx,
+		`UPDATE uploads SET post_id=$3 WHERE uid=$1 AND path = ANY($2) AND (post_id IS NULL OR post_id=$3)`,
+		uid, paths, postID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx,
+		`UPDATE uploads SET post_id=NULL WHERE uid=$1 AND post_id=$3 AND NOT (path = ANY($2))`,
+		uid, paths, postID); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+// UploadsForPosts 楼层附件列表（按楼层分组返回）。
+func (s *Store) UploadsForPosts(ctx context.Context, postIDs []int64) (map[int64][]Upload, error) {
+	out := map[int64][]Upload{}
+	if len(postIDs) == 0 {
+		return out, nil
+	}
+	rows, err := s.pool.Query(ctx,
+		`SELECT id, uid, name, path, size, mime, post_id FROM uploads
+		 WHERE post_id = ANY($1) ORDER BY id`, postIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var u Upload
+		if err := rows.Scan(&u.ID, &u.UID, &u.Name, &u.Path, &u.Size, &u.Mime, &u.PostID); err != nil {
+			return nil, err
+		}
+		out[u.PostID] = append(out[u.PostID], u)
+	}
+	return out, rows.Err()
 }
 
 // ---- 通知 ----

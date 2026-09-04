@@ -116,6 +116,7 @@ CREATE INDEX IF NOT EXISTS admin_logs_created_idx ON admin_logs (created_at DESC
 ALTER TABLE users ADD COLUMN IF NOT EXISTS banned_until timestamptz;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS ban_reason text NOT NULL DEFAULT '';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password boolean NOT NULL DEFAULT false;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS blocked_until timestamptz; -- 封禁（禁止登录）截止；与禁言（banned_until）分离
 
 -- ---- 后台（阶段二）----
 
@@ -227,8 +228,11 @@ CREATE TABLE IF NOT EXISTS uploads (
     path       text        NOT NULL,           -- 站点内路径 /uploads/...
     size       bigint      NOT NULL,
     mime       text        NOT NULL,
+    post_id    bigint,                         -- 关联楼层（发帖时按内容回填）
     created_at timestamptz NOT NULL DEFAULT now()
 );
+ALTER TABLE uploads ADD COLUMN IF NOT EXISTS post_id bigint; -- 存量库补列（新库由 CREATE TABLE 直接包含）
+CREATE INDEX IF NOT EXISTS uploads_post_idx ON uploads (post_id) WHERE post_id IS NOT NULL;
 
 -- notifications 提及等站内通知（read=false 未读）
 CREATE TABLE IF NOT EXISTS notifications (
@@ -277,6 +281,14 @@ CREATE INDEX IF NOT EXISTS reports_status_idx ON reports (status, id DESC);
 
 -- 迁移版本基线：schema.sql 整体幂等重放；后续破坏性变更以递增 version 的
 -- 编号迁移文件处理并在本表登记（当前全部历史合并为基线 1）
+-- role_perms 角色权限矩阵：perm.Allowed 的运行时数据源，后台矩阵页可编辑
+CREATE TABLE IF NOT EXISTS role_perms (
+    role_id smallint   NOT NULL,              -- 0=会员 1=管理员 2=版主
+    point   text       NOT NULL,              -- 权限点（perm.Point）
+    allowed boolean    NOT NULL DEFAULT false,
+    PRIMARY KEY (role_id, point)
+);
+
 CREATE TABLE IF NOT EXISTS schema_migrations (
     version    int         PRIMARY KEY,
     applied_at timestamptz NOT NULL DEFAULT now()

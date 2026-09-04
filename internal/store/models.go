@@ -21,7 +21,11 @@ type User struct {
 	DaysVisited        int       `db:"days_visited"`
 	EmailVerified      bool      `db:"email_verified"`
 	MustChangePassword bool      `db:"must_change_password"` // -seed 初始账号首次登录强制改密
+	BlockedUntil       time.Time `db:"blocked_until"`        // 封禁（禁止登录）截止；epoch=未封禁
 }
+
+// IsBlocked 账号是否处于封禁期（禁止登录；infinity=永久）。
+func (u *User) IsBlocked() bool { return u.BlockedUntil.After(time.Now()) }
 
 func (u *User) IsAdmin() bool { return u.GroupID == 1 }
 

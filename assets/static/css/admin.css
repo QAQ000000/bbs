@@ -130,3 +130,9 @@
 	.cat-panel .admin-table .px { width: 100%; margin: 2px 0; }
 	.cat-panel .admin-table .px-inline { width: 100%; }
 }
+
+/* ---- 权限矩阵（P1-6）---- */
+.perm-matrix code { color: var(--c-text-sub); font-size: 11px; margin-left: 6px; }
+.perm-matrix td { text-align: center; }
+.perm-matrix td:first-child { text-align: left; }
+

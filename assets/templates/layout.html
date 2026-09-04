@@ -61,7 +61,7 @@
 <div id="wp" class="wp" {{if .User}}data-live-user="{{.User.ID}}"{{end}}>{{template "content" .}}</div>
 
 <div id="ft"><div class="wp cl">
-	<div class="z">{{.SiteName}} © {{.Year}}<span class="pipe">|</span><a href="/terms">服务条款</a><span class="pipe">|</span><a href="/privacy">隐私政策</a></div>
+	<div class="z">{{.SiteName}} © {{.Year}}{{with .FooterText}}<span class="pipe">|</span>{{.}}{{end}}<span class="pipe">|</span><a href="/terms">服务条款</a><span class="pipe">|</span><a href="/privacy">隐私政策</a></div>
 	<div class="y">Powered by <strong>GoBBS</strong> · Go + PostgreSQL + SSE</div>
 </div></div>
 

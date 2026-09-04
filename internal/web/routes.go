@@ -52,6 +52,11 @@ func (s *Server) routes() http.Handler {
 	m.HandleFunc("POST /profile/save", s.profileSave)
 	m.HandleFunc("POST /profile/password", s.profilePassword)
 	m.HandleFunc("GET /profile/export", s.profileExport)
+	m.HandleFunc("POST /profile/avatar", s.profileAvatar)
+	m.HandleFunc("POST /profile/avatar/clear", s.profileAvatarClear)
+	m.HandleFunc("POST /profile/delete", s.profileSelfDelete)
+	m.HandleFunc("GET /setup", s.setupForm)
+	m.HandleFunc("POST /setup", s.setupSubmit)
 	m.HandleFunc("POST /report/{pid}", s.reportSubmit)
 	m.HandleFunc("GET /captcha/{id}", s.captchaImage)
 	m.HandleFunc("GET /verify", s.verifyEmail)
@@ -84,6 +89,10 @@ func (s *Server) routes() http.Handler {
 	m.HandleFunc("POST /admin/users/delete", s.adminUserDelete)
 	m.HandleFunc("GET /admin/settings", s.adminSettings)
 	m.HandleFunc("POST /admin/settings", s.adminSettingsSave)
+	m.HandleFunc("GET /admin/perms", s.adminPerms)
+	m.HandleFunc("POST /admin/perms/save", s.adminPermsSave)
+	m.HandleFunc("POST /admin/users/block", s.adminUserBlock)
+	m.HandleFunc("POST /admin/users/unblock", s.adminUserUnblock)
 	m.HandleFunc("GET /admin/logs", s.adminLogs)
 	m.HandleFunc("GET /admin/recyclebin", s.adminRecycle)
 	m.HandleFunc("POST /admin/recyclebin/restore", s.adminRecycleRestore)
@@ -113,6 +122,7 @@ func (s *Server) routes() http.Handler {
 		s.gzipMW,
 		s.authMW,
 		s.siteOpenMW,
+		s.setupGuard,
 	)
 	return s.handler
 }

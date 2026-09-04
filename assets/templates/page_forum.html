@@ -7,6 +7,12 @@
 
 <div id="ct" class="wp cl">
 	<div class="mn" data-live="forums={{.Forum.ID}}">
+		<div class="bm bmw filter-tabs cl">
+			<a href="{{forumURL .Forum.ID}}"{{if not .Sort}} class="a"{{end}}>最新回复</a>
+			<a href="{{forumURL .Forum.ID}}?sort=new"{{if eq .Sort "new"}} class="a"{{end}}>最新发表</a>
+			<a href="{{forumURL .Forum.ID}}?sort=digest"{{if eq .Sort "digest"}} class="a"{{end}}>精华</a>
+			<a href="{{forumURL .Forum.ID}}?sort=hot"{{if eq .Sort "hot"}} class="a"{{end}}>热门</a>
+		</div>
 		<div class="tl bm bmw" id="threadlist" data-page-size="20">
 			<div class="th">
 				<table><tr>

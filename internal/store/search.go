@@ -205,7 +205,13 @@ func buildExcerpt(md string, tokens []string) string {
 }
 
 // Search 全文搜索：命中楼层聚合到主题，按 ts_rank 降序分页。
-func (s *Store) Search(ctx context.Context, q string, page, size int) ([]*SearchHit, int, error) {
+// SearchOpts 搜索过滤条件（零值 = 全站）。
+type SearchOpts struct {
+	ForumID int64  // 限定版块
+	Author  string // 限定作者用户名（精确）
+}
+
+func (s *Store) Search(ctx context.Context, q string, page, size int, opts SearchOpts) ([]*SearchHit, int, error) {
 	tq := SearchQueryTokens(q)
 	if tq == "" {
 		return nil, 0, nil
@@ -224,7 +230,9 @@ func (s *Store) Search(ctx context.Context, q string, page, size int) ([]*Search
 		 JOIN forums f ON f.id = t.forum_id
 		 CROSS JOIN (SELECT to_tsquery('simple', $1) AS q) qq
 		 WHERE p.search_data @@ q AND NOT p.deleted AND NOT p.pending
-		 ORDER BY score DESC LIMIT 400`, tq)
+		   AND ($2::bigint = 0 OR t.forum_id = $2)
+		   AND ($3::text = '' OR u.username = $3)
+		 ORDER BY score DESC LIMIT 400`, tq, opts.ForumID, opts.Author)
 	if err != nil {
 		return nil, 0, err
 	}

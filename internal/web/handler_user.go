@@ -85,6 +85,10 @@ func (s *Server) loginSubmit(w http.ResponseWriter, r *http.Request) {
 		s.renderError(w, r, http.StatusInternalServerError, "登录失败", err.Error())
 		return
 	}
+	if u.IsBlocked() {
+		fail("账号已被封禁，禁止登录；如有疑问请联系站长。")
+		return
+	}
 	token, _, err := s.st.CreateSession(r.Context(), u.ID)
 	if err != nil {
 		s.renderError(w, r, http.StatusInternalServerError, "登录失败", err.Error())

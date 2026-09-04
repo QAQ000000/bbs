@@ -20,6 +20,15 @@
 		</div>
 		<div class="pct">
 			<div class="t_f" id="postmessage_{{.ID}}">{{.HTML}}</div>
+			{{if .Attachments}}
+			<div class="attachments">
+				{{range .Attachments}}
+				<a href="{{.Path}}" class="attachment" download="{{.Name}}">
+					📎 {{.Name}} <span class="xg1">({{div1000 .Size}} KB)</span>
+				</a>
+				{{end}}
+			</div>
+			{{end}}
 		</div>
 		<div class="po"><div class="pob cl">
 			<div class="z">

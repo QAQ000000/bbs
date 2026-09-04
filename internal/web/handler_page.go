@@ -7,6 +7,7 @@ import (
 	"html"
 	"html/template"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -143,7 +144,11 @@ func (s *Server) handleForum(w http.ResponseWriter, r *http.Request, fid int64, 
 		s.renderError(w, r, http.StatusInternalServerError, "加载失败", err.Error())
 		return
 	}
-	threads, total, err := s.st.Threads(r.Context(), fid, page, s.sets(r).ThreadsPerPage)
+	sort := r.URL.Query().Get("sort")
+	if sort != "" && sort != "new" && sort != "digest" && sort != "hot" {
+		sort = ""
+	}
+	threads, total, err := s.st.Threads(r.Context(), fid, page, s.sets(r).ThreadsPerPage, sort)
 	if err != nil {
 		s.renderError(w, r, http.StatusInternalServerError, "加载失败", err.Error())
 		return
@@ -152,7 +157,13 @@ func (s *Server) handleForum(w http.ResponseWriter, r *http.Request, fid int64, 
 	perPage := s.sets(r).ThreadsPerPage
 	totalPages := (total + perPage - 1) / perPage
 	fidInt := fid
-	pager := BuildPage(page, totalPages, func(n int) string { return ForumURL(fidInt, n) })
+	pager := BuildPage(page, totalPages, func(n int) string {
+		u := ForumURL(fidInt, n)
+		if sort != "" {
+			u += "?sort=" + sort
+		}
+		return u
+	})
 
 	data := struct {
 		Common
@@ -162,7 +173,8 @@ func (s *Server) handleForum(w http.ResponseWriter, r *http.Request, fid int64, 
 		Page      []PageItem
 		PageNum   int
 		TotalPage int
-	}{s.common(r), forum, stickies, threads, pager, page, totalPages}
+		Sort      string
+	}{s.common(r), forum, stickies, threads, pager, page, totalPages, sort}
 	data.Title = forum.Name
 	data.MetaDesc = forum.Description
 	data.NavActive = "forum" + strconv.FormatInt(fid, 10)
@@ -224,8 +236,15 @@ func (s *Server) handleThread(w http.ResponseWriter, r *http.Request, tid int64,
 
 	common := s.common(r)
 	pvm := make([]*PostVM, 0, len(posts))
+	ids := make([]int64, 0, len(posts))
 	for _, p := range posts {
-		pvm = append(pvm, PostVMOf(p, viewer, common.CSRF))
+		ids = append(ids, p.ID)
+	}
+	atts, _ := s.st.UploadsForPosts(r.Context(), ids)
+	for _, p := range posts {
+		vm := PostVMOf(p, viewer, common.CSRF)
+		vm.Attachments = atts[p.ID]
+		pvm = append(pvm, vm)
 	}
 	// 版主删除限管辖版块（管理员不限；删自己的内容始终允许）
 	if viewer != nil && !hasPoint(viewer, perm.AdminPanel) {
@@ -386,6 +405,8 @@ func (s *Server) searchPage(w http.ResponseWriter, r *http.Request) {
 	if page < 1 {
 		page = 1
 	}
+	forumID, _ := strconv.ParseInt(r.URL.Query().Get("forum"), 10, 64)
+	author := strings.TrimSpace(r.URL.Query().Get("author"))
 	var hits []*store.SearchHit
 	var total int
 	if q != "" {
@@ -394,7 +415,8 @@ func (s *Server) searchPage(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var err error
-		hits, total, err = s.st.Search(r.Context(), q, page, 20)
+		hits, total, err = s.st.Search(r.Context(), q, page, 20,
+			store.SearchOpts{ForumID: forumID, Author: author})
 		if err != nil {
 			s.renderError(w, r, http.StatusInternalServerError, "搜索失败", err.Error())
 			return
@@ -404,16 +426,29 @@ func (s *Server) searchPage(w http.ResponseWriter, r *http.Request) {
 	if totalPage < 1 {
 		totalPage = 1
 	}
+	cats, _ := s.st.CategoriesWithForums(r.Context())
 	data := struct {
 		Common
-		Q         string
-		Hits      []*store.SearchHit
-		Page      []PageItem
-		PageNum   int
-		TotalPage int
-	}{s.common(r), q, hits, nil, page, totalPage}
+		Q          string
+		ForumID    int64
+		Author     string
+		Categories []*store.Category
+		Hits       []*store.SearchHit
+		Page       []PageItem
+		PageNum    int
+		TotalPage  int
+	}{s.common(r), q, forumID, author, cats, hits, nil, page, totalPage}
 	data.Page = BuildPage(page, totalPage, func(n int) string {
-		return "/search?q=" + urlQueryEscape(q) + "&page=" + strconv.Itoa(n)
+		v := url.Values{}
+		v.Set("q", q)
+		if forumID > 0 {
+			v.Set("forum", strconv.FormatInt(forumID, 10))
+		}
+		if author != "" {
+			v.Set("author", author)
+		}
+		v.Set("page", strconv.Itoa(n))
+		return "/search?" + v.Encode()
 	})
 	data.Title = "搜索：" + q
 	_ = s.rd.Render(w, "page_search.html", &data)

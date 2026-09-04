@@ -351,7 +351,7 @@ func (s *Store) SearchUsers(ctx context.Context, q UserQuery) ([]*AdminUser, int
 	}
 	qArgs := append(args, q.Size, (q.Page-1)*q.Size)
 	rows, err := s.pool.Query(ctx,
-		`SELECT id, username, email, group_id, post_count, created_at, coalesce(last_login_at, 'epoch'::timestamptz), banned_until, ban_reason, trust_level
+		`SELECT id, username, email, group_id, post_count, created_at, coalesce(last_login_at, 'epoch'::timestamptz), banned_until, ban_reason, trust_level, coalesce(blocked_until, 'epoch'::timestamptz)
 		 FROM users`+w+` ORDER BY id LIMIT $`+strconv.Itoa(len(args)+1)+` OFFSET $`+strconv.Itoa(len(args)+2), qArgs...)
 	if err != nil {
 		return nil, 0, err
@@ -361,13 +361,18 @@ func (s *Store) SearchUsers(ctx context.Context, q UserQuery) ([]*AdminUser, int
 	for rows.Next() {
 		var u AdminUser
 		var bannedUntil *time.Time
+		var blockedUntil *time.Time
 		if err := rows.Scan(&u.ID, &u.Username, &u.Email, &u.GroupID, &u.PostCount,
-			&u.CreatedAt, &u.LastLoginAt, &bannedUntil, &u.BanReason, &u.TrustLevel); err != nil {
+			&u.CreatedAt, &u.LastLoginAt, &bannedUntil, &u.BanReason, &u.TrustLevel, &blockedUntil); err != nil {
 			return nil, 0, err
 		}
 		if bannedUntil != nil && bannedUntil.After(time.Now()) {
 			u.BannedUntil = *bannedUntil
 			u.IsBanned = true
+		}
+		if blockedUntil != nil && blockedUntil.After(time.Now()) {
+			u.BlockedUntil = *blockedUntil
+			u.IsBlocked = true
 		}
 		out = append(out, &u)
 	}
@@ -376,17 +381,19 @@ func (s *Store) SearchUsers(ctx context.Context, q UserQuery) ([]*AdminUser, int
 
 // AdminUser 后台用户行（含禁言状态）。
 type AdminUser struct {
-	ID          int64
-	Username    string
-	Email       string
-	GroupID     int
-	PostCount   int64
-	CreatedAt   time.Time
-	LastLoginAt time.Time
-	BannedUntil time.Time
-	BanReason   string
-	IsBanned    bool
-	TrustLevel  int
+	ID           int64
+	Username     string
+	Email        string
+	GroupID      int
+	PostCount    int64
+	CreatedAt    time.Time
+	LastLoginAt  time.Time
+	BannedUntil  time.Time
+	BanReason    string
+	IsBanned     bool
+	TrustLevel   int
+	BlockedUntil time.Time
+	IsBlocked    bool
 }
 
 // TrustLevelName 信任等级显示名。
@@ -505,6 +512,51 @@ func (s *Store) MoveThread(ctx context.Context, tid, newForumID int64) (int64, e
 	s.RecomputeForumStats(ctx, oldForumID)
 	s.RecomputeForumStats(ctx, newForumID)
 	return oldForumID, nil
+}
+
+// HasUsers 数据库是否已有用户（安装向导判断）。
+func (s *Store) HasUsers(ctx context.Context) (bool, error) {
+	var n int
+	if err := s.pool.QueryRow(ctx, `SELECT count(*) FROM users`).Scan(&n); err != nil {
+		return false, err
+	}
+	return n > 0, nil
+}
+
+// PromoteToAdmin 提升为管理员（安装向导用）。
+func (s *Store) PromoteToAdmin(ctx context.Context, uid int64) error {
+	_, err := s.pool.Exec(ctx,
+		`UPDATE users SET group_id=1, must_change_password=false WHERE id=$1`, uid)
+	return err
+}
+
+// BlockUser 封禁（禁止登录，区别于禁言）：days<=0 表示永久；同时踢掉全部会话。
+func (s *Store) BlockUser(ctx context.Context, uid int64, days int) error {
+	var err error
+	if days > 0 {
+		_, err = s.pool.Exec(ctx,
+			`UPDATE users SET blocked_until = now() + make_interval(days => $2) WHERE id=$1`, uid, days)
+	} else {
+		_, err = s.pool.Exec(ctx,
+			`UPDATE users SET blocked_until = 'infinity' WHERE id=$1`, uid)
+	}
+	if err != nil {
+		return err
+	}
+	s.DeleteUserSessions(ctx, uid)
+	return nil
+}
+
+// UnblockUser 解除封禁。
+func (s *Store) UnblockUser(ctx context.Context, uid int64) error {
+	_, err := s.pool.Exec(ctx, `UPDATE users SET blocked_until = NULL WHERE id=$1`, uid)
+	return err
+}
+
+// DeleteUserSessions 撤销用户全部会话（封禁时立即下线）。
+func (s *Store) DeleteUserSessions(ctx context.Context, uid int64) {
+	_, _ = s.pool.Exec(ctx, `DELETE FROM sessions WHERE user_id=$1`, uid)
+	s.sessions.invalidateUser(uid)
 }
 
 // SchemaVersion 当前 schema_migrations 版本（健康检查用）。

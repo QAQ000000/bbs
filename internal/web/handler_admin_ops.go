@@ -292,6 +292,56 @@ func (s *Server) adminUserUnban(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/admin/users", http.StatusSeeOther)
 }
 
+// adminUserBlock 封禁（禁止登录，区别于禁言）：踢掉全部会话。
+func (s *Server) adminUserBlock(w http.ResponseWriter, r *http.Request) {
+	if !s.requireAdmin(w, r) {
+		return
+	}
+	if !s.checkCSRF(r) {
+		s.forbidden(w, r)
+		return
+	}
+	uid := formInt64(r, "uid")
+	if u := User(r); u != nil && u.ID == uid {
+		s.setFlash(w, "不能封禁自己的账号")
+		http.Redirect(w, r, "/admin/users", http.StatusSeeOther)
+		return
+	}
+	days := int(formInt64(r, "days"))
+	if err := s.st.BlockUser(r.Context(), uid, days); err != nil {
+		s.setFlash(w, "封禁失败："+err.Error())
+	} else {
+		detail := "封禁用户 #" + strconv.FormatInt(uid, 10)
+		if days > 0 {
+			detail += " " + strconv.Itoa(days) + " 天"
+		} else {
+			detail += " 永久"
+		}
+		s.logOp(r, "user.block", detail)
+		s.setFlash(w, "已封禁（禁止登录）")
+	}
+	http.Redirect(w, r, "/admin/users", http.StatusSeeOther)
+}
+
+// adminUserUnblock 解除封禁。
+func (s *Server) adminUserUnblock(w http.ResponseWriter, r *http.Request) {
+	if !s.requireAdmin(w, r) {
+		return
+	}
+	if !s.checkCSRF(r) {
+		s.forbidden(w, r)
+		return
+	}
+	uid := formInt64(r, "uid")
+	if err := s.st.UnblockUser(r.Context(), uid); err != nil {
+		s.setFlash(w, "解封失败："+err.Error())
+	} else {
+		s.logOp(r, "user.unblock", "解除封禁 #"+strconv.FormatInt(uid, 10))
+		s.setFlash(w, "已解封")
+	}
+	http.Redirect(w, r, "/admin/users", http.StatusSeeOther)
+}
+
 func (s *Server) adminUserGroup(w http.ResponseWriter, r *http.Request) {
 	if !s.requireAdmin(w, r) {
 		return
@@ -402,6 +452,8 @@ func (s *Server) adminSettingsSave(w http.ResponseWriter, r *http.Request) {
 		"captcha_enabled":      captcha,
 		"email_verify_enabled": emailVerify,
 		"require_consent":      consent,
+		"site_logo":            strings.TrimSpace(r.PostFormValue("site_logo")),
+		"footer_text":          strings.TrimSpace(r.PostFormValue("footer_text")),
 		"terms_content":        r.PostFormValue("terms_content"),
 		"privacy_content":      r.PostFormValue("privacy_content"),
 		"site_closed":          closed,

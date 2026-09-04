@@ -48,13 +48,14 @@ func New(pool *pgxpool.Pool) *Store {
 // ---- 用户 ----
 
 const userCols = `id, username, password_hash, email, group_id, post_count, signature, created_at,
-	trust_level, posts_read, days_visited, email_verified, must_change_password`
+	trust_level, posts_read, days_visited, email_verified, must_change_password,
+	coalesce(blocked_until, 'epoch'::timestamptz)`
 
 func scanUser(row pgx.Row) (*User, error) {
 	var u User
 	err := row.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Email, &u.GroupID,
 		&u.PostCount, &u.Signature, &u.CreatedAt, &u.TrustLevel, &u.PostsRead, &u.DaysVisited,
-		&u.EmailVerified, &u.MustChangePassword)
+		&u.EmailVerified, &u.MustChangePassword, &u.BlockedUntil)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	}

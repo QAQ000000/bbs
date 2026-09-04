@@ -5,6 +5,8 @@
 // 仅需把 rolePerms 换成 DB 读取，Allowed 的调用方零改动。
 package perm
 
+import "sync"
+
 // Role 用户组（对应 users.group_id）。
 type Role int
 
@@ -77,9 +79,79 @@ var rolePerms = map[Role]map[Point]bool{
 	},
 }
 
-// Allowed 判定角色是否拥有权限点。
+// matrix 当前生效的权限矩阵：默认取编译期 rolePerms，后台保存后由
+// store 调 Load 整表替换。AdminPanel×管理员为硬保护（防自锁，不受 DB 覆盖）。
+var matrixMu sync.RWMutex
+var matrix = rolePerms
+
+// Allowed 判定角色是否拥有权限点（单点查询，全站唯一入口）。
 func Allowed(r Role, p Point) bool {
-	return rolePerms[r][p]
+	matrixMu.RLock()
+	defer matrixMu.RUnlock()
+	if r == RoleAdmin && p == AdminPanel {
+		return true // 硬保护
+	}
+	return matrix[r][p]
+}
+
+// Load 用 DB 中的矩阵整表替换运行时值（缺省权限点回退编译期默认）。
+func Load(m map[Role]map[Point]bool) {
+	merged := map[Role]map[Point]bool{}
+	for role, defs := range rolePerms {
+		merged[role] = map[Point]bool{}
+		for pt, allowed := range defs {
+			merged[role][pt] = allowed
+		}
+	}
+	for role, pts := range m {
+		if _, ok := merged[role]; !ok {
+			merged[role] = map[Point]bool{}
+		}
+		for pt, allowed := range pts {
+			merged[role][pt] = allowed
+		}
+	}
+	matrixMu.Lock()
+	matrix = merged
+	matrixMu.Unlock()
+}
+
+// Matrix 返回当前矩阵（后台矩阵页渲染用，副本）。
+func Matrix() map[Role]map[Point]bool {
+	matrixMu.RLock()
+	defer matrixMu.RUnlock()
+	out := map[Role]map[Point]bool{}
+	for role, pts := range matrix {
+		out[role] = map[Point]bool{}
+		for pt, allowed := range pts {
+			out[role][pt] = allowed
+		}
+	}
+	return out
+}
+
+// AllPoints 全部命名权限点（矩阵页按此顺序渲染）。
+func AllPoints() []Point {
+	return []Point{
+		AdminPanel, ForumManage, ContentModerate,
+		ContentEditOwn, ContentEditAny, ContentDeleteOwn, ContentDeleteAny,
+		UserBan, UserDelete, UserSetGroup,
+		SettingsEdit, CensorManage, AnnounceManage,
+		LogsView, RecycleBin, PruneRun, ModerateQueue,
+		UploadUse,
+	}
+}
+
+// Defaults 返回编译期默认矩阵（权限表播种用，副本）。
+func Defaults() map[Role]map[Point]bool {
+	out := map[Role]map[Point]bool{}
+	for role, pts := range rolePerms {
+		out[role] = map[Point]bool{}
+		for pt, allowed := range pts {
+			out[role][pt] = allowed
+		}
+	}
+	return out
 }
 
 // TrustAllowed 判定信任等级是否拥有信任轴权限点。

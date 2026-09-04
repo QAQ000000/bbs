@@ -116,6 +116,24 @@
 
 **验收**（已达成）：冒烟新增 `TestModeratorScope`（管辖内可见可删/管辖外按钮隐藏+提交 403/管理员不受限）、`TestReplyNotification`、`TestMoveThread`（含越权移动不生效）、`TestSEO`；生产库 sitemap/RSS 通过 XML 校验。
 
+## 阶段八：P1 运营与建站能力（外部评审清单）✅ 2026-09-05
+
+| # | 任务 | 落点 | 状态 |
+| --- | --- | --- | --- |
+| 8.1 | **可配置权限矩阵**：`role_perms` 表（空表播种默认），`perm.Load/Matrix/Defaults` 运行时热更新（AdminPanel×管理员硬保护防自锁），后台「权限矩阵」页逐格勾选，保存即时生效 | `matrix.go`、`perm.go`、`admin_perms.html`、`handler_setup.go` | ✅ |
+| 8.2 | **禁言 ≠ 封禁**：`users.blocked_until`（封禁=禁止登录，与禁言分离），封禁即踢全部会话，登录被拒、既有会话按匿名处理；后台封禁（1/3/7 天/永久）/解封 | `admin.go`、`middleware.go`、`handler_user.go`、`admin_users.html` | ✅ |
+| 8.3 | **头像上传**：`/profile/avatar`（≤2MB 内容嗅探 JPG/PNG/GIF/WebP），`/avatar/{uid}` 自定义优先、字母 SVG 兜底；可恢复默认。模板零改动（同 URL 智能解析） | `handler_profile.go`、`handler_notify.go` | ✅ |
+| 8.4 | **附件挂楼层**：`uploads.post_id`，发帖/编辑/过审时按内容中的 `/uploads/...` 引用自动挂靠/解挂，楼层渲染附件列表（文件名+大小+下载） | `notify.go`、`handler_post.go`、`p_post.html` | ✅ |
+| 8.5 | **版块内筛选**：最新回复（默认）/最新发表/精华/热门（按查看数），分页链接携带排序 | `forum.go`、`handler_page.go`、`page_forum.html` | ✅ |
+| 8.6 | **搜索范围**：按版块、按作者过滤（SQL 侧 `$2/$3` 可空参数），搜索页过滤表单 | `search.go`、`page_search.html` | ✅ |
+| 8.7 | **Logo/页脚可配置**：`site_logo`（后台优先于环境变量，默认双色字标）与 `footer_text` 设置项 | `settings.go`、`server.go`、`layout.html` | ✅ |
+| 8.8 | **安装向导**：空库时全站 302 → `/setup`（站点名+管理员账号+密码），完成即登录；有用户时 /setup 重定向回首页防重复安装 | `setupGuard`、`page_setup.html` | ✅ |
+| 8.9 | **自助删号**：资料页「注销账号」（密码确认），无公开内容时复用 `DeleteUser` 硬删，有内容时引导联系站长；管理员账号禁止自助删除；审计留痕 | `handler_profile.go` | ✅ |
+
+**验收**（已达成）：冒烟新增 `TestPermMatrix`（关权限→行为变化→恢复）、`TestBlockUser`（会话失效+登录被拒+解封）、`TestAvatarUpload`（PNG 生效→SVG 兜底）、`TestAttachments`（上传→引用→楼层附件区）、`TestSelfDelete`（无内容删/有内容拒）、`TestSetupRedirect`；生产库经 003 迁移升级至版本 3，`role_perms` 播种 29 格（3 角色 × 18 点 - 硬保护差值按默认填充）。
+
+---
+
 ### 待裁决：是否转向「主流社区 CMS」
 
 评审指出 CMS 路线需要：版块读写权限矩阵、前台版主工具条、可配置权限入库、禁言≠封禁、头像、附件挂楼层、版块筛选、搜索过滤、安装向导、标签/订阅/积分等（工期差一个数量级），且与本文「明确不做」清单冲突。**维持当前定位则到此为止**；若决定转 CMS，从「版块权限 + 前台版主工具 + 权限矩阵入库」开始，并先改本文档目标。

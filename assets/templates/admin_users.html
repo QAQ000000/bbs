@@ -32,11 +32,31 @@
 			<td class="xg1">{{timefmt .CreatedAt}}</td>
 			<td class="xg1">{{timefmt .LastLoginAt}}</td>
 			<td>
-				{{if .IsBanned}}<span class="badge badge-lock" title="{{.BanReason}}">禁言至 {{timefmt .BannedUntil}}</span>
+				{{if .IsBlocked}}<span class="badge badge-lock" title="封禁期间禁止登录">已封禁至 {{timefmt .BlockedUntil}}</span>
+				{{else if .IsBanned}}<span class="badge badge-sticky" title="{{.BanReason}}">禁言至 {{timefmt .BannedUntil}}</span>
 				{{else}}<span class="xg1">正常</span>{{end}}
 			</td>
 			<td class="ops-cell">
 				{{if ne .ID $.ViewerID}}
+				{{if .IsBlocked}}
+				<form method="post" action="/admin/users/unblock" class="inlineform">
+					<input type="hidden" name="_csrf" value="{{$.CSRF}}">
+					<input type="hidden" name="uid" value="{{.ID}}">
+					<button type="submit" class="pn pn-sm">解封（恢复登录）</button>
+				</form>
+				{{else}}
+				<form method="post" action="/admin/users/block" class="inline-form cl" data-confirm="封禁后该用户将无法登录，且全部会话立即下线，确定吗？">
+					<input type="hidden" name="_csrf" value="{{$.CSRF}}">
+					<input type="hidden" name="uid" value="{{.ID}}">
+					<select name="days" class="px px-inline px-auto">
+						<option value="0">永久</option>
+						<option value="1">1 天</option>
+						<option value="3">3 天</option>
+						<option value="7">7 天</option>
+					</select>
+					<button type="submit" class="pn pn-sm pn-danger">封禁登录</button>
+				</form>
+				{{end}}
 				<form method="post" action="/admin/users/ban" class="inline-form cl">
 					<input type="hidden" name="_csrf" value="{{$.CSRF}}">
 					<input type="hidden" name="uid" value="{{.ID}}">

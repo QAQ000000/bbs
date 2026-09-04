@@ -452,3 +452,24 @@ h1, h2, h3, h4 { margin: 0; font-weight: 600; }
 
 /* ---- 移动端行内回复数（仅窄屏显示）---- */
 .m-num { display: none; }
+
+/* ---- 版块筛选标签（P1-10）---- */
+.filter-tabs { padding: 0 10px; border-bottom: 1px solid var(--c-border); }
+.filter-tabs a {
+	display: inline-block; padding: 9px 14px; font-size: 13.5px;
+	color: var(--c-text-sub); border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.filter-tabs a.a, .filter-tabs a:hover { color: var(--c-primary); border-bottom-color: var(--c-primary); text-decoration: none; }
+
+/* ---- 搜索过滤表单（P1-11）---- */
+.search-filters { margin-bottom: 10px; }
+.search-filters .px { margin: 0 6px 6px 0; }
+
+/* ---- 楼层附件（P1-9）---- */
+.attachments { margin-top: 10px; padding: 8px 10px; background: #f7fafd; border: 1px dashed var(--c-border); border-radius: var(--radius); }
+.attachment { display: block; padding: 3px 0; font-size: 13px; }
+
+/* ---- 资料页头像/危险区 ---- */
+.avatar-upload { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+.danger-zone { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--c-border); }
+

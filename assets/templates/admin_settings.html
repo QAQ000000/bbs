@@ -18,6 +18,13 @@
 				<td><input type="number" name="posts_per_page" value="{{.Settings.PostsPerPage}}" min="5" max="100" class="px px-inline px-num"></td>
 			</tr>
 			<tr>
+				<th>Logo / 页脚</th>
+				<td>
+					<input type="text" name="site_logo" value="{{.Settings.SiteLogo}}" class="px px-inline" placeholder="Logo 文案（留空 = 默认 Go!BBS）" maxlength="40">
+					<input type="text" name="footer_text" value="{{.Settings.FooterText}}" class="px px-inline px-wide" placeholder="页脚附加文案（选填）" maxlength="120">
+				</td>
+			</tr>
+			<tr>
 				<th>开放注册</th>
 				<td><label><input type="checkbox" name="register_enabled" value="1"{{if .Settings.RegisterEnabled}} checked{{end}}> 允许新用户注册</label></td>
 			</tr>

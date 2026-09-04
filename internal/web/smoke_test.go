@@ -8,10 +8,13 @@
 package web
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -521,7 +524,7 @@ func TestReportFlow(t *testing.T) {
 // 结束时恢复设置（captcha_enabled=0），保持种子状态可复跑。
 func TestRegisterGate(t *testing.T) {
 	settingsOn := "site_name=GoBBS 冒烟站&threads_per_page=20&posts_per_page=10" +
-		"&register_enabled=1&moderate_enabled=0&upload_enabled=1&max_image_mb=8&max_file_mb=20" +
+		"&register_enabled=1&upload_enabled=1&max_image_mb=8&max_file_mb=20" +
 		"&captcha_enabled=1&email_verify_enabled=0&require_consent=1&site_closed=0&site_closed_reason="
 	if w := smokePost(t, "/admin/settings", adminCSRF, settingsOn, adminCookie); w.Code != http.StatusSeeOther {
 		t.Fatalf("开启验证码设置 → %d", w.Code)
@@ -720,5 +723,200 @@ func TestMoveThread(t *testing.T) {
 	}
 	if fid != 1 {
 		t.Fatalf("越权移动不应生效: thread1 forum=%d", fid)
+	}
+}
+
+// smokeMultipart multipart 表单提交（上传/头像用）。
+func smokeMultipart(t *testing.T, path, csrf, fileField, filename string, content []byte, extra map[string]string, cookie *http.Cookie) *httptest.ResponseRecorder {
+	t.Helper()
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	if fileField != "" {
+		fw, _ := w.CreateFormFile(fileField, filename)
+		_, _ = fw.Write(content)
+	}
+	for k, v := range extra {
+		_ = w.WriteField(k, v)
+	}
+	_ = w.WriteField("_csrf", csrf)
+	_ = w.Close()
+	req := httptest.NewRequest(http.MethodPost, path, &buf)
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	if cookie != nil {
+		req.AddCookie(cookie)
+	}
+	resp := httptest.NewRecorder()
+	smokeSrv.Handler().ServeHTTP(resp, req)
+	return resp
+}
+
+var pngMagic = []byte{0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0}
+
+// TestPermMatrix 矩阵入库与生效：关闭会员「编辑自己的楼层」→ user01 编辑 403 → 恢复。
+func TestPermMatrix(t *testing.T) {
+	w := smokeGet(t, "/admin/perms", adminCookie)
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "权限矩阵") {
+		t.Fatalf("矩阵页异常: %d", w.Code)
+	}
+	w = smokePost(t, "/admin/perms/save", adminCSRF,
+		"allow.2.content.moderate=1&allow.2.content.delete.any=1&allow.2.recycle.bin=1&allow.2.prune.run=1&allow.2.moderate.queue=1&allow.2.upload.use=1"+
+			"&allow.0.content.delete.own=1&allow.0.upload.use=1", adminCookie)
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("保存矩阵 → %d", w.Code)
+	}
+	w = smokePost(t, "/edit/1", userCSRF, "subject=冒烟测试主题&content=x&version=1", userCookie)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("关闭后编辑应 403: %d", w.Code)
+	}
+	w = smokeGet(t, "/admin", adminCookie)
+	if w.Code != http.StatusOK {
+		t.Fatalf("admin.panel 硬保护被破坏: %d", w.Code)
+	}
+	body := "allow.0.content.edit.own=1&allow.0.content.delete.own=1&allow.0.upload.use=1" +
+		"&allow.2.content.moderate=1&allow.2.content.delete.any=1&allow.2.recycle.bin=1&allow.2.prune.run=1&allow.2.moderate.queue=1&allow.2.upload.use=1"
+	w = smokePost(t, "/admin/perms/save", adminCSRF, body, adminCookie)
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("恢复矩阵 → %d", w.Code)
+	}
+	w = smokePost(t, "/edit/1", userCSRF, "subject=冒烟测试主题&content=x&version=1", userCookie)
+	if w.Code == http.StatusForbidden {
+		t.Fatal("恢复后编辑仍 403")
+	}
+}
+
+// TestBlockUser 封禁（禁止登录）：会话立即失效、登录被拒、解封恢复。
+func TestBlockUser(t *testing.T) {
+	ctx := context.Background()
+	w := smokePost(t, "/admin/users/block", adminCSRF, "uid=2&days=1", adminCookie)
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("封禁 → %d", w.Code)
+	}
+	w = smokeGet(t, "/notify", userCookie)
+	if w.Code != http.StatusFound || !strings.HasPrefix(w.Header().Get("Location"), "/login") {
+		t.Fatalf("封禁后旧会话应失效: %d", w.Code)
+	}
+	// 匿名 CSRF 取一次并复用（两次取样是不同 token，会 403）
+	c := anonLoginCookie(t)
+	w = smokePost(t, "/login", c.Value, "username=user01&password=user123456", c)
+	if !strings.Contains(w.Body.String(), "账号已被封禁") {
+		t.Fatalf("封禁账号登录应被拒: %d %s", w.Code, firstLine(w.Body.String()))
+	}
+	if w = smokePost(t, "/admin/users/unblock", adminCSRF, "uid=2", adminCookie); w.Code != http.StatusSeeOther {
+		t.Fatalf("解封 → %d", w.Code)
+	}
+	// 封禁时 user01 全部会话已被删除：换发新会话，恢复后续测试依赖
+	tokU, csrfU, err := smokeSrv.st.CreateSession(ctx, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	userCookie = &http.Cookie{Name: "forum_session", Value: tokU}
+	userCSRF = csrfU
+}
+
+// anonLoginCookie / anonLoginCSRF 取匿名 CSRF 会话（登录表单用）。
+func anonLoginCookie(t *testing.T) *http.Cookie {
+	t.Helper()
+	w := smokeGet(t, "/login", nil)
+	for _, c := range w.Result().Cookies() {
+		if c.Name == "forum_csrf" {
+			return c
+		}
+	}
+	return nil
+}
+
+func anonLoginCSRF(t *testing.T) string {
+	t.Helper()
+	c := anonLoginCookie(t)
+	if c == nil {
+		return ""
+	}
+	return c.Value
+}
+
+// TestAvatarUpload 头像上传：/avatar/{uid} 优先返回自定义图片；清除后回到 SVG。
+func TestAvatarUpload(t *testing.T) {
+	w := smokeMultipart(t, "/profile/avatar", userCSRF, "avatar", "a.png", pngMagic, nil, userCookie)
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("上传头像 → %d，Location=%q，body=%s", w.Code, w.Header().Get("Location"), firstLine(w.Body.String()))
+	}
+	w = smokeGet(t, "/avatar/2", nil)
+	if w.Code != 200 || !strings.Contains(w.Header().Get("Content-Type"), "image/png") {
+		t.Fatalf("自定义头像应生效: %d %s", w.Code, w.Header().Get("Content-Type"))
+	}
+	w = smokePost(t, "/profile/avatar/clear", userCSRF, "", userCookie)
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("清除头像 → %d", w.Code)
+	}
+	w = smokeGet(t, "/avatar/2", nil)
+	if !strings.Contains(w.Header().Get("Content-Type"), "image/svg") {
+		t.Fatal("清除后应回到 SVG 头像")
+	}
+}
+
+// TestAttachments 附件挂楼层：上传→回复引用→楼层出现附件区。
+func TestAttachments(t *testing.T) {
+	w := smokeMultipart(t, "/api/upload", userCSRF, "file", "report.pdf", pdfMagic,
+		map[string]string{"kind": "file"}, userCookie)
+	if w.Code != 200 {
+		t.Fatalf("上传附件 → %d %s", w.Code, w.Body.String())
+	}
+	var resp struct{ URL string }
+	_ = json.NewDecoder(w.Body).Decode(&resp)
+	if resp.URL == "" {
+		t.Fatal("上传未返回 URL")
+	}
+	w = smokePost(t, "/reply/1", userCSRF, "content=附件见 [文件]("+resp.URL+")", userCookie)
+	if w.Code != http.StatusFound && w.Code != http.StatusSeeOther {
+		t.Fatalf("回复 → %d", w.Code)
+	}
+	body := smokeGet(t, "/thread-1-1-1.html", nil).Body.String()
+	if !strings.Contains(body, "attachments") || !strings.Contains(body, "report.pdf") {
+		t.Fatal("楼层未展示附件区")
+	}
+}
+
+var pdfMagic = []byte("%PDF-1.4\n%test\n")
+
+// TestSelfDelete 自助删号：无内容用户密码确认后删号；有内容用户被拒。
+func TestSelfDelete(t *testing.T) {
+	ctx := context.Background()
+	u, err := smokeSrv.st.CreateUser(ctx, "selfdel01", "selfdel123", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tok, csrf, err := smokeSrv.st.CreateSession(ctx, u.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := &http.Cookie{Name: "forum_session", Value: tok}
+	w := smokePost(t, "/profile/delete", csrf, "password=selfdel123", c)
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("自助删号 → %d", w.Code)
+	}
+	var n int
+	if err := smokePool.QueryRow(ctx, `SELECT count(*) FROM users WHERE id=$1`, u.ID).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	if n != 0 {
+		t.Fatal("用户应已删除")
+	}
+	w = smokePost(t, "/profile/delete", userCSRF, "password=user123456", userCookie)
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("有内容用户删号 → %d", w.Code)
+	}
+	if err := smokePool.QueryRow(ctx, `SELECT count(*) FROM users WHERE username='user01'`).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatal("有内容用户不应被删除")
+	}
+}
+
+// TestSetupRedirect 已有用户时 /setup 重定向回首页（不重复安装）。
+func TestSetupRedirect(t *testing.T) {
+	w := smokeGet(t, "/setup", nil)
+	if w.Code != http.StatusFound {
+		t.Fatalf("已有用户时 /setup 应重定向: %d", w.Code)
 	}
 }

@@ -42,6 +42,10 @@ type Server struct {
 	uploadMu     sync.Mutex // 上传目录占用缓存（5 分钟）
 	uploadSize   int64
 	uploadSizeAt time.Time
+
+	setupMu           sync.Mutex // 安装向导判断缓存（5 秒）
+	setupCheckedAt    time.Time
+	setupRequiredFlag bool
 }
 
 func New(cfg config.Config, st *store.Store, hub *live.Hub, logger *slog.Logger) (*Server, error) {
@@ -80,12 +84,17 @@ func Session(r *http.Request) *store.Session {
 
 func (s *Server) common(r *http.Request) Common {
 	st := s.sets(r)
+	logo := s.cfg.SiteLogo
+	if st.SiteLogo != "" {
+		logo = st.SiteLogo // 后台配置优先于环境变量
+	}
 	c := Common{
-		SiteName:  st.SiteName,
-		SiteLogo:  s.cfg.SiteLogo,
-		User:      User(r),
-		NavActive: r.URL.Path,
-		Year:      time.Now().Year(),
+		SiteName:   st.SiteName,
+		SiteLogo:   logo,
+		FooterText: st.FooterText,
+		User:       User(r),
+		NavActive:  r.URL.Path,
+		Year:       time.Now().Year(),
 	}
 	if sess := Session(r); sess != nil {
 		c.CSRF = sess.CSRF

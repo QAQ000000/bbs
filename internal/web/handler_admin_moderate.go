@@ -205,6 +205,7 @@ func (s *Server) adminModeratePost(w http.ResponseWriter, r *http.Request) {
 		} else {
 			s.broadcastPost("post.new", th2, p2)
 			s.broadcastThread("thread.update", th2)
+			s.linkUploads(r, p2.AuthorID, p2.ID, p2.ContentMD)
 			s.notifyMentions(r, &store.User{ID: p2.AuthorID, Username: p2.AuthorName}, p2.ContentMD, th2, p2)
 			s.logOp(r, "moderate.post.approve", "审核通过回复 #"+strconv.FormatInt(pid, 10))
 			s.setFlash(w, "回复已通过审核")

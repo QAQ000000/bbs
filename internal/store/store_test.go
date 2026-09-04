@@ -261,7 +261,7 @@ func TestSearch(t *testing.T) {
 		t.Fatalf("重建索引: n=%d err=%v", n, err)
 	}
 	// 中文命中（bigram）
-	hits, total, err := testStore.Search(ctx, "搜索引擎", 1, 10)
+	hits, total, err := testStore.Search(ctx, "搜索引擎", 1, 10, SearchOpts{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -269,12 +269,12 @@ func TestSearch(t *testing.T) {
 		t.Fatalf("中文搜索未命中: total=%d", total)
 	}
 	// 英文命中
-	hits, _, err = testStore.Search(ctx, "倒排", 1, 10)
+	hits, _, err = testStore.Search(ctx, "倒排", 1, 10, SearchOpts{})
 	if err != nil || len(hits) == 0 {
 		t.Fatalf("命中查询失败: %v", err)
 	}
 	// 无关词
-	_, total, _ = testStore.Search(ctx, "完全不相关的词组", 1, 10)
+	_, total, _ = testStore.Search(ctx, "完全不相关的词组", 1, 10, SearchOpts{})
 	if total != 0 {
 		t.Fatalf("无关词不应命中: %d", total)
 	}

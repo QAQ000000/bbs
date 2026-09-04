@@ -110,17 +110,30 @@ func (s *Store) Stickies(ctx context.Context, forumID int64) ([]*Thread, error) 
 	return collectThreads(rows, err)
 }
 
-// Threads 版块普通主题分页。
-func (s *Store) Threads(ctx context.Context, forumID int64, page, size int) ([]*Thread, int, error) {
+// Threads 版块普通主题分页；sort 为空按最后回复，支持 new（最新发表）/
+// digest（精华）/ hot（热门·按查看数）。版主管辖与待审口径不受排序影响。
+func (s *Store) Threads(ctx context.Context, forumID int64, page, size int, sort string) ([]*Thread, int, error) {
+	extra := ""
+	order := "t.last_post_at DESC"
+	switch sort {
+	case "new":
+		order = "t.created_at DESC"
+	case "digest":
+		extra = " AND t.digest"
+		order = "t.last_post_at DESC"
+	case "hot":
+		order = "t.view_count DESC, t.last_post_at DESC"
+	}
 	var total int
 	if err := s.pool.QueryRow(ctx,
-		`SELECT count(*) FROM threads WHERE forum_id=$1 AND NOT deleted AND NOT pending AND sticky=0`, forumID).Scan(&total); err != nil {
+		`SELECT count(*) FROM threads WHERE forum_id=$1 AND NOT deleted AND NOT pending AND sticky=0`+extra,
+		forumID).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 	rows, err := s.pool.Query(ctx,
 		`SELECT `+threadCols+` `+threadJoins+`
-		 WHERE t.forum_id=$1 AND NOT t.deleted AND NOT t.pending AND t.sticky=0
-		 ORDER BY t.last_post_at DESC LIMIT $2 OFFSET $3`, forumID, size, (page-1)*size)
+		 WHERE t.forum_id=$1 AND NOT t.deleted AND NOT t.pending AND t.sticky=0`+extra+`
+		 ORDER BY `+order+` LIMIT $2 OFFSET $3`, forumID, size, (page-1)*size)
 	list, err := collectThreads(rows, err)
 	if err != nil {
 		return nil, 0, err

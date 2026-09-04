@@ -4,13 +4,17 @@ package web
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
 
+	"dzforum/internal/perm"
 	"dzforum/internal/store"
 )
 
@@ -168,6 +172,131 @@ func (s *Server) profileVerifyResend(w http.ResponseWriter, r *http.Request) {
 	}
 	s.setFlash(w, "验证邮件已发送，请查收（24 小时内有效）")
 	http.Redirect(w, r, "/profile", http.StatusSeeOther)
+}
+
+// profileAvatar POST /profile/avatar：上传自定义头像（≤2MB，按内容嗅探）。
+// 存储约定 data/uploads/avatars/uid.<ext>；/avatar/{uid} 自动优先展示。
+func (s *Server) profileAvatar(w http.ResponseWriter, r *http.Request) {
+	if !s.requireLogin(w, r) {
+		return
+	}
+	u := User(r)
+	if !s.checkCSRF(r) {
+		s.renderError(w, r, http.StatusForbidden, "操作被拒绝", "表单已过期，请刷新重试。")
+		return
+	}
+	if !s.allowKey("avatar:"+strconv.FormatInt(u.ID, 10), 5, time.Hour) {
+		s.renderError(w, r, http.StatusTooManyRequests, "操作过于频繁", "头像更换太频繁，请稍后再试。")
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 2<<20)
+	if err := r.ParseMultipartForm(2 << 20); err != nil {
+		s.renderError(w, r, http.StatusRequestEntityTooLarge, "头像过大", "头像图片不能超过 2MB。")
+		return
+	}
+	f, _, err := r.FormFile("avatar")
+	if err != nil {
+		s.setFlash(w, "请选择头像图片")
+		http.Redirect(w, r, "/profile", http.StatusSeeOther)
+		return
+	}
+	defer f.Close()
+	buf := make([]byte, 512)
+	n, _ := f.Read(buf)
+	mime := http.DetectContentType(buf[:n])
+	if i := strings.Index(mime, ";"); i > 0 {
+		mime = mime[:i]
+	}
+	ext := map[string]string{"image/jpeg": ".jpg", "image/png": ".png", "image/gif": ".gif", "image/webp": ".webp"}[mime]
+	if ext == "" {
+		s.renderError(w, r, http.StatusUnsupportedMediaType, "格式不支持", "头像仅支持 JPG/PNG/GIF/WebP 图片。")
+		return
+	}
+	dir := filepath.Join(s.cfg.UploadDir, "avatars")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		s.renderError(w, r, http.StatusInternalServerError, "上传失败", err.Error())
+		return
+	}
+	// 清掉旧头像（换扩展名也能命中）
+	if old := s.customAvatarPath(u.ID); old != "" {
+		_ = os.Remove(old)
+	}
+	dst := filepath.Join(dir, strconv.FormatInt(u.ID, 10)+ext)
+	out, err := os.Create(dst)
+	if err != nil {
+		s.renderError(w, r, http.StatusInternalServerError, "上传失败", err.Error())
+		return
+	}
+	defer out.Close()
+	if _, err := io.Copy(out, f); err != nil {
+		_ = os.Remove(dst)
+		s.renderError(w, r, http.StatusInternalServerError, "上传失败", err.Error())
+		return
+	}
+	s.logOp(r, "profile.avatar", "更新自定义头像")
+	s.setFlash(w, "头像已更新")
+	http.Redirect(w, r, "/profile", http.StatusSeeOther)
+}
+
+// profileAvatarClear POST /profile/avatar/clear：恢复默认字母头像。
+func (s *Server) profileAvatarClear(w http.ResponseWriter, r *http.Request) {
+	if !s.requireLogin(w, r) {
+		return
+	}
+	u := User(r)
+	if !s.checkCSRF(r) {
+		s.renderError(w, r, http.StatusForbidden, "操作被拒绝", "表单已过期，请刷新重试。")
+		return
+	}
+	if p := s.customAvatarPath(u.ID); p != "" {
+		_ = os.Remove(p)
+	}
+	s.setFlash(w, "已恢复默认头像")
+	http.Redirect(w, r, "/profile", http.StatusSeeOther)
+}
+
+// profileSelfDelete POST /profile/delete：自助删号（需密码确认；
+// 仍有公开内容时拒绝——与后台删号同口径）。
+func (s *Server) profileSelfDelete(w http.ResponseWriter, r *http.Request) {
+	if !s.requireLogin(w, r) {
+		return
+	}
+	u := User(r)
+	if !s.checkCSRF(r) {
+		s.renderError(w, r, http.StatusForbidden, "操作被拒绝", "表单已过期，请刷新重试。")
+		return
+	}
+	if !s.allow(r, "self-delete", 3, time.Hour) {
+		s.renderError(w, r, http.StatusTooManyRequests, "操作过于频繁", "请一小时后再试。")
+		return
+	}
+	if s.st.VerifyPassword(u, r.PostFormValue("password")) == false {
+		s.setFlash(w, "密码不正确，账号未删除")
+		http.Redirect(w, r, "/profile", http.StatusSeeOther)
+		return
+	}
+	if hasPoint(u, perm.AdminPanel) {
+		s.setFlash(w, "管理员账号不能自助删除，请先移交后台权限")
+		http.Redirect(w, r, "/profile", http.StatusSeeOther)
+		return
+	}
+	err := s.st.DeleteUser(r.Context(), u.ID)
+	switch {
+	case errors.Is(err, store.ErrUserHasContent):
+		s.setFlash(w, "账号下仍有发帖内容，无法自助删除；请联系站长处理。")
+		http.Redirect(w, r, "/profile", http.StatusSeeOther)
+		return
+	case err != nil:
+		s.renderError(w, r, http.StatusInternalServerError, "删除失败", "请稍后重试或联系站长。")
+		return
+	}
+	s.logOp(r, "profile.self_delete", "用户自助删号 "+u.Username)
+	if c, err := r.Cookie(cookieSession); err == nil && c.Value != "" {
+		s.st.DeleteSession(r.Context(), c.Value)
+	}
+	s.setSessionCookie(w, "", -1)
+	s.setFlash(w, "账号已注销")
+	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
 // profileExport GET /profile/export：导出本人数据（JSON 附件，审计留痕）。

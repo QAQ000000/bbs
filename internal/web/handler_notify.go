@@ -147,9 +147,18 @@ func (s *Server) uploadImage(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(b)
 }
 
-// GET /avatar/{uid}：确定性字母头像 SVG（点赞浮层用）。
+// GET /avatar/{uid}：自定义头像（资料页上传）优先，否则确定性字母头像 SVG。
 func (s *Server) avatarSVG(w http.ResponseWriter, r *http.Request) {
 	uid := pathID(r, "uid")
+	if p := s.customAvatarPath(uid); p != "" {
+		f, err := os.Open(p)
+		if err == nil {
+			defer f.Close()
+			w.Header().Set("Cache-Control", "public, max-age=300")
+			http.ServeContent(w, r, filepath.Base(p), time.Now(), f)
+			return
+		}
+	}
 	name, err := s.st.NameByID(r.Context(), uid)
 	if err != nil {
 		http.NotFound(w, r)
@@ -180,6 +189,33 @@ func (s *Server) likesList(w http.ResponseWriter, r *http.Request) {
 func (s *Server) serveUploads(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "public, max-age=604800")
 	http.StripPrefix("/uploads/", http.FileServer(http.Dir(s.cfg.UploadDir))).ServeHTTP(w, r)
+}
+
+// uploadsPathRe 从 Markdown 内容中提取本站上传文件路径。
+var uploadsPathRe = regexp.MustCompile(`/uploads/\d{4}/\d{2}/[0-9a-f]+\.[A-Za-z0-9]+`)
+
+// linkUploads 发帖/编辑成功后把内容中引用的上传挂到楼层。
+func (s *Server) linkUploads(r *http.Request, uid, postID int64, content string) {
+	var paths []string
+	for _, m := range uploadsPathRe.FindAllString(content, -1) {
+		if len(paths) > 0 && paths[len(paths)-1] == m {
+			continue
+		}
+		paths = append(paths, m)
+	}
+	_ = s.st.LinkUploadsToPost(r.Context(), uid, postID, paths)
+}
+
+// customAvatarPath 自定义头像文件（约定 data/uploads/avatars/uid.<ext>）。
+func (s *Server) customAvatarPath(uid int64) string {
+	matches, _ := filepath.Glob(filepath.Join(s.cfg.UploadDir, "avatars", strconv.FormatInt(uid, 10)+".*"))
+	for _, m := range matches {
+		if strings.HasSuffix(m, ".part") {
+			continue
+		}
+		return m
+	}
+	return ""
 }
 
 // uploadDirBytes 上传目录磁盘占用（5 分钟缓存，避免每次上传全树遍历）。

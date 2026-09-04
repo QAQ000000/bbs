@@ -128,18 +128,20 @@ type Common struct {
 	NotifyCount int64  // 未读通知数（登录用户）
 	AssetQuery  string // 静态资源内容指纹版本参数
 	MetaDesc    string // SEO：页面摘要（帖子页/版块页填充）
+	FooterText  string // 页脚附加文案（后台配置）
 }
 
 type PostVM struct {
 	store.Post
-	HTML      template.HTML
-	Avatar    template.HTML
-	Editable  bool
-	Deletable bool   // 与编辑分离：版主可删管辖版块内容但不可编辑他人内容
-	CanLike   bool   // 可点赞（登录且非本人楼层）
-	Quotable  bool   // 可引用（登录即可）
-	CanReport bool   // 可举报（登录且非本人楼层）
-	CSRF      string // 删除表单用
+	HTML        template.HTML
+	Avatar      template.HTML
+	Editable    bool
+	Deletable   bool           // 与编辑分离：版主可删管辖版块内容但不可编辑他人内容
+	CanLike     bool           // 可点赞（登录且非本人楼层）
+	Quotable    bool           // 可引用（登录即可）
+	CanReport   bool           // 可举报（登录且非本人楼层）
+	Attachments []store.Upload // 楼层附件（uploads 挂靠）
+	CSRF        string         // 删除表单用
 }
 
 // PostVMOf 构建楼层视图模型；viewer 为 nil 时（SSE 广播）无编辑权限。
@@ -178,6 +180,7 @@ func funcMap() template.FuncMap {
 		},
 		"timefmt":  timefmt,
 		"markdown": func(s string) template.HTML { return toHTML(markdown.Render(s)) },
+		"div1000":  func(n int64) int64 { return n / 1000 },
 		"safeHTML": func(s string) template.HTML { return template.HTML(s) },
 		"forumURL": func(fid any) string {
 			switch v := fid.(type) {

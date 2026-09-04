@@ -37,6 +37,27 @@
 					<span class="pipe">|</span>
 					<a href="/profile/export" class="xg1">⬇ 导出我的数据（JSON）</a>
 				</form>
+				<form method="post" action="/profile/avatar" enctype="multipart/form-data" class="profile-form">
+					<input type="hidden" name="_csrf" value="{{.CSRF}}">
+					<div class="avatar-upload">
+						<img src="/avatar/{{.Profile.ID}}" alt="当前头像" width="40" height="40" style="border-radius:50%;">
+						<input type="file" name="avatar" accept="image/jpeg,image/png,image/gif,image/webp" required>
+						<button type="submit" class="pn pn-sm">上传头像</button>
+						<span class="xg1">≤2MB，JPG/PNG/GIF/WebP</span>
+					</div>
+				</form>
+				<form method="post" action="/profile/avatar/clear" class="profile-form">
+					<input type="hidden" name="_csrf" value="{{.CSRF}}">
+					<button type="submit" class="linklike xg1">恢复默认字母头像</button>
+				</form>
+				<div class="danger-zone">
+					<form method="post" action="/profile/delete" class="inlineform" data-confirm="注销后账号与个人数据将被删除且不可恢复，确定吗？">
+						<input type="hidden" name="_csrf" value="{{.CSRF}}">
+						<input type="password" name="password" class="px" placeholder="输入密码确认注销账号" required autocomplete="current-password">
+						<button type="submit" class="pn pn-sm pn-danger">注销账号</button>
+						<p class="xg1 tip">仍有发帖内容的账号无法自助注销，请联系站长。</p>
+					</form>
+				</div>
 			</div>
 		</div>
 

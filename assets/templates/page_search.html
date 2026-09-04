@@ -6,10 +6,19 @@
 <div id="ct" class="wp cl">
 	<div class="mn">
 		<div class="bm bmw">
-			<div class="bm_h"><h2>搜索{{if .Q}}："{{.Q}}"（{{len .Hits}} / 共 {{.PageNum}} 页结果）{{end}}</h2></div>
+			<div class="bm_h"><h2>搜索{{if .Q}}："{{.Q}}"（共 {{.PageNum}} 页结果）{{end}}</h2></div>
 			<div class="bm_c">
+				<form method="get" action="/search" class="search-filters cl">
+					<input type="text" name="q" value="{{.Q}}" class="px" placeholder="关键词" required>
+					<select name="forum" class="px">
+						<option value="0">全部版块</option>
+						{{range .Categories}}{{range .Forums}}<option value="{{.ID}}"{{if eq $.ForumID .ID}} selected{{end}}>{{.Name}}</option>{{end}}{{end}}
+					</select>
+					<input type="text" name="author" value="{{.Author}}" class="px" placeholder="作者（选填）">
+					<button type="submit" class="pn pnc">搜索</button>
+				</form>
 				{{if not .Q}}
-					<p class="xg1">输入关键词搜索全部帖子。支持中文与英文。</p>
+					<p class="xg1">输入关键词搜索全部帖子，可按版块与作者过滤。支持中文与英文。</p>
 				{{else if .Hits}}
 					{{range .Hits}}
 					<div class="search-hit">

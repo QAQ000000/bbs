@@ -1,0 +1,41 @@
+{{define "content"}}
+<div id="ct" class="wp cl">
+	<div class="mn auth-box">
+		<div class="bm bmw">
+			<div class="bm_h"><h2>初始化站点</h2></div>
+			<div class="bm_c">
+				<p class="xg1 tip">检测到数据库还是空的：创建第一个管理员账号即可完成安装（数据表已自动建好）。</p>
+				<form method="post" action="/setup" class="auth-form">
+					<input type="hidden" name="_csrf" value="{{.CSRF}}">
+					{{if .Error}}<div class="form-error">{{.Error}}</div>{{end}}
+					<div class="form-row">
+						<label for="site_name">站点名称</label>
+						<input type="text" name="site_name" id="site_name" class="px" value="{{.SiteName}}" required maxlength="40">
+					</div>
+					<div class="form-row">
+						<label for="username">管理员用户名</label>
+						<input type="text" name="username" id="username" class="px" value="{{.Username}}" required autocomplete="username" maxlength="15">
+						<p class="xg1 tip">2-15 位中文、字母、数字或下划线</p>
+					</div>
+					<div class="form-row">
+						<label for="email">邮箱（选填）</label>
+						<input type="email" name="email" id="email" class="px" value="{{.Email}}" autocomplete="email">
+					</div>
+					<div class="form-row">
+						<label for="password">管理员密码</label>
+						<input type="password" name="password" id="password" class="px" required autocomplete="new-password">
+						<p class="xg1 tip">至少 8 位</p>
+					</div>
+					<div class="form-row">
+						<label for="confirm_password">确认密码</label>
+						<input type="password" name="confirm_password" id="confirm_password" class="px" required autocomplete="new-password">
+					</div>
+					<div class="submit-row">
+						<button type="submit" class="pn pnc">完成安装</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+</div>
+{{end}}
