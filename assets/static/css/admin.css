@@ -43,6 +43,8 @@
 .panel { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .admin-table { width: 100%; min-width: 640px; border-collapse: collapse; font-size: 13px; }
 .admin-table td, .admin-table th { word-break: keep-all; }
+/* 空态表格（仅有"没有…"占位行）不需要横向滚动 */
+.admin-table:has(tbody td.empty) { min-width: 0; }
 .admin-table th {
 	text-align: left; font-weight: 400; color: var(--c-text-sub); font-size: 12px;
 	padding: 7px 8px; border-bottom: 1px solid var(--c-border); white-space: nowrap;
@@ -103,4 +105,16 @@
 	body.admin-menu-open #admin-menu { transform: translateX(0); box-shadow: 4px 0 24px rgba(0,0,0,.2); }
 	#admin-main { margin-left: 0; overflow-x: hidden; }
 	.admin-grid .panel.z { width: 100%; float: none; margin-left: 0; }
+	/* 版块管理：表格转堆叠卡片，保存/删除按钮进首屏 */
+	.cat-panel .admin-table { min-width: 0; overflow: visible; }
+	.cat-panel .admin-table thead { display: none; }
+	.cat-panel .admin-table,
+	.cat-panel .admin-table tbody,
+	.cat-panel .admin-table tr,
+	.cat-panel .admin-table td { display: block; width: auto; }
+	.cat-panel .admin-table td { border-bottom: 0; padding: 5px 0; }
+	.cat-panel .admin-table td.xg1 { display: none; }
+	.cat-panel .admin-table td.ops { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+	.cat-panel .admin-table .px { width: 100%; margin: 2px 0; }
+	.cat-panel .admin-table .px-inline { width: 100%; }
 }
