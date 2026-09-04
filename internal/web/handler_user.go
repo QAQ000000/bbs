@@ -130,6 +130,7 @@ func (s *Server) registerPageData(w http.ResponseWriter, r *http.Request, next, 
 	Email          string
 	CaptchaEnabled bool
 	CaptchaID      string
+	RequireConsent bool
 } {
 	d := struct {
 		Common
@@ -140,8 +141,9 @@ func (s *Server) registerPageData(w http.ResponseWriter, r *http.Request, next, 
 		Email          string
 		CaptchaEnabled bool
 		CaptchaID      string
+		RequireConsent bool
 	}{s.common(r), next, s.anonCSRF(r, w), errMsg, username, email,
-		s.sets(r).CaptchaEnabled, ""}
+		s.sets(r).CaptchaEnabled, "", s.sets(r).RequireConsent}
 	if d.CaptchaEnabled {
 		d.CaptchaID, _ = captcha.New()
 	}
@@ -207,6 +209,11 @@ func (s *Server) registerSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 	if email != "" && !emailRe.MatchString(email) {
 		fail("邮箱格式不正确")
+		return
+	}
+	// 条款与隐私勾选（后台开关，ROADMAP 阶段六）
+	if s.sets(r).RequireConsent && r.PostFormValue("consent") != "1" {
+		fail("请先阅读并同意服务条款与隐私政策")
 		return
 	}
 	// 算术验证码（后台开关；挑战一次性，失败需换新题）

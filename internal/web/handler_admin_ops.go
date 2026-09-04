@@ -356,6 +356,10 @@ func (s *Server) adminSettingsSave(w http.ResponseWriter, r *http.Request) {
 	if r.PostFormValue("email_verify_enabled") == "1" {
 		emailVerify = "1"
 	}
+	consent := "0"
+	if r.PostFormValue("require_consent") == "1" {
+		consent = "1"
+	}
 	kv := map[string]string{
 		"site_name":            strings.TrimSpace(r.PostFormValue("site_name")),
 		"threads_per_page":     strings.TrimSpace(r.PostFormValue("threads_per_page")),
@@ -368,6 +372,9 @@ func (s *Server) adminSettingsSave(w http.ResponseWriter, r *http.Request) {
 		"upload_max_disk_gb":   strings.TrimSpace(r.PostFormValue("upload_max_disk_gb")),
 		"captcha_enabled":      captcha,
 		"email_verify_enabled": emailVerify,
+		"require_consent":      consent,
+		"terms_content":        r.PostFormValue("terms_content"),
+		"privacy_content":      r.PostFormValue("privacy_content"),
 		"site_closed":          closed,
 		"site_closed_reason":   strings.TrimSpace(r.PostFormValue("site_closed_reason")),
 	}

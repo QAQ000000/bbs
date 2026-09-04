@@ -85,20 +85,18 @@
 
 ---
 
-## 阶段六：法律与发布包装（开源运营站点的最后一页）
+## 阶段六：法律与发布包装（开源运营站点的最后一页）✅ 2026-09-05（6.4 待定名）
 
 **目标**：对外开站不缺合规页面，发布流程有自检。
 
-| # | 任务 | 落点 |
-| --- | --- | --- |
-| 6.1 | 服务条款 / 隐私政策页：模板 + 后台可编辑（存 settings，支持 Markdown） | `page_terms.html`、`page_privacy.html`、`admin_settings.html` |
-| 6.2 | 注册页勾选「已阅读并同意」（开关可关） | `page_register.html` |
-| 6.3 | 用户数据导出：`/profile/export` 输出本人帖子 JSON（含 md 原文），审计日志留痕 | `handler_profile.go` |
-| 6.4 | 项目定名确认：替换 GoBBS 暂用名（用户保留替换权），README/模板/logo 一致性检查 | 全局文案 |
+| # | 任务 | 落点 | 状态 |
+| --- | --- | --- | --- |
+| 6.1 | 服务条款 / 隐私政策页：内置默认文案（settings 存 Markdown，后台可编辑），`/terms` `/privacy` 渲染，页脚入口 | `page_doc.html`、`settings.go`（defaultTerms/defaultPrivacy）、`admin_settings.html` | ✅ |
+| 6.2 | 注册页勾选「已阅读并同意」：后台开关（默认开），服务端强制校验 | `page_register.html`、`registerSubmit`、`require_consent` | ✅ |
+| 6.3 | 用户数据导出：`/profile/export` 输出本人账号+主题+楼层 JSON 附件（不含密码哈希），审计日志留痕，限流 5/h | `store/export.go`、`profileExport` | ✅ |
+| 6.4 | 项目定名确认：**待站长决策**（GoBBS 为暂用名），定名后替换 README/模板/logo 文案 | 全局文案 | ⏸ |
 
-**验收**：游客可读条款页；导出文件可解析且只含本人数据；`scripts/check-clean.sh` 通过。
-
-**依赖**：无；6.4 由用户决策触发。
+**验收**（已达成）：游客可读条款/隐私页（页脚入口）；注册页出现勾选且未勾选被拒；登录用户可导出本人数据（JSON 可解析、无哈希泄漏、附件下载）；冒烟测试新增 /terms /privacy 页面与 `TestProfileExport`、勾选缺失断言。
 
 ---
 

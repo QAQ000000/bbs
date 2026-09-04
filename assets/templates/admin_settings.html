@@ -52,6 +52,18 @@
 					<input type="text" name="site_closed_reason" value="{{.Settings.SiteClosedReason}}" class="px px-inline px-wide" placeholder="关闭原因，展示给访客">
 				</td>
 			</tr>
+			<tr>
+				<th>注册勾选同意</th>
+				<td><label><input type="checkbox" name="require_consent" value="1"{{if .Settings.RequireConsent}} checked{{end}}> 注册时必须勾选「已阅读并同意服务条款与隐私政策」</label></td>
+			</tr>
+			<tr>
+				<th>服务条款</th>
+				<td><textarea name="terms_content" rows="6" class="px doc-area">{{.Settings.TermsContent}}</textarea><p class="xg1 tip">支持 Markdown，展示于 /terms，页脚有入口</p></td>
+			</tr>
+			<tr>
+				<th>隐私政策</th>
+				<td><textarea name="privacy_content" rows="6" class="px doc-area">{{.Settings.PrivacyContent}}</textarea><p class="xg1 tip">支持 Markdown，展示于 /privacy</p></td>
+			</tr>
 		</table>
 		<div class="submit-row">
 			<button type="submit" class="pn pnc">保存设置</button>

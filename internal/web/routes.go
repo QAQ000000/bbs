@@ -12,6 +12,8 @@ func (s *Server) routes() http.Handler {
 	m := s.mux
 	m.HandleFunc("GET /{$}", s.cachedPage(s.handleHome))
 	m.HandleFunc("GET /latest", s.cachedPage(s.latestPage))
+	m.HandleFunc("GET /terms", s.termsPage)
+	m.HandleFunc("GET /privacy", s.privacyPage)
 	m.HandleFunc("GET /search", s.cachedPage(s.searchPage))
 
 	// 静态与杂项
@@ -50,6 +52,7 @@ func (s *Server) routes() http.Handler {
 	m.HandleFunc("GET /profile", s.profileForm)
 	m.HandleFunc("POST /profile/save", s.profileSave)
 	m.HandleFunc("POST /profile/password", s.profilePassword)
+	m.HandleFunc("GET /profile/export", s.profileExport)
 	m.HandleFunc("POST /report/{pid}", s.reportSubmit)
 	m.HandleFunc("GET /captcha/{id}", s.captchaImage)
 	m.HandleFunc("GET /verify", s.verifyEmail)

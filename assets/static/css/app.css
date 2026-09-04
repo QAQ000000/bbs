@@ -366,6 +366,13 @@ h1, h2, h3, h4 { margin: 0; font-weight: 600; }
 .captcha-img { border: 1px solid var(--c-border); border-radius: var(--radius); background: #fff; flex: none; }
 .captcha-row .px { width: 130px; }
 
+/* ---- 条款/隐私与注册勾选 ---- */
+.consent { display: flex; gap: 6px; align-items: flex-start; font-weight: 400; }
+.consent input { margin-top: 3px; }
+.doc { line-height: 1.8; }
+.doc h2 { margin: 14px 0 8px; font-size: 18px; }
+.doc p, .doc li { overflow-wrap: anywhere; }
+
 /* ---- 待审核提示 ---- */
 .pending-tip { margin: 8px 0 4px; padding: 7px 12px; border-radius: 3px; background: #fff8e1; border: 1px solid #f0d896; color: #8a6d00; font-size: 13px; }
 

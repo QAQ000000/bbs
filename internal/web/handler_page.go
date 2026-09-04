@@ -3,11 +3,13 @@ package web
 
 import (
 	"errors"
+	"html/template"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
+	"dzforum/internal/markdown"
 	"dzforum/internal/store"
 )
 
@@ -258,6 +260,25 @@ func (s *Server) handleThread(w http.ResponseWriter, r *http.Request, tid int64,
 		"thread=" + strconv.FormatInt(tid, 10), quick, perPage}
 	data.Title = th.Title
 	_ = s.rd.Render(w, "page_thread.html", &data)
+}
+
+// ---- 条款与隐私（ROADMAP 阶段六）----
+
+func (s *Server) renderDoc(w http.ResponseWriter, r *http.Request, title, md string) {
+	d := struct {
+		Common
+		HTML template.HTML
+	}{s.common(r), toHTML(markdown.Render(md))}
+	d.Title = title
+	_ = s.rd.Render(w, "page_doc.html", &d)
+}
+
+func (s *Server) termsPage(w http.ResponseWriter, r *http.Request) {
+	s.renderDoc(w, r, "服务条款", s.sets(r).TermsContent)
+}
+
+func (s *Server) privacyPage(w http.ResponseWriter, r *http.Request) {
+	s.renderDoc(w, r, "隐私政策", s.sets(r).PrivacyContent)
 }
 
 // ---- 全文搜索 ----

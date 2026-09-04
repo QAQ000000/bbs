@@ -2,6 +2,7 @@
 package web
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/url"
@@ -167,4 +168,50 @@ func (s *Server) profileVerifyResend(w http.ResponseWriter, r *http.Request) {
 	}
 	s.setFlash(w, "验证邮件已发送，请查收（24 小时内有效）")
 	http.Redirect(w, r, "/profile", http.StatusSeeOther)
+}
+
+// profileExport GET /profile/export：导出本人数据（JSON 附件，审计留痕）。
+func (s *Server) profileExport(w http.ResponseWriter, r *http.Request) {
+	if !s.requireLogin(w, r) {
+		return
+	}
+	if !s.allow(r, "export", 5, time.Hour) {
+		s.renderError(w, r, http.StatusTooManyRequests, "操作过于频繁", "导出过于频繁，请一小时后再试。")
+		return
+	}
+	u := User(r)
+	posts, err := s.st.ExportPostsOfUser(r.Context(), u.ID)
+	if err != nil {
+		s.renderError(w, r, http.StatusInternalServerError, "导出失败", err.Error())
+		return
+	}
+	threads, err := s.st.ExportThreadsOfUser(r.Context(), u.ID)
+	if err != nil {
+		s.renderError(w, r, http.StatusInternalServerError, "导出失败", err.Error())
+		return
+	}
+	s.logOp(r, "profile.export",
+		"导出个人数据（threads="+strconv.Itoa(len(threads))+" posts="+strconv.Itoa(len(posts))+"）")
+	b, err := json.MarshalIndent(map[string]any{
+		"account": map[string]any{
+			"username":       u.Username,
+			"email":          u.Email,
+			"signature":      u.Signature,
+			"trust_level":    u.TrustLevel,
+			"post_count":     u.PostCount,
+			"created_at":     u.CreatedAt,
+			"email_verified": u.EmailVerified,
+		},
+		"threads":     threads,
+		"posts":       posts,
+		"exported_at": time.Now().Format(time.RFC3339),
+	}, "", "  ")
+	if err != nil {
+		s.renderError(w, r, http.StatusInternalServerError, "导出失败", err.Error())
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Content-Disposition",
+		`attachment; filename="gobbs-export-`+strconv.FormatInt(u.ID, 10)+`.json"`)
+	_, _ = w.Write(b)
 }

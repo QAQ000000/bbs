@@ -22,6 +22,12 @@
 						<input type="password" name="password" id="password" class="px" required autocomplete="new-password">
 						<p class="xg1 tip">至少 6 位</p>
 					</div>
+					{{if .RequireConsent}}
+					<div class="form-row">
+						<label class="consent"><input type="checkbox" name="consent" value="1" required>
+							我已阅读并同意 <a href="/terms" target="_blank">服务条款</a> 与 <a href="/privacy" target="_blank">隐私政策</a></label>
+					</div>
+					{{end}}
 					{{if .CaptchaEnabled}}
 					<div class="form-row">
 						<label for="captcha">验证码</label>

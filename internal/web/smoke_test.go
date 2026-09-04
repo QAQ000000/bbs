@@ -170,6 +170,8 @@ func TestPageSmoke(t *testing.T) {
 		{"忘记密码页", "/forgot", nil, 1500},
 		{"重置页(无效令牌走错误页)", "/reset?token=invalid", nil, 800},
 		{"注册页", "/register", nil, 2000},
+		{"服务条款", "/terms", nil, 1200},
+		{"隐私政策", "/privacy", nil, 1200},
 		{"个人空间", "/user/2", nil, 1500},
 		{"发帖选版块(无fid)", "/new", userCookie, 1200},
 		{"发帖表单", "/new?fid=1", userCookie, 2500},
@@ -485,7 +487,7 @@ func TestReportFlow(t *testing.T) {
 func TestRegisterGate(t *testing.T) {
 	settingsOn := "site_name=GoBBS 冒烟站&threads_per_page=20&posts_per_page=10" +
 		"&register_enabled=1&moderate_enabled=0&upload_enabled=1&max_image_mb=8&max_file_mb=20" +
-		"&captcha_enabled=1&email_verify_enabled=0&site_closed=0&site_closed_reason="
+		"&captcha_enabled=1&email_verify_enabled=0&require_consent=1&site_closed=0&site_closed_reason="
 	if w := smokePost(t, "/admin/settings", adminCSRF, settingsOn, adminCookie); w.Code != http.StatusSeeOther {
 		t.Fatalf("开启验证码设置 → %d", w.Code)
 	}
@@ -496,10 +498,13 @@ func TestRegisterGate(t *testing.T) {
 		}
 	}()
 
-	// 注册页出现验证码控件
+	// 注册页出现验证码控件与条款勾选
 	body := smokeGet(t, "/register", nil).Body.String()
 	if !strings.Contains(body, "captcha_id") || !strings.Contains(body, "/captcha/") {
 		t.Fatal("开启后注册页缺验证码控件")
+	}
+	if !strings.Contains(body, "consent") {
+		t.Fatal("注册页缺条款勾选")
 	}
 
 	// 匿名会话（自取匿名 CSRF Cookie）
@@ -515,17 +520,49 @@ func TestRegisterGate(t *testing.T) {
 		anonCSRF = anonCookie.Value
 	}
 
+	// 未勾选条款被拒
+	w = smokePost(t, "/register", anonCSRF,
+		"username=consentuser1&email=&password=pass123456&captcha_id=invalid&captcha=1", anonCookie)
+	if !strings.Contains(w.Body.String(), "同意服务条款") {
+		t.Fatalf("未勾选条款应被拒: %s", firstLine(w.Body.String()))
+	}
 	// 错误验证码被拒
 	w = smokePost(t, "/register", anonCSRF,
-		"username=spamuser01&email=&password=pass123456&captcha_id=invalid&captcha=99", anonCookie)
+		"username=spamuser01&email=&password=pass123456&consent=1&captcha_id=invalid&captcha=99", anonCookie)
 	if !strings.Contains(w.Body.String(), "验证码不正确") {
 		t.Fatalf("错误验证码应被拒: %s", firstLine(w.Body.String()))
 	}
 	// 保留用户名（前缀命中）被拒
 	w = smokePost(t, "/register", anonCSRF,
-		"username=administrator2&email=&password=pass123456&captcha_id=invalid&captcha=1", anonCookie)
+		"username=administrator2&email=&password=pass123456&consent=1&captcha_id=invalid&captcha=1", anonCookie)
 	if !strings.Contains(w.Body.String(), "系统保留") {
 		t.Fatalf("保留用户名应被拒: %s", firstLine(w.Body.String()))
+	}
+}
+
+// TestProfileExport 阶段六回归：本人数据导出为 JSON 附件且不含密码哈希，匿名 302。
+func TestProfileExport(t *testing.T) {
+	w := smokeGet(t, "/profile/export", nil)
+	if w.Code != http.StatusFound || !strings.HasPrefix(w.Header().Get("Location"), "/login") {
+		t.Fatalf("匿名导出应跳登录: %d", w.Code)
+	}
+	w = smokeGet(t, "/profile/export", userCookie)
+	if w.Code != http.StatusOK {
+		t.Fatalf("导出 → %d，期望 200", w.Code)
+	}
+	if ct := w.Header().Get("Content-Type"); !strings.Contains(ct, "application/json") {
+		t.Fatalf("导出类型异常: %s", ct)
+	}
+	if !strings.Contains(w.Header().Get("Content-Disposition"), "attachment") {
+		t.Fatal("导出应为附件下载")
+	}
+	body := w.Body.String()
+	if strings.Contains(body, "password_hash") {
+		t.Fatal("导出内容不得包含密码哈希")
+	}
+	// MarshalIndent 输出键后带空格，这里只断言值与字段名存在
+	if !strings.Contains(body, "user01") || !strings.Contains(body, "content_md") {
+		t.Fatal("导出内容缺账号或楼层字段")
 	}
 }
 
