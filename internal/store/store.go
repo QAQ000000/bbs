@@ -19,6 +19,9 @@ import (
 // ErrNotFound 统一的“没有这条记录”。
 var ErrNotFound = errors.New("not found")
 
+// ErrUserHasContent 用户仍有公开内容，不能直接删号。
+var ErrUserHasContent = errors.New("该用户仍有未删除的发帖，不能直接删号，请先处理其内容或使用禁言")
+
 // Store 封装全部数据库访问。
 type Store struct {
 	pool     *pgxpool.Pool

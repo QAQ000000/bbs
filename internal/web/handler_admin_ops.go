@@ -311,8 +311,10 @@ func (s *Server) adminUserDelete(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case errors.Is(err, store.ErrNotFound):
 		s.setFlash(w, "用户不存在")
+	case errors.Is(err, store.ErrUserHasContent):
+		s.setFlash(w, err.Error())
 	case err != nil:
-		s.setFlash(w, "删号失败："+err.Error())
+		s.setFlash(w, "删号失败，请稍后重试")
 	default:
 		s.logOp(r, "user.delete", "删除用户 #"+strconv.FormatInt(uid, 10))
 		s.setFlash(w, "用户已删除")

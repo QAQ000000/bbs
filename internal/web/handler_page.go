@@ -159,16 +159,18 @@ func (s *Server) handleThread(w http.ResponseWriter, r *http.Request, tid int64,
 	sets := s.sets(r)
 	var quick *editorData
 	if viewer != nil && !th.Closed {
-		quick = &editorData{
-			Common:        common,
-			Action:        "/reply/" + strconv.FormatInt(tid, 10),
-			Thread:        th,
-			Smileys:       SmileyGroups(),
-			EditorID:      "q",
-			DraftContext:  "reply:" + strconv.FormatInt(tid, 10),
-			UploadEnabled: sets.UploadEnabled,
-			MaxImageMB:    sets.MaxImageMB,
-			MaxFileMB:     sets.MaxFileMB,
+		if banned, _, _ := s.st.IsBanned(r.Context(), viewer.ID); !banned {
+			quick = &editorData{
+				Common:        common,
+				Action:        "/reply/" + strconv.FormatInt(tid, 10),
+				Thread:        th,
+				Smileys:       SmileyGroups(),
+				EditorID:      "q",
+				DraftContext:  "reply:" + strconv.FormatInt(tid, 10),
+				UploadEnabled: sets.UploadEnabled,
+				MaxImageMB:    sets.MaxImageMB,
+				MaxFileMB:     sets.MaxFileMB,
+			}
 		}
 	}
 

@@ -67,6 +67,9 @@ func (s *Server) newThreadForm(w http.ResponseWriter, r *http.Request) {
 	if !s.requireLogin(w, r) {
 		return
 	}
+	if !s.checkNotBanned(w, r) {
+		return
+	}
 	fid, _ := strconv.ParseInt(r.URL.Query().Get("fid"), 10, 64)
 	forum, err := s.st.Forum(r.Context(), fid)
 	if errors.Is(err, store.ErrNotFound) {
@@ -162,6 +165,9 @@ func (s *Server) replyForm(w http.ResponseWriter, r *http.Request) {
 	if !s.requireLogin(w, r) {
 		return
 	}
+	if !s.checkNotBanned(w, r) {
+		return
+	}
 	tid := pathID(r, "tid")
 	th, err := s.st.Thread(r.Context(), tid)
 	if errors.Is(err, store.ErrNotFound) {
@@ -236,6 +242,9 @@ func (s *Server) replySubmit(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) editForm(w http.ResponseWriter, r *http.Request) {
 	if !s.requireLogin(w, r) {
+		return
+	}
+	if !s.checkNotBanned(w, r) {
 		return
 	}
 	pid := pathID(r, "pid")

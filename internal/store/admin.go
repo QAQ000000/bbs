@@ -418,23 +418,49 @@ func (s *Store) SetUserGroup(ctx context.Context, uid int64, groupID int) error 
 	return err
 }
 
-// DeleteUser 删号（实时校验是否还有未删除的发帖；会话级联删除）。
+// DeleteUser 删号：公开内容仍在则拒绝；仅剩软删楼层/主题时先硬删这些残留再删用户。
+// 会话、草稿、点赞、通知等已 ON DELETE CASCADE。
 func (s *Store) DeleteUser(ctx context.Context, uid int64) error {
 	var n int64
+	if err := s.pool.QueryRow(ctx, `SELECT count(*) FROM users WHERE id=$1`, uid).Scan(&n); err != nil {
+		return err
+	}
+	if n == 0 {
+		return ErrNotFound
+	}
 	if err := s.pool.QueryRow(ctx,
 		`SELECT count(*) FROM posts WHERE author_id=$1 AND NOT deleted`, uid).Scan(&n); err != nil {
 		return err
 	}
 	if n > 0 {
-		return errors.New("该用户仍有未删除的发帖，不能直接删号，请先处理其内容或使用禁言")
+		return ErrUserHasContent
 	}
-	if _, err := s.pool.Exec(ctx, `DELETE FROM users WHERE id=$1`, uid); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return ErrNotFound
-		}
+	if err := s.pool.QueryRow(ctx,
+		`SELECT count(*) FROM threads WHERE author_id=$1 AND NOT deleted`, uid).Scan(&n); err != nil {
 		return err
 	}
-	return nil
+	if n > 0 {
+		return ErrUserHasContent
+	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, `DELETE FROM posts WHERE author_id=$1 AND deleted`, uid); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM threads WHERE author_id=$1 AND deleted`, uid); err != nil {
+		return err
+	}
+	tag, err := tx.Exec(ctx, `DELETE FROM users WHERE id=$1`, uid)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return tx.Commit(ctx)
 }
 
 // BannedCount 当前禁言中的用户数（仪表盘）。
