@@ -15,11 +15,36 @@ import (
 
 	"dzforum/assets"
 	"dzforum/internal/avatar"
+	"dzforum/internal/perm"
 	"dzforum/internal/smiley"
 	"dzforum/internal/store"
 )
 
 func toHTML(s string) template.HTML { return template.HTML(s) }
+
+// canEditContent 编辑权限：ContentEditAny（管理员）或 ContentEditOwn + 本人。
+func canEditContent(viewer *store.User, authorID int64) bool {
+	if viewer == nil {
+		return false
+	}
+	role := perm.RoleFromGroupID(viewer.GroupID)
+	if perm.Allowed(role, perm.ContentEditAny) {
+		return true
+	}
+	return perm.Allowed(role, perm.ContentEditOwn) && viewer.ID == authorID
+}
+
+// canDeleteContent 删除权限：ContentDeleteAny 或 ContentDeleteOwn + 本人。
+func canDeleteContent(viewer *store.User, authorID int64) bool {
+	if viewer == nil {
+		return false
+	}
+	role := perm.RoleFromGroupID(viewer.GroupID)
+	if perm.Allowed(role, perm.ContentDeleteAny) {
+		return true
+	}
+	return perm.Allowed(role, perm.ContentDeleteOwn) && viewer.ID == authorID
+}
 
 // assetQuery 静态资源内容指纹：模板引用 /static/...?v=<指纹>，
 // 内容一变 URL 即变，长缓存与即时失效兼得。
@@ -118,7 +143,7 @@ func PostVMOf(p *store.Post, viewer *store.User, csrf string) *PostVM {
 		Post:     *p,
 		HTML:     toHTML(p.ContentHTML),
 		Avatar:   toHTML(avatar.HTML(p.AuthorID, p.AuthorName)),
-		Editable: viewer != nil && (viewer.IsAdmin() || viewer.ID == p.AuthorID),
+		Editable: canEditContent(viewer, p.AuthorID),
 		CanLike:  viewer != nil && viewer.ID != p.AuthorID,
 		CSRF:     csrf,
 	}

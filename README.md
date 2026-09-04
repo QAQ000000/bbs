@@ -20,6 +20,29 @@
   仅外链模式）、审计日志、公告管理
 - **部署**：单二进制（模板与静态资源 embed）、游客整页缓存、透明 gzip
 
+## 权限模型
+
+三个固定用户组 + 信任等级 + 版主管辖，全部权限判定收口在 `internal/perm`
+（角色 → 权限点唯一映射表，`Allowed()` 单点查询，矩阵有单测锁定）：
+
+| 权限点 | 管理员 | 版主 | 会员 | 说明 |
+| --- | :-: | :-: | :-: | --- |
+| `admin.panel` 进入后台 | ✅ | — | — | |
+| `forum.manage` 版块/分类管理 | ✅ | — | — | |
+| `content.moderate` 内容治理 | ✅ | ✅* | — | *版主限其管辖版块（`forums.moderators`） |
+| `thread.sticky/digest/lock/delete` | ✅ | ✅* | — | 同上 |
+| `moderate.queue` 审核队列 | ✅ | ✅* | — | |
+| `recycle.bin` / `prune.run` | ✅ | ✅* | — | |
+| `content.edit.own` / `delete.own` | ✅ | ✅ | ✅ | 自己的内容 |
+| `content.edit.any` / `delete.any` | ✅ | — | — | 任何人的内容 |
+| `user.ban/delete/group` | ✅ | — | — | |
+| `settings.edit` / `censor.manage` / `announce.manage` / `logs.view` | ✅ | — | — | |
+| `upload.use` 本站上传 | ✅ | ✅ | ✅ | 另受站点开关与限额约束 |
+| `post.link.direct` 直接发链接 | ✅ | ✅ | 按信任等级 | 新用户（TL0）发链接进审核队列 |
+
+信任等级（自动成长，无需人工干预）：新用户 → 正式成员（访问 ≥3 天且读帖 ≥20）→ 资深成员。
+扩展路径：需要自定义角色时，把 `rolePerms` 映射改为 DB 读取并提供矩阵界面即可，调用方零改动。
+
 ## 快速开始
 
 ```bash

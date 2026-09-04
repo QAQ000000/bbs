@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"dzforum/internal/avatar"
+	"dzforum/internal/perm"
 	"dzforum/internal/store"
 )
 
@@ -44,6 +45,10 @@ func (s *Server) uploadImage(w http.ResponseWriter, r *http.Request) {
 	}
 	if !s.checkCSRF(r) {
 		http.Error(w, `{"error":"csrf"}`, http.StatusForbidden)
+		return
+	}
+	if !perm.Allowed(perm.RoleFromGroupID(u.GroupID), perm.UploadUse) {
+		http.Error(w, `{"error":"没有上传权限"}`, http.StatusForbidden)
 		return
 	}
 	// 外链模式：本站上传整体关闭

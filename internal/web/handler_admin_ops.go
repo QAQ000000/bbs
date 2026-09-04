@@ -27,6 +27,9 @@ func formInt64(r *http.Request, key string) int64 {
 // ---- 版块管理操作 ----
 
 func (s *Server) adminForumSave(w http.ResponseWriter, r *http.Request) {
+	if !s.requireAdmin(w, r) {
+		return
+	}
 	if !s.checkCSRF(r) {
 		s.forbidden(w, r)
 		return
@@ -65,6 +68,9 @@ func splitModerators(s string) []string {
 }
 
 func (s *Server) adminForumDelete(w http.ResponseWriter, r *http.Request) {
+	if !s.requireAdmin(w, r) {
+		return
+	}
 	if !s.checkCSRF(r) {
 		s.forbidden(w, r)
 		return
@@ -84,6 +90,9 @@ func (s *Server) adminForumDelete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) adminForumMove(w http.ResponseWriter, r *http.Request) {
+	if !s.requireAdmin(w, r) {
+		return
+	}
 	if !s.checkCSRF(r) {
 		s.forbidden(w, r)
 		return
@@ -99,6 +108,9 @@ func (s *Server) adminForumMove(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) adminCatSave(w http.ResponseWriter, r *http.Request) {
+	if !s.requireAdmin(w, r) {
+		return
+	}
 	if !s.checkCSRF(r) {
 		s.forbidden(w, r)
 		return
@@ -115,6 +127,9 @@ func (s *Server) adminCatSave(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) adminCatDelete(w http.ResponseWriter, r *http.Request) {
+	if !s.requireAdmin(w, r) {
+		return
+	}
 	if !s.checkCSRF(r) {
 		s.forbidden(w, r)
 		return
@@ -132,6 +147,9 @@ func (s *Server) adminCatDelete(w http.ResponseWriter, r *http.Request) {
 // ---- 内容管理操作 ----
 
 func (s *Server) adminThreadAction(w http.ResponseWriter, r *http.Request) {
+	if !s.requireStaff(w, r) {
+		return
+	}
 	if !s.checkCSRF(r) {
 		s.forbidden(w, r)
 		return
@@ -199,6 +217,9 @@ func trimTIDs(tids []int64) string {
 // ---- 用户管理操作 ----
 
 func (s *Server) adminUserBan(w http.ResponseWriter, r *http.Request) {
+	if !s.requireAdmin(w, r) {
+		return
+	}
 	if !s.checkCSRF(r) {
 		s.forbidden(w, r)
 		return
@@ -225,6 +246,9 @@ func (s *Server) adminUserBan(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) adminUserUnban(w http.ResponseWriter, r *http.Request) {
+	if !s.requireAdmin(w, r) {
+		return
+	}
 	if !s.checkCSRF(r) {
 		s.forbidden(w, r)
 		return
@@ -240,6 +264,9 @@ func (s *Server) adminUserUnban(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) adminUserGroup(w http.ResponseWriter, r *http.Request) {
+	if !s.requireAdmin(w, r) {
+		return
+	}
 	if !s.checkCSRF(r) {
 		s.forbidden(w, r)
 		return
@@ -267,6 +294,9 @@ func (s *Server) adminUserGroup(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) adminUserDelete(w http.ResponseWriter, r *http.Request) {
+	if !s.requireAdmin(w, r) {
+		return
+	}
 	if !s.checkCSRF(r) {
 		s.forbidden(w, r)
 		return
@@ -293,6 +323,9 @@ func (s *Server) adminUserDelete(w http.ResponseWriter, r *http.Request) {
 // ---- 站点设置保存 ----
 
 func (s *Server) adminSettingsSave(w http.ResponseWriter, r *http.Request) {
+	if !s.requireAdmin(w, r) {
+		return
+	}
 	if !s.checkCSRF(r) {
 		s.forbidden(w, r)
 		return

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"dzforum/internal/perm"
 	"dzforum/internal/store"
 )
 
@@ -16,14 +17,14 @@ import (
 // isStaff 管理员或版主。
 func isStaff(u *store.User) bool { return u != nil && u.IsStaff() }
 
-// requireStaff 内容管理入口守卫；版主会被限制在其管辖版块。
+// requireStaff 内容治理入口守卫（ContentModerate 权限点）：版主会被限制在其管辖版块。
 func (s *Server) requireStaff(w http.ResponseWriter, r *http.Request) bool {
 	u := User(r)
 	if u == nil {
 		http.Redirect(w, r, "/login?next="+urlQueryEscape(r.URL.RequestURI()), http.StatusFound)
 		return false
 	}
-	if !u.IsStaff() {
+	if !perm.Allowed(perm.RoleFromGroupID(u.GroupID), perm.ContentModerate) {
 		s.renderError(w, r, http.StatusForbidden, "无权访问", "该区域仅管理员与版主可访问。")
 		return false
 	}

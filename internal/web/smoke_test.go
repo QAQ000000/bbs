@@ -31,6 +31,8 @@ var (
 	smokePool   *pgxpool.Pool
 	adminCookie *http.Cookie
 	userCookie  *http.Cookie
+	adminCSRF   string
+	userCSRF    string
 )
 
 func TestMain(m *testing.M) {
@@ -104,18 +106,19 @@ func TestMain(m *testing.M) {
 	_ = st.AddCensorWord(ctx, "敏感词测试", "***")
 
 	// 会话 Cookie
-	tokA, _, err := st.CreateSession(ctx, admin.ID)
+	tokA, csrfA, err := st.CreateSession(ctx, admin.ID)
 	if err != nil {
 		fmt.Println("FATAL:", err)
 		os.Exit(1)
 	}
-	tokU, _, err := st.CreateSession(ctx, user.ID)
+	tokU, csrfU, err := st.CreateSession(ctx, user.ID)
 	if err != nil {
 		fmt.Println("FATAL:", err)
 		os.Exit(1)
 	}
 	adminCookie = &http.Cookie{Name: "forum_session", Value: tokA}
 	userCookie = &http.Cookie{Name: "forum_session", Value: tokU}
+	adminCSRF, userCSRF = csrfA, csrfU
 	cfg := config.FromEnv()
 	cfg.SiteName = "GoBBS 冒烟站"
 	hub := live.NewHub()
@@ -228,6 +231,82 @@ func TestLikeButtonVisibility(t *testing.T) {
 	body = smokeGet(t, thread, adminCookie).Body.String()
 	if !strings.Contains(body, `class="linklike likebtn"`) {
 		t.Fatal("管理员应看到点赞按钮")
+	}
+}
+
+// smokePost 以指定会话提交表单（csrf 拼入表单体）。
+func smokePost(t *testing.T, path, csrf, body string, cookie *http.Cookie) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodPost, path, strings.NewReader("_csrf="+csrf+"&"+body))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	if cookie != nil {
+		req.AddCookie(cookie)
+	}
+	w := httptest.NewRecorder()
+	smokeSrv.Handler().ServeHTTP(w, req)
+	return w
+}
+
+// TestAdminPostAuthorization 后台写操作授权回归。
+// 事故背景：POST 操作曾只校验 CSRF 无权限守卫，匿名可禁言管理员/篡改站点设置。
+func TestAdminPostAuthorization(t *testing.T) {
+	// 匿名会话（持有效匿名 CSRF Cookie —— 攻击者可自取）
+	w := smokeGet(t, "/register", nil)
+	var anonCookie *http.Cookie
+	for _, c := range w.Result().Cookies() {
+		if c.Name == "forum_csrf" {
+			anonCookie = c
+		}
+	}
+	anonCSRF := ""
+	if anonCookie != nil {
+		anonCSRF = anonCookie.Value
+	}
+
+	adminOnlyOps := []struct{ path, body string }{
+		{"/admin/settings", "site_name=hacked&threads_per_page=20&posts_per_page=10"},
+		{"/admin/users/ban", "uid=2&days=1&reason=x"},
+		{"/admin/users/delete", "uid=2"},
+		{"/admin/users/group", "uid=2&group=1"},
+		{"/admin/forums/save", "id=0&category_id=1&name=注入版块"},
+		{"/admin/forums/delete", "id=1"},
+		{"/admin/censor/add", "word=注入词"},
+		{"/admin/announcements/add", "content=注入公告"},
+	}
+	for _, op := range adminOnlyOps {
+		// 匿名：必须被拒绝（302 跳登录，绝不允许 303 成功跳转）
+		w := smokePost(t, op.path, anonCSRF, op.body, anonCookie)
+		if w.Code != http.StatusFound || !strings.HasPrefix(w.Header().Get("Location"), "/login") {
+			t.Errorf("匿名 POST %s → %d %s，应跳登录拒绝", op.path, w.Code, w.Header().Get("Location"))
+		}
+		// 普通用户：必须 403
+		w = smokePost(t, op.path, userCSRF, op.body, userCookie)
+		if w.Code != http.StatusForbidden {
+			t.Errorf("普通用户 POST %s → %d，应 403", op.path, w.Code)
+		}
+	}
+
+	// 内容治理操作：普通用户同样 403（版主管辖范围之外亦被 scope 校验拦截）
+	staffOps := []struct{ path, body string }{
+		{"/admin/threads/action", "op=delete&tid=1"},
+		{"/admin/recyclebin/purgeall", ""},
+		{"/admin/prune/execute", "kind=post&author=不存在"},
+		{"/admin/moderate/thread", "tid=1&op=approve"},
+	}
+	for _, op := range staffOps {
+		w := smokePost(t, op.path, userCSRF, op.body, userCookie)
+		if w.Code != http.StatusForbidden {
+			t.Errorf("普通用户 POST %s → %d，应 403", op.path, w.Code)
+		}
+	}
+
+	// 管理员正常可用（禁言再解禁，恢复现场）
+	w = smokePost(t, "/admin/users/ban", adminCSRF, "uid=2&days=1&reason=回归", adminCookie)
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("管理员禁言 → %d，期望 303", w.Code)
+	}
+	if w = smokePost(t, "/admin/users/unban", adminCSRF, "uid=2", adminCookie); w.Code != http.StatusSeeOther {
+		t.Fatalf("管理员解禁 → %d，期望 303", w.Code)
 	}
 }
 

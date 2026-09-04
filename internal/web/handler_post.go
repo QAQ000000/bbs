@@ -10,6 +10,7 @@ import (
 	"unicode/utf8"
 
 	"dzforum/internal/markdown"
+	"dzforum/internal/perm"
 	"dzforum/internal/store"
 )
 
@@ -281,7 +282,7 @@ func (s *Server) editSubmit(w http.ResponseWriter, r *http.Request) {
 		s.renderError(w, r, http.StatusInternalServerError, "加载失败", err.Error())
 		return
 	}
-	if !u.IsAdmin() && u.ID != p.AuthorID {
+	if !canEditContent(u, p.AuthorID) {
 		s.renderError(w, r, http.StatusForbidden, "没有权限", "只能编辑自己的内容。")
 		return
 	}
@@ -334,7 +335,7 @@ func (s *Server) deletePost(w http.ResponseWriter, r *http.Request) {
 		s.renderError(w, r, http.StatusInternalServerError, "加载失败", err.Error())
 		return
 	}
-	if !u.IsAdmin() && u.ID != p.AuthorID {
+	if !canDeleteContent(u, p.AuthorID) {
 		s.renderError(w, r, http.StatusForbidden, "没有权限", "只能删除自己的内容。")
 		return
 	}
@@ -380,7 +381,7 @@ func (s *Server) moderationDecision(r *http.Request, u *store.User, content stri
 		return false, ""
 	}
 	hasLink := strings.Contains(content, "http://") || strings.Contains(content, "https://")
-	if hasLink && u.TrustLevel == 0 {
+	if hasLink && !perm.TrustAllowed(perm.TrustLevel(u.TrustLevel), perm.PostLinkDirect) {
 		return true, reasonNewUserLink
 	}
 	if s.sets(r).ModerateEnabled {
