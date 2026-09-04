@@ -262,14 +262,17 @@ func (s *Store) Search(ctx context.Context, q string, page, size int) ([]*Search
 
 // ---- 阅读追踪与信任等级 ----
 
-// TL1 升级门槛。
+// 信任等级升级门槛。
 const (
 	tl1DaysVisited = 3
 	tl1PostsRead   = 20
+	tl2DaysVisited = 14
+	tl2PostsRead   = 100
+	tl2PostCount   = 10
 )
 
 var (
-	visitMu    sync.Mutex
+	visitMu     sync.Mutex
 	visitBumped = map[int64]string{} // uid -> 已打过点的日期（内存去重，省每请求一次 DB）
 )
 
@@ -323,19 +326,28 @@ func (s *Store) RecordRead(ctx context.Context, uid, tid int64, maxFloor int) in
 	return added
 }
 
-// MaybeUpgradeTrust 信任等级自动升级（0→1：访问天数与读帖数达标）。
+// MaybeUpgradeTrust 信任等级自动升级：
+// 0→1 访问 ≥3 天且读帖 ≥20；1→2 访问 ≥14 天、读帖 ≥100 且发帖 ≥10。
 func (s *Store) MaybeUpgradeTrust(ctx context.Context, uid int64) {
 	var cur int
-	var days, reads int64
+	var days, reads, posts int64
 	err := s.pool.QueryRow(ctx,
-		`SELECT trust_level, days_visited, posts_read FROM users WHERE id=$1`, uid).
-		Scan(&cur, &days, &reads)
-	if err != nil || cur != 0 {
+		`SELECT trust_level, days_visited, posts_read, post_count FROM users WHERE id=$1`, uid).
+		Scan(&cur, &days, &reads, &posts)
+	if err != nil {
 		return
 	}
-	if days >= tl1DaysVisited && reads >= tl1PostsRead {
-		_, _ = s.pool.Exec(ctx,
-			`UPDATE users SET trust_level=1 WHERE id=$1 AND trust_level=0`, uid)
+	switch cur {
+	case 0:
+		if days >= tl1DaysVisited && reads >= tl1PostsRead {
+			_, _ = s.pool.Exec(ctx,
+				`UPDATE users SET trust_level=1 WHERE id=$1 AND trust_level=0`, uid)
+		}
+	case 1:
+		if days >= tl2DaysVisited && reads >= tl2PostsRead && posts >= tl2PostCount {
+			_, _ = s.pool.Exec(ctx,
+				`UPDATE users SET trust_level=2 WHERE id=$1 AND trust_level=1`, uid)
+		}
 	}
 }
 

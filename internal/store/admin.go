@@ -59,26 +59,65 @@ type AdminLogEntry struct {
 
 // ---- 版块管理 ----
 
-// SaveForum 新建或更新版块；id=0 为新建。
+// SaveForum 新建或更新版块；id=0 为新建。moderators 为用户名 CSV，写入
+// forums.moderators 展示字段的同时同步 forum_moderators 关系表（权威数据）。
 func (s *Store) SaveForum(ctx context.Context, id int64, categoryID int, name, description, moderators string) (int64, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return 0, errors.New("版块名称不能为空")
 	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback(ctx)
 	if id == 0 {
 		var maxOrder int
-		if err := s.pool.QueryRow(ctx,
+		if err := tx.QueryRow(ctx,
 			`SELECT coalesce(max(displayorder),0)+1 FROM forums WHERE category_id=$1`, categoryID).Scan(&maxOrder); err != nil {
 			return 0, err
 		}
-		return 0, s.pool.QueryRow(ctx,
+		if err := tx.QueryRow(ctx,
 			`INSERT INTO forums (category_id, name, description, displayorder, moderators) VALUES ($1,$2,$3,$4,$5) RETURNING id`,
-			categoryID, name, description, maxOrder, moderators).Scan(&id)
+			categoryID, name, description, maxOrder, moderators).Scan(&id); err != nil {
+			return 0, err
+		}
+	} else {
+		if _, err := tx.Exec(ctx,
+			`UPDATE forums SET category_id=$2, name=$3, description=$4, moderators=$5 WHERE id=$1`,
+			id, categoryID, name, description, moderators); err != nil {
+			return 0, err
+		}
 	}
-	_, err := s.pool.Exec(ctx,
-		`UPDATE forums SET category_id=$2, name=$3, description=$4, moderators=$5 WHERE id=$1`,
-		id, categoryID, name, description, moderators)
-	return id, err
+	if _, err := tx.Exec(ctx, `DELETE FROM forum_moderators WHERE forum_id=$1`, id); err != nil {
+		return 0, err
+	}
+	names := splitModeratorNames(moderators)
+	if len(names) > 0 {
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO forum_moderators (forum_id, user_id)
+			SELECT $1, u.id FROM users u WHERE lower(u.username) = ANY($2)
+			ON CONFLICT DO NOTHING`, id, names); err != nil {
+			return 0, err
+		}
+	}
+	return id, tx.Commit(ctx)
+}
+
+func splitModeratorNames(s string) []string {
+	var out []string
+	seen := map[string]bool{}
+	for _, part := range strings.FieldsFunc(s, func(r rune) bool {
+		return r == ',' || r == '，' || r == ' ' || r == '\t'
+	}) {
+		part = strings.ToLower(strings.TrimSpace(part))
+		if part == "" || seen[part] {
+			continue
+		}
+		seen[part] = true
+		out = append(out, part)
+	}
+	return out
 }
 
 // DeleteForum 删除空版块（有主题时拒绝）。
@@ -131,7 +170,10 @@ func (s *Store) DeleteCategory(ctx context.Context, id int) error {
 
 // MoveForum 同级内上移/下移（交换相邻 displayorder）。
 func (s *Store) MoveForum(ctx context.Context, id int64, up bool) error {
-	var cur struct{ cat int; order int }
+	var cur struct {
+		cat   int
+		order int
+	}
 	if err := s.pool.QueryRow(ctx,
 		`SELECT category_id, displayorder FROM forums WHERE id=$1`, id).Scan(&cur.cat, &cur.order); err != nil {
 		return err
@@ -164,14 +206,14 @@ func (s *Store) MoveForum(ctx context.Context, id int64, up bool) error {
 
 // ThreadQuery 主题搜索条件。
 type ThreadQuery struct {
-	ForumID      int64  // 0 = 全部
-	Keyword      string // 标题模糊
-	Author       string // 用户名精确
-	Page         int
-	Size         int
-	OnlyForumIDs []int64 // 非空时限定版块范围（版主管辖）
-	PendingOnly  bool    // 仅待审核
-	IncludePending bool  // 包含待审核（内容管理列表）
+	ForumID        int64  // 0 = 全部
+	Keyword        string // 标题模糊
+	Author         string // 用户名精确
+	Page           int
+	Size           int
+	OnlyForumIDs   []int64 // 非空时限定版块范围（版主管辖）
+	PendingOnly    bool    // 仅待审核
+	IncludePending bool    // 包含待审核（内容管理列表）
 }
 
 func (q *ThreadQuery) where(args []any) (string, []any) {

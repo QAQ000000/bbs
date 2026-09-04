@@ -80,4 +80,3 @@ func TestBuildPage(t *testing.T) {
 		t.Fatalf("中间页分页结构异常: 首 %+v 末 %+v", items[0], items[len(items)-1])
 	}
 }
-

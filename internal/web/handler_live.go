@@ -15,7 +15,7 @@ import (
 
 // canViewPending 待审核主题的可见性：作者本人或管理人员（与帖子页同口径）。
 func canViewPending(viewer *store.User, th *store.Thread) bool {
-	return viewer != nil && (viewer.IsStaff() || viewer.ID == th.AuthorID)
+	return viewer != nil && (isStaff(viewer) || viewer.ID == th.AuthorID)
 }
 
 // ---- SSE 端点 ----
@@ -127,17 +127,17 @@ func splitCSV(s string) []string {
 // ---- 广播：事件载荷与 HTML 片段 ----
 
 type eventBody struct {
-	Type      string `json:"type"`                // post.new / post.edit / post.delete / thread.new / thread.update / thread.delete
-	PID       int64  `json:"pid,omitempty"`
-	Floor     int    `json:"floor,omitempty"`
-	PostCount int    `json:"postCount,omitempty"` // 主题总楼层数（客户端算末页）
-	TID       int64  `json:"tid,omitempty"`
-	PostHTML  string `json:"postHtml,omitempty"`  // 楼层片段 HTML
-	LikeCount int    `json:"likeCount,omitempty"` // 点赞后最新计数
-	FromName  string `json:"fromName,omitempty"`  // 通知来源用户
-	NotifyCount int  `json:"notifyCount,omitempty"` // 未读通知总数
-	ThreadRow string `json:"threadRow,omitempty"` // 版块页主题行 HTML
-	ForumRow  string `json:"forumRow,omitempty"`  // 首页版块行 HTML
+	Type        string `json:"type"` // post.new / post.edit / post.delete / thread.new / thread.update / thread.delete
+	PID         int64  `json:"pid,omitempty"`
+	Floor       int    `json:"floor,omitempty"`
+	PostCount   int    `json:"postCount,omitempty"` // 主题总楼层数（客户端算末页）
+	TID         int64  `json:"tid,omitempty"`
+	PostHTML    string `json:"postHtml,omitempty"`    // 楼层片段 HTML
+	LikeCount   int    `json:"likeCount,omitempty"`   // 点赞后最新计数
+	FromName    string `json:"fromName,omitempty"`    // 通知来源用户
+	NotifyCount int    `json:"notifyCount,omitempty"` // 未读通知总数
+	ThreadRow   string `json:"threadRow,omitempty"`   // 版块页主题行 HTML
+	ForumRow    string `json:"forumRow,omitempty"`    // 首页版块行 HTML
 }
 
 func (s *Server) publish(topic string, ev eventBody) {
@@ -148,10 +148,8 @@ func (s *Server) publish(topic string, ev eventBody) {
 	s.hub.Publish(live.Event{Topic: topic, Payload: b})
 }
 
-func bgCtx() context.Context {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	_ = cancel // 进程生命周期内很短，交给超时兜底
-	return ctx
+func bgCtx() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), 5*time.Second)
 }
 
 // broadcastPost 楼层事件：新楼 / 编辑 / 删除。
@@ -187,7 +185,9 @@ func (s *Server) threadRowHTML(th *store.Thread) string {
 }
 
 func (s *Server) forumRowHTML(fid int64) string {
-	f, err := s.st.Forum(bgCtx(), fid)
+	ctx, cancel := bgCtx()
+	defer cancel()
+	f, err := s.st.Forum(ctx, fid)
 	if err != nil {
 		return ""
 	}

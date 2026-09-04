@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // 伪静态 URL：与与经典论坛的使用习惯一致
-//   版块页  forum-{fid}-{page}.html          如 forum-2-1.html
-//   帖子页  thread-{tid}-{page}-{prev}.html  如 thread-68845-1-1.html
+//
+//	版块页  forum-{fid}-{page}.html          如 forum-2-1.html
+//	帖子页  thread-{tid}-{page}-{prev}.html  如 thread-68845-1-1.html
+//
 // 生成与解析都在这里，全站唯一出口。
 package web
 
@@ -39,6 +41,7 @@ type pseudostaticTarget struct {
 	kind string // "forum" | "thread"
 	id   int64
 	page int
+	prev int // 帖子页第三段；规范值为 1
 }
 
 // parsePseudostatic 解析伪静态路径；非伪静态路径返回 ok=false。
@@ -51,10 +54,15 @@ func parsePseudostatic(path string) (pseudostaticTarget, bool) {
 		}, true
 	}
 	if m := threadRe.FindStringSubmatch(path); m != nil {
+		prev := 1
+		if m[3] != "" {
+			prev = int(mustInt(m[3]))
+		}
 		return pseudostaticTarget{
 			kind: "thread",
 			id:   mustInt(m[1]),
 			page: int(mustInt(m[2])),
+			prev: prev,
 		}, true
 	}
 	return pseudostaticTarget{}, false

@@ -6,7 +6,8 @@ import (
 	"context"
 	"errors"
 	"strconv"
-	"strings"
+
+	"github.com/jackc/pgx/v5"
 )
 
 // ---- 发帖审核（阶段三）----
@@ -65,9 +66,43 @@ func (s *Store) SetPostPendingModeration(ctx context.Context, postID int64, reas
 	return nil
 }
 
-func (s *Store) SetPostApproved(ctx context.Context, pid int64) error {
-	_, err := s.pool.Exec(ctx, `UPDATE posts SET pending=false WHERE id=$1`, pid)
-	return err
+// SetPostApproved 审核通过单条回复：翻 pending、回补作者计数、重算主题最后发表与版块公开统计。
+// 与 SetThreadApproved 同一套公开口径。已过审或已删除时不重复 bump，仍返回当前楼层与主题。
+func (s *Store) SetPostApproved(ctx context.Context, pid int64) (*Post, *Thread, error) {
+	var tid, uid int64
+	err := s.pool.QueryRow(ctx,
+		`UPDATE posts SET pending=false, pending_reason='' WHERE id=$1 AND pending AND NOT deleted
+		 RETURNING thread_id, author_id`, pid).Scan(&tid, &uid)
+	if errors.Is(err, pgx.ErrNoRows) {
+		p, err := s.Post(ctx, pid)
+		if err != nil {
+			return nil, nil, err
+		}
+		th, err := s.Thread(ctx, p.ThreadID)
+		return p, th, err
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := s.BumpUsersPostCount(ctx, uid, 1); err != nil {
+		return nil, nil, err
+	}
+	if err := s.RecomputeThreadLastPost(ctx, tid); err != nil {
+		return nil, nil, err
+	}
+	var fid int64
+	if err := s.pool.QueryRow(ctx, `SELECT forum_id FROM threads WHERE id=$1`, tid).Scan(&fid); err != nil {
+		return nil, nil, err
+	}
+	if err := s.RecomputeForumStats(ctx, fid); err != nil {
+		return nil, nil, err
+	}
+	p, err := s.Post(ctx, pid)
+	if err != nil {
+		return nil, nil, err
+	}
+	th, err := s.Thread(ctx, tid)
+	return p, th, err
 }
 
 // PendingThreadRow 审核队列中的主题行（含首楼内容摘要）。
@@ -159,8 +194,8 @@ func (s *Store) PendingCounts(ctx context.Context) (threads int64, posts int64) 
 
 // PrunePosts 按条件软删回复并重算计数，返回删除条数。
 // 条件至少给一个：作者用户名 / 版块 / 删除 N 天前的楼层（仅限回帖，不动首楼）。
-func (s *Store) PrunePosts(ctx context.Context, author string, forumID int64, beforeDays int) (int64, error) {
-	if author == "" && forumID == 0 && beforeDays <= 0 {
+func (s *Store) PrunePosts(ctx context.Context, author string, forumID int64, beforeDays int, onlyForumIDs []int64) (int64, error) {
+	if author == "" && forumID == 0 && beforeDays <= 0 && len(onlyForumIDs) == 0 {
 		return 0, errors.New("拒绝无条件批量删除")
 	}
 	w := ` WHERE NOT p.deleted AND NOT p.pending AND p.floor > 1`
@@ -172,6 +207,9 @@ func (s *Store) PrunePosts(ctx context.Context, author string, forumID int64, be
 	if forumID > 0 {
 		args = append(args, forumID)
 		w += ` AND t.forum_id = $` + strconv.Itoa(len(args))
+	} else if len(onlyForumIDs) > 0 {
+		args = append(args, onlyForumIDs)
+		w += ` AND t.forum_id = ANY($` + strconv.Itoa(len(args)) + `)`
 	}
 	if beforeDays > 0 {
 		args = append(args, beforeDays)
@@ -228,9 +266,9 @@ func (s *Store) PrunePosts(ctx context.Context, author string, forumID int64, be
 
 // ---- 版主（阶段三）----
 
-// ModeratorForumIDs 用户担任版主的版块 id 列表。
-func (s *Store) ModeratorForumIDs(ctx context.Context, username string) ([]int64, error) {
-	rows, err := s.pool.Query(ctx, `SELECT id, moderators FROM forums WHERE moderators <> ''`)
+// ModeratorForumIDs 用户担任版主的版块 id 列表（forum_moderators 关系表）。
+func (s *Store) ModeratorForumIDs(ctx context.Context, uid int64) ([]int64, error) {
+	rows, err := s.pool.Query(ctx, `SELECT forum_id FROM forum_moderators WHERE user_id=$1 ORDER BY forum_id`, uid)
 	if err != nil {
 		return nil, err
 	}
@@ -238,16 +276,13 @@ func (s *Store) ModeratorForumIDs(ctx context.Context, username string) ([]int64
 	var out []int64
 	for rows.Next() {
 		var id int64
-		var mods string
-		if err := rows.Scan(&id, &mods); err != nil {
+		if err := rows.Scan(&id); err != nil {
 			return nil, err
 		}
-		for _, m := range strings.Split(mods, ",") {
-			if strings.TrimSpace(m) == username {
-				out = append(out, id)
-				break
-			}
-		}
+		out = append(out, id)
+	}
+	if out == nil {
+		out = []int64{}
 	}
 	return out, rows.Err()
 }

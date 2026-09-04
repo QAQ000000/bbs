@@ -29,19 +29,22 @@
 | --- | :-: | :-: | :-: | --- |
 | `admin.panel` 进入后台 | ✅ | — | — | |
 | `forum.manage` 版块/分类管理 | ✅ | — | — | |
-| `content.moderate` 内容治理 | ✅ | ✅* | — | *版主限其管辖版块（`forums.moderators`） |
+| `content.moderate` 内容治理 | ✅ | ✅* | — | *版主限其管辖版块（`forum_moderators`） |
 | `thread.sticky/digest/lock/delete` | ✅ | ✅* | — | 同上 |
 | `moderate.queue` 审核队列 | ✅ | ✅* | — | |
-| `recycle.bin` / `prune.run` | ✅ | ✅* | — | |
+| `recycle.bin` / `prune.run` | ✅ | ✅* | — | 版主不选版块时按管辖 IN 过滤，禁止全站 |
 | `content.edit.own` / `delete.own` | ✅ | ✅ | ✅ | 自己的内容 |
-| `content.edit.any` / `delete.any` | ✅ | — | — | 任何人的内容 |
+| `content.edit.any` | ✅ | — | — | 任何人的内容 |
+| `content.delete.any` | ✅ | ✅* | — | 版主限管辖版块 |
 | `user.ban/delete/group` | ✅ | — | — | |
 | `settings.edit` / `censor.manage` / `announce.manage` / `logs.view` | ✅ | — | — | |
 | `upload.use` 本站上传 | ✅ | ✅ | ✅ | 另受站点开关与限额约束 |
 | `post.link.direct` 直接发链接 | ✅ | ✅ | 按信任等级 | 新用户（TL0）发链接进审核队列 |
 
-信任等级（自动成长，无需人工干预）：新用户 → 正式成员（访问 ≥3 天且读帖 ≥20）→ 资深成员。
+信任等级（自动成长，无需人工干预）：
+新用户（TL0）→ 正式成员（访问 ≥3 天且读帖 ≥20）→ 资深成员（访问 ≥14 天、读帖 ≥100 且发帖 ≥10）。
 扩展路径：需要自定义角色时，把 `rolePerms` 映射改为 DB 读取并提供矩阵界面即可，调用方零改动。
+所有权限判定只走 `perm.Allowed` + 版块范围函数；编辑/删除表单与提交共用同一函数。
 
 ## 快速开始
 

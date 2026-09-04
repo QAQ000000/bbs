@@ -24,7 +24,8 @@ CREATE TABLE IF NOT EXISTS categories (
     displayorder int  NOT NULL DEFAULT 0
 );
 
--- forums 版块：含为列表页反范式化的统计与最后发表信息；moderators 为版主用户名 CSV
+-- forums 版块：含为列表页反范式化的统计与最后发表信息；
+-- moderators 仅为后台表单展示用 CSV，权威数据在 forum_moderators
 CREATE TABLE IF NOT EXISTS forums (
     id                int GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     category_id       smallint NOT NULL REFERENCES categories(id),
@@ -139,6 +140,23 @@ CREATE TABLE IF NOT EXISTS censor_words (
 ALTER TABLE threads ADD COLUMN IF NOT EXISTS pending boolean NOT NULL DEFAULT false;
 ALTER TABLE posts   ADD COLUMN IF NOT EXISTS pending boolean NOT NULL DEFAULT false;
 ALTER TABLE forums  ADD COLUMN IF NOT EXISTS moderators text NOT NULL DEFAULT '';
+
+-- forum_moderators 版主管辖（forum_id, user_id）；改名不再丢权
+CREATE TABLE IF NOT EXISTS forum_moderators (
+    forum_id int    NOT NULL REFERENCES forums(id) ON DELETE CASCADE,
+    user_id  bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    PRIMARY KEY (forum_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS forum_moderators_user_idx ON forum_moderators (user_id);
+
+-- 存量 CSV → 关系表（trim + 大小写不敏感匹配用户名）
+INSERT INTO forum_moderators (forum_id, user_id)
+SELECT DISTINCT f.id, u.id
+FROM forums f
+CROSS JOIN LATERAL unnest(string_to_array(f.moderators, ',')) AS m(name)
+JOIN users u ON lower(u.username) = lower(btrim(m.name))
+WHERE coalesce(f.moderators, '') <> '' AND btrim(m.name) <> ''
+ON CONFLICT DO NOTHING;
 
 -- ---- 互动与体验（Discourse 借鉴批次）----
 

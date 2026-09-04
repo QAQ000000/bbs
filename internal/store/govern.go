@@ -15,21 +15,44 @@ import (
 
 // ---- 回收站（软删主题）----
 
-// RecycleThreads 回收站主题分页。
-func (s *Store) RecycleThreads(ctx context.Context, page, size int) ([]*Thread, int, error) {
+// RecycleThreads 回收站主题分页；forumIDs 非空时限定版主管辖范围。
+func (s *Store) RecycleThreads(ctx context.Context, page, size int, forumIDs []int64) ([]*Thread, int, error) {
 	var total int
-	if err := s.pool.QueryRow(ctx, `SELECT count(*) FROM threads WHERE deleted`).Scan(&total); err != nil {
-		return nil, 0, err
+	var rows pgx.Rows
+	var err error
+	off := (page - 1) * size
+	if len(forumIDs) > 0 {
+		if err := s.pool.QueryRow(ctx,
+			`SELECT count(*) FROM threads t WHERE t.deleted AND t.forum_id = ANY($1)`, forumIDs).Scan(&total); err != nil {
+			return nil, 0, err
+		}
+		rows, err = s.pool.Query(ctx,
+			`SELECT `+threadCols+` `+threadJoins+`
+			 WHERE t.deleted AND t.forum_id = ANY($1) ORDER BY t.last_post_at DESC LIMIT $2 OFFSET $3`,
+			forumIDs, size, off)
+	} else {
+		if err := s.pool.QueryRow(ctx, `SELECT count(*) FROM threads WHERE deleted`).Scan(&total); err != nil {
+			return nil, 0, err
+		}
+		rows, err = s.pool.Query(ctx,
+			`SELECT `+threadCols+` `+threadJoins+`
+			 WHERE t.deleted ORDER BY t.last_post_at DESC LIMIT $1 OFFSET $2`, size, off)
 	}
-	rows, err := s.pool.Query(ctx,
-		`SELECT `+threadCols+` `+threadJoins+`
-		 WHERE t.deleted ORDER BY t.last_post_at DESC LIMIT $1 OFFSET $2`, size, (page-1)*size)
-	// 统一走 collectThreads 扫描，列变更时不会遗漏
 	list, err := collectThreads(rows, err)
 	if err != nil {
 		return nil, 0, err
 	}
 	return list, total, nil
+}
+
+// DeletedThreadForumID 已软删主题的版块 id（回收站操作鉴权）。
+func (s *Store) DeletedThreadForumID(ctx context.Context, tid int64) (int64, error) {
+	var fid int64
+	err := s.pool.QueryRow(ctx, `SELECT forum_id FROM threads WHERE id=$1 AND deleted`, tid).Scan(&fid)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, ErrNotFound
+	}
+	return fid, err
 }
 
 // RestoreThread 从回收站恢复主题：连同其软删楼层一并恢复，并回补版块计数。
@@ -92,22 +115,34 @@ func (s *Store) PurgeThread(ctx context.Context, tid int64) error {
 	return tx.Commit(ctx)
 }
 
-// PurgeRecycle 清空回收站，返回清理的主题数。
-func (s *Store) PurgeRecycle(ctx context.Context) (int64, error) {
+// PurgeRecycle 清空回收站，返回清理的主题数；forumIDs 非空时只清管辖范围内。
+func (s *Store) PurgeRecycle(ctx context.Context, forumIDs []int64) (int64, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return 0, err
 	}
 	defer tx.Rollback(ctx)
 	var n int64
-	if err := tx.QueryRow(ctx, `SELECT count(*) FROM threads WHERE deleted`).Scan(&n); err != nil {
-		return 0, err
-	}
-	if _, err := tx.Exec(ctx, `DELETE FROM posts WHERE thread_id IN (SELECT id FROM threads WHERE deleted)`); err != nil {
-		return 0, err
-	}
-	if _, err := tx.Exec(ctx, `DELETE FROM threads WHERE deleted`); err != nil {
-		return 0, err
+	if len(forumIDs) > 0 {
+		if err := tx.QueryRow(ctx, `SELECT count(*) FROM threads WHERE deleted AND forum_id = ANY($1)`, forumIDs).Scan(&n); err != nil {
+			return 0, err
+		}
+		if _, err := tx.Exec(ctx, `DELETE FROM posts WHERE thread_id IN (SELECT id FROM threads WHERE deleted AND forum_id = ANY($1))`, forumIDs); err != nil {
+			return 0, err
+		}
+		if _, err := tx.Exec(ctx, `DELETE FROM threads WHERE deleted AND forum_id = ANY($1)`, forumIDs); err != nil {
+			return 0, err
+		}
+	} else {
+		if err := tx.QueryRow(ctx, `SELECT count(*) FROM threads WHERE deleted`).Scan(&n); err != nil {
+			return 0, err
+		}
+		if _, err := tx.Exec(ctx, `DELETE FROM posts WHERE thread_id IN (SELECT id FROM threads WHERE deleted)`); err != nil {
+			return 0, err
+		}
+		if _, err := tx.Exec(ctx, `DELETE FROM threads WHERE deleted`); err != nil {
+			return 0, err
+		}
 	}
 	return n, tx.Commit(ctx)
 }

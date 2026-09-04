@@ -24,14 +24,14 @@
 			</p>
 		</div>
 
-		<div id="postlist" class="bm bmw"
-			data-thread="{{.Thread.ID}}"
-			data-page="{{.PageNum}}"
-			data-total-page="{{.TotalPage}}"
-			data-page-size="10"
-			data-post-count="{{.Thread.PostCount}}"
-			data-closed="{{if .Thread.Closed}}1{{else}}0{{end}}"
-			data-live="{{.LiveTopic}}">
+			<div id="postlist" class="bm bmw"
+				data-thread="{{.Thread.ID}}"
+				data-page="{{.PageNum}}"
+				data-total-page="{{.TotalPage}}"
+				data-page-size="{{.PostsPerPage}}"
+				data-post-count="{{.Thread.PostCount}}"
+				data-closed="{{if .Thread.Closed}}1{{else}}0{{end}}"
+				data-live="{{.LiveTopic}}">
 			{{range .Posts}}{{template "post_floor" .}}{{end}}
 			<div id="last"></div>
 		</div>

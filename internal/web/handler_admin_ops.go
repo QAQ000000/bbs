@@ -191,10 +191,10 @@ func (s *Server) adminThreadAction(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if err != nil {
-		s.setFlash(w, "部分操作失败：" + err.Error())
+		s.setFlash(w, "部分操作失败："+err.Error())
 	} else {
 		s.logOp(r, "thread."+op, "主题 "+op+" ×"+strconv.Itoa(len(tids))+"："+trimTIDs(tids))
-		s.setFlash(w, "已对 " + strconv.Itoa(len(affected)) + " 个主题执行操作")
+		s.setFlash(w, "已对 "+strconv.Itoa(len(affected))+" 个主题执行操作")
 	}
 	http.Redirect(w, r, r.PostFormValue("back"), http.StatusSeeOther)
 }

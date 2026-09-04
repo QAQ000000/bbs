@@ -9,6 +9,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"dzforum/internal/perm"
 	"dzforum/internal/store"
 )
 
@@ -74,7 +75,7 @@ func (s *Server) loginSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 	u, err := s.st.UserByName(r.Context(), username)
 	if errors.Is(err, store.ErrNotFound) || (err == nil && !s.st.VerifyPassword(u, password)) {
-		s.st.AdminLog(r.Context(), 0, username, "login.fail", "登录失败：用户名或密码不正确", remoteIP(r))
+		s.st.AdminLog(r.Context(), 0, "", "login.fail", "登录失败：用户名或密码不正确", remoteIP(r))
 		fail("用户名或密码不正确")
 		return
 	}
@@ -87,7 +88,7 @@ func (s *Server) loginSubmit(w http.ResponseWriter, r *http.Request) {
 		s.renderError(w, r, http.StatusInternalServerError, "登录失败", err.Error())
 		return
 	}
-	if u.IsAdmin() {
+	if hasPoint(u, perm.AdminPanel) {
 		s.st.AdminLog(r.Context(), u.ID, u.Username, "login.ok", "管理员登录", remoteIP(r))
 	}
 	s.st.TouchLogin(r.Context(), u.ID)
@@ -140,11 +141,11 @@ func (s *Server) registerSubmit(w http.ResponseWriter, r *http.Request) {
 	var fail = func(msg string) {
 		d := struct {
 			Common
-			Next      string
-			CSRF      string
-			Error     string
-			Username  string
-			Email     string
+			Next     string
+			CSRF     string
+			Error    string
+			Username string
+			Email    string
 		}{s.common(r), next, s.anonCSRF(r, w), msg, username, email}
 		_ = s.rd.Render(w, "page_register.html", &d)
 	}
@@ -211,19 +212,14 @@ func (s *Server) userPage(w http.ResponseWriter, r *http.Request) {
 	for _, t := range threads {
 		tvms = append(tvms, t)
 	}
-	groupName := "注册会员"
-	if u.IsAdmin() {
-		groupName = "管理员"
-	} else if u.IsModerator() {
-		groupName = "版主"
-	}
+	groupName := perm.RoleName(perm.RoleFromGroupID(u.GroupID))
 	data := struct {
 		Common
-		Profile  *store.User
-		Group    string
-		Trust    string
-		Threads  []*store.Thread
-		IsSelf   bool
+		Profile *store.User
+		Group   string
+		Trust   string
+		Threads []*store.Thread
+		IsSelf  bool
 	}{s.common(r), u, groupName, store.TrustLevelName(u.TrustLevel), tvms, User(r) != nil && User(r).ID == u.ID}
 	_ = s.rd.Render(w, "page_user.html", &data)
 }

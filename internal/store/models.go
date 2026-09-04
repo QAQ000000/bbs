@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// User 论坛用户。group_id：0=会员 1=管理员。
+// User 论坛用户。group_id：0=会员 1=管理员 2=版主。
 type User struct {
 	ID           int64     `db:"id"`
 	Username     string    `db:"username"`
@@ -47,13 +47,13 @@ type Forum struct {
 	PostCount   int64
 	TodayCount  int
 
-	LastPostAt       time.Time
-	HasLastPost      bool
-	LastPostUID      int64
-	LastPostAuthor   string
-	LastThreadID     int64
-	LastThreadTitle  string
-	Moderators       string // 版主用户名，逗号分隔
+	LastPostAt      time.Time
+	HasLastPost     bool
+	LastPostUID     int64
+	LastPostAuthor  string
+	LastThreadID    int64
+	LastThreadTitle string
+	Moderators      string // 后台表单展示用 CSV；权威数据在 forum_moderators
 }
 
 // Thread 主题。
@@ -87,21 +87,21 @@ func (t *Thread) Replies() int {
 
 // Post 楼层。
 type Post struct {
-	ID          int64
-	ThreadID    int64
-	AuthorID    int64
-	AuthorName  string
-	AuthorGroup int
-	Floor       int
-	ContentMD   string
-	ContentHTML string
-	CreatedAt   time.Time
-	EditedAt    time.Time
-	HasEdited   bool
-	Pending     bool   // 待审核（阶段三）
+	ID            int64
+	ThreadID      int64
+	AuthorID      int64
+	AuthorName    string
+	AuthorGroup   int
+	Floor         int
+	ContentMD     string
+	ContentHTML   string
+	CreatedAt     time.Time
+	EditedAt      time.Time
+	HasEdited     bool
+	Pending       bool   // 待审核（阶段三）
 	PendingReason string // 进入审核的原因（manual / newuser_link）
-	LikeCount   int    // 点赞数（冗余回写）
-	Version     int    // 编辑版本号（冲突检测）
+	LikeCount     int    // 点赞数（冗余回写）
+	Version       int    // 编辑版本号（冲突检测）
 }
 
 // Session 服务端会话。
@@ -114,9 +114,9 @@ type Session struct {
 
 // SiteStats 首页统计条。
 type SiteStats struct {
-	TodayPosts  int64
-	Yesterday   int64
-	TotalPosts  int64
+	TodayPosts   int64
+	Yesterday    int64
+	TotalPosts   int64
 	TotalThreads int64
-	Members     int64
+	Members      int64
 }

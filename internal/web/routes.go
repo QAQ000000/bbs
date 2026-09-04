@@ -101,6 +101,7 @@ func (s *Server) routes() http.Handler {
 		s.securityMW,
 		s.gzipMW,
 		s.authMW,
+		s.siteOpenMW,
 	)
 	return s.handler
 }
@@ -114,6 +115,10 @@ func (s *Server) handlePseudostatic(w http.ResponseWriter, r *http.Request) {
 	t, ok := parsePseudostatic(r.URL.Path)
 	if !ok {
 		s.renderError(w, r, http.StatusNotFound, "页面不存在", "您访问的地址不存在或已被删除。")
+		return
+	}
+	if t.kind == "thread" && t.prev != 1 {
+		http.Redirect(w, r, ThreadURL(t.id, t.page), http.StatusMovedPermanently)
 		return
 	}
 	switch t.kind {

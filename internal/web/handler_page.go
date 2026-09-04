@@ -14,9 +14,6 @@ import (
 // ---- 首页 ----
 
 func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
-	if !s.checkSiteOpen(w, r) {
-		return
-	}
 	cats, err := s.st.CategoriesWithForums(r.Context())
 	if err != nil {
 		s.renderError(w, r, http.StatusInternalServerError, "加载失败", err.Error())
@@ -30,10 +27,10 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 	announces, _ := s.st.Announcements(r.Context(), true, 3)
 	data := struct {
 		Common
-		Stats        store.SiteStats
-		Categories   []*store.Category
+		Stats         store.SiteStats
+		Categories    []*store.Category
 		Announcements []*store.Announcement
-		Topics       string
+		Topics        string
 	}{s.common(r), stats, cats, announces, homeTopics(cats)}
 	data.NavActive = "home"
 	data.Title = ""
@@ -58,9 +55,6 @@ func homeTopics(cats []*store.Category) string {
 // ---- 版块页 forum-N-P.html ----
 
 func (s *Server) handleForum(w http.ResponseWriter, r *http.Request, fid int64, page int) {
-	if !s.checkSiteOpen(w, r) {
-		return
-	}
 	forum, err := s.st.Forum(r.Context(), fid)
 	if errors.Is(err, store.ErrNotFound) {
 		s.renderError(w, r, http.StatusNotFound, "版块不存在", "该版块不存在或已被删除。")
@@ -103,9 +97,6 @@ func (s *Server) handleForum(w http.ResponseWriter, r *http.Request, fid int64, 
 // ---- 帖子页 thread-N-P-L.html ----
 
 func (s *Server) handleThread(w http.ResponseWriter, r *http.Request, tid int64, page int) {
-	if !s.checkSiteOpen(w, r) {
-		return
-	}
 	th, err := s.st.Thread(r.Context(), tid)
 	if errors.Is(err, store.ErrNotFound) {
 		s.renderError(w, r, http.StatusNotFound, "主题不存在", "该主题不存在或已被删除。")
@@ -183,20 +174,20 @@ func (s *Server) handleThread(w http.ResponseWriter, r *http.Request, tid int64,
 
 	data := struct {
 		Common
-		Thread     *store.Thread
-		Forum      *store.Forum
-		Posts      []*PostVM
-		Page       []PageItem
-		PageNum    int
-		TotalPage  int
-		LiveTopic  string
-		QuickReply *editorData
+		Thread       *store.Thread
+		Forum        *store.Forum
+		Posts        []*PostVM
+		Page         []PageItem
+		PageNum      int
+		TotalPage    int
+		LiveTopic    string
+		QuickReply   *editorData
+		PostsPerPage int
 	}{common, th, forum, pvm, pager, page, totalPages,
-		"thread=" + strconv.FormatInt(tid, 10), quick}
+		"thread=" + strconv.FormatInt(tid, 10), quick, perPage}
 	data.Title = th.Title
 	_ = s.rd.Render(w, "page_thread.html", &data)
 }
-
 
 // ---- 全文搜索 ----
 

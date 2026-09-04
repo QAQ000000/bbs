@@ -39,20 +39,20 @@ func validateContent(subject, content string, requireSubject bool) string {
 // editorData 编辑器页面（新主题/回复/编辑共用）的公共数据。
 type editorData struct {
 	Common
-	Action     string          // 提交地址
-	Forum      *store.Forum    // 新主题时显示目标版块
-	Thread     *store.Thread   // 回复/编辑时显示来源主题
-	Subject    string
-	Content    string
-	EditorID   string
-	Version    int    // 编辑时携带的版本号（0=新发内容）
-	DraftContext string // 服务端草稿上下文
+	Action        string        // 提交地址
+	Forum         *store.Forum  // 新主题时显示目标版块
+	Thread        *store.Thread // 回复/编辑时显示来源主题
+	Subject       string
+	Content       string
+	EditorID      string
+	Version       int    // 编辑时携带的版本号（0=新发内容）
+	DraftContext  string // 服务端草稿上下文
 	UploadEnabled bool
-	MaxImageMB  int
-	MaxFileMB   int
-	Smileys    []SmileyGroup
-	Error      string
-	IsThreadOp bool // 是否新主题/首楼编辑（显示标题框）
+	MaxImageMB    int
+	MaxFileMB     int
+	Smileys       []SmileyGroup
+	Error         string
+	IsThreadOp    bool // 是否新主题/首楼编辑（显示标题框）
 }
 
 func (s *Server) editorCommon(r *http.Request) editorData {
@@ -192,6 +192,11 @@ func (s *Server) replySubmit(w http.ResponseWriter, r *http.Request) {
 		s.renderError(w, r, http.StatusForbidden, "操作被拒绝", "表单已过期，请返回刷新后重试。")
 		return
 	}
+	if !s.allowKey("post:"+strconv.FormatInt(u.ID, 10), 10, time.Minute) ||
+		!s.allowKey("postd:"+strconv.FormatInt(u.ID, 10), 100, 24*time.Hour) {
+		s.renderError(w, r, http.StatusTooManyRequests, "操作过于频繁", "发帖太快了，休息一下再试。")
+		return
+	}
 	if !s.checkNotBanned(w, r) {
 		return
 	}
@@ -243,7 +248,7 @@ func (s *Server) editForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	u := User(r)
-	if !u.IsAdmin() && u.ID != p.AuthorID {
+	if !canEditContent(u, p.AuthorID) {
 		s.renderError(w, r, http.StatusForbidden, "没有权限", "只能编辑自己的内容。")
 		return
 	}
@@ -278,6 +283,14 @@ func (s *Server) editSubmit(w http.ResponseWriter, r *http.Request) {
 	u := User(r)
 	if !s.checkCSRF(r) {
 		s.renderError(w, r, http.StatusForbidden, "操作被拒绝", "表单已过期，请返回刷新后重试。")
+		return
+	}
+	if !s.allowKey("post:"+strconv.FormatInt(u.ID, 10), 10, time.Minute) ||
+		!s.allowKey("postd:"+strconv.FormatInt(u.ID, 10), 100, 24*time.Hour) {
+		s.renderError(w, r, http.StatusTooManyRequests, "操作过于频繁", "发帖太快了，休息一下再试。")
+		return
+	}
+	if !s.checkNotBanned(w, r) {
 		return
 	}
 	pid := pathID(r, "pid")
@@ -345,6 +358,9 @@ func (s *Server) deletePost(w http.ResponseWriter, r *http.Request) {
 		s.renderError(w, r, http.StatusForbidden, "操作被拒绝", "表单已过期，请返回刷新后重试。")
 		return
 	}
+	if !s.checkNotBanned(w, r) {
+		return
+	}
 	pid := pathID(r, "pid")
 	p, err := s.st.Post(r.Context(), pid)
 	if errors.Is(err, store.ErrNotFound) {
@@ -383,7 +399,7 @@ func (s *Server) deletePost(w http.ResponseWriter, r *http.Request) {
 
 // 审核原因码。
 const (
-	reasonManual     = "manual"       // 站点开启了发帖审核
+	reasonManual      = "manual"       // 站点开启了发帖审核
 	reasonNewUserLink = "newuser_link" // 新用户内容含链接
 )
 
@@ -396,7 +412,7 @@ var ReasonLabels = map[string]string{
 // moderationDecision 决定该用户此内容是否进入审核队列及原因：
 // 站点审核开关（manual）；或新用户（发帖<5 且注册<7天）内容含链接（newuser_link，不受开关限制）。
 func (s *Server) moderationDecision(r *http.Request, u *store.User, content string) (bool, string) {
-	if u == nil || isStaff(u) {
+	if u == nil || hasPoint(u, perm.ContentModerate) {
 		return false, ""
 	}
 	hasLink := strings.Contains(content, "http://") || strings.Contains(content, "https://")
@@ -428,6 +444,14 @@ func (s *Server) formError(w http.ResponseWriter, r *http.Request, action, msg s
 // ---- Markdown 实时预览 ----
 
 func (s *Server) handlePreview(w http.ResponseWriter, r *http.Request) {
+	if User(r) == nil {
+		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+		return
+	}
+	if !s.allow(r, "preview", 30, time.Minute) {
+		http.Error(w, `{"error":"too many requests"}`, http.StatusTooManyRequests)
+		return
+	}
 	var req struct {
 		Content string `json:"content"`
 	}

@@ -156,11 +156,11 @@
 				clearTimeout(cloudTimer);
 				cloudTimer = setTimeout(function () {
 					var csrfEl = form.querySelector('input[name="_csrf"]');
-					fetch('/api/draft', {
-						method: 'POST',
-						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify({ context: draftCtx, content: ta.value })
-					}).catch(function () { /* 忽略 */ });
+						fetch('/api/draft', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({ context: draftCtx, content: ta.value, csrf: csrfEl ? csrfEl.value : '' })
+						}).catch(function () { /* 忽略 */ });
 				}, 10000);
 			});
 		}

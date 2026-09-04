@@ -14,8 +14,21 @@ import (
 
 // ---- 后台权限（阶段三）：版主可进入内容类页面，范围限其版块 ----
 
-// isStaff 管理员或版主。
-func isStaff(u *store.User) bool { return u != nil && u.IsStaff() }
+// isStaff 管理员或版主（权限点 ContentModerate）。
+func isStaff(u *store.User) bool {
+	return u != nil && perm.Allowed(perm.RoleFromGroupID(u.GroupID), perm.ContentModerate)
+}
+
+func userRole(u *store.User) perm.Role {
+	if u == nil {
+		return perm.RoleMember
+	}
+	return perm.RoleFromGroupID(u.GroupID)
+}
+
+func hasPoint(u *store.User, p perm.Point) bool {
+	return u != nil && perm.Allowed(userRole(u), p)
+}
 
 // requireStaff 内容治理入口守卫（ContentModerate 权限点）：版主会被限制在其管辖版块。
 func (s *Server) requireStaff(w http.ResponseWriter, r *http.Request) bool {
@@ -24,7 +37,7 @@ func (s *Server) requireStaff(w http.ResponseWriter, r *http.Request) bool {
 		http.Redirect(w, r, "/login?next="+urlQueryEscape(r.URL.RequestURI()), http.StatusFound)
 		return false
 	}
-	if !perm.Allowed(perm.RoleFromGroupID(u.GroupID), perm.ContentModerate) {
+	if !hasPoint(u, perm.ContentModerate) {
 		s.renderError(w, r, http.StatusForbidden, "无权访问", "该区域仅管理员与版主可访问。")
 		return false
 	}
@@ -34,35 +47,42 @@ func (s *Server) requireStaff(w http.ResponseWriter, r *http.Request) bool {
 // staffForumScope 当前管理人员可管理的版块范围；管理员为空（不限）。
 func (s *Server) staffForumScope(r *http.Request) []int64 {
 	u := User(r)
-	if u == nil || u.IsAdmin() {
+	if u == nil {
+		return []int64{0}
+	}
+	if hasPoint(u, perm.AdminPanel) {
 		return nil
 	}
-	ids, err := s.st.ModeratorForumIDs(r.Context(), u.Username)
+	ids, err := s.st.ModeratorForumIDs(r.Context(), u.ID)
 	if err != nil {
 		return []int64{0} // 出错时限定为不可能命中的版块，保守处理
 	}
+	if len(ids) == 0 {
+		return []int64{0}
+	}
 	return ids
+}
+
+// inForumScope 版块是否在当前管理人员范围内；scope=nil 表示不限。
+func inForumScope(scope []int64, fid int64) bool {
+	if scope == nil {
+		return true
+	}
+	for _, id := range scope {
+		if id == fid {
+			return true
+		}
+	}
+	return false
 }
 
 // canModerateThread 管理人员是否可对某主题执行操作。
 func (s *Server) canModerateThread(r *http.Request, th *store.Thread) bool {
 	u := User(r)
-	if u == nil {
+	if u == nil || !hasPoint(u, perm.ContentModerate) {
 		return false
 	}
-	if u.IsAdmin() {
-		return true
-	}
-	ids, err := s.st.ModeratorForumIDs(r.Context(), u.Username)
-	if err != nil {
-		return false
-	}
-	for _, id := range ids {
-		if id == th.ForumID {
-			return true
-		}
-	}
-	return false
+	return inForumScope(s.staffForumScope(r), th.ForumID)
 }
 
 // ---- 审核队列 ----
@@ -126,7 +146,11 @@ func (s *Server) adminModerateThread(w http.ResponseWriter, r *http.Request) {
 		if err := s.st.SetThreadApproved(r.Context(), tid); err != nil {
 			s.setFlash(w, "操作失败："+err.Error())
 		} else {
-			s.broadcastThread("thread.new", th)
+			if th2, err := s.st.Thread(r.Context(), tid); err == nil {
+				s.broadcastThread("thread.new", th2)
+			} else {
+				s.broadcastThread("thread.new", th)
+			}
 			s.logOp(r, "moderate.thread.approve", "审核通过主题 #"+strconv.FormatInt(tid, 10))
 			s.setFlash(w, "主题已通过审核")
 		}
@@ -166,10 +190,13 @@ func (s *Server) adminModeratePost(w http.ResponseWriter, r *http.Request) {
 			s.setFlash(w, "回复已删除")
 		}
 	} else {
-		if err := s.st.SetPostApproved(r.Context(), pid); err != nil {
+		p2, th2, err := s.st.SetPostApproved(r.Context(), pid)
+		if err != nil {
 			s.setFlash(w, "操作失败："+err.Error())
 		} else {
-			s.broadcastPost("post.new", th, p)
+			s.broadcastPost("post.new", th2, p2)
+			s.broadcastThread("thread.update", th2)
+			s.notifyMentions(r, &store.User{ID: p2.AuthorID, Username: p2.AuthorName}, p2.ContentMD, th2, p2)
 			s.logOp(r, "moderate.post.approve", "审核通过回复 #"+strconv.FormatInt(pid, 10))
 			s.setFlash(w, "回复已通过审核")
 		}
@@ -213,6 +240,10 @@ func (s *Server) adminPruneExecute(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, "/admin/prune", http.StatusSeeOther)
 			return
 		}
+		if forumID > 0 && !inForumScope(scope, forumID) {
+			s.renderError(w, r, http.StatusForbidden, "无权操作", "只能清理自己管辖版块的内容。")
+			return
+		}
 		// 主题范围：条件查询（含待审核主题），且限制在管辖版块
 		threads, _, err := s.st.SearchThreads(r.Context(), store.ThreadQuery{
 			ForumID: forumID, Keyword: keyword, Author: author,
@@ -239,28 +270,19 @@ func (s *Server) adminPruneExecute(w http.ResponseWriter, r *http.Request) {
 			s.setFlash(w, "部分删除失败："+err.Error())
 		}
 		s.logOp(r, "prune.thread", "批量删除主题 "+strconv.Itoa(len(affected))+" 个（author="+author+" keyword="+keyword+" forum="+strconv.FormatInt(forumID, 10)+" days="+strconv.Itoa(days)+"）")
-		s.setFlash(w, "已批量删除 " + strconv.Itoa(len(affected)) + " 个主题（可在回收站恢复）")
+		s.setFlash(w, "已批量删除 "+strconv.Itoa(len(affected))+" 个主题（可在回收站恢复）")
 
 	case "post":
-		if forumID > 0 && len(scope) > 0 {
-			allowed := false
-			for _, id := range scope {
-				if id == forumID {
-					allowed = true
-					break
-				}
-			}
-			if !allowed {
-				s.renderError(w, r, http.StatusForbidden, "无权操作", "只能清理自己管辖版块的内容。")
-				return
-			}
+		if forumID > 0 && !inForumScope(scope, forumID) {
+			s.renderError(w, r, http.StatusForbidden, "无权操作", "只能清理自己管辖版块的内容。")
+			return
 		}
-		n, err := s.st.PrunePosts(r.Context(), author, forumID, days)
+		n, err := s.st.PrunePosts(r.Context(), author, forumID, days, scope)
 		if err != nil {
 			s.setFlash(w, "清理失败："+err.Error())
 		} else {
 			s.logOp(r, "prune.post", "批量删除回复 "+strconv.FormatInt(n, 10)+" 条（author="+author+" forum="+strconv.FormatInt(forumID, 10)+" days="+strconv.Itoa(days)+"）")
-			s.setFlash(w, "已批量删除 " + strconv.FormatInt(n, 10) + " 条回复")
+			s.setFlash(w, "已批量删除 "+strconv.FormatInt(n, 10)+" 条回复")
 		}
 
 	default:

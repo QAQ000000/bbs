@@ -5,10 +5,10 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"log/slog"
 	"html/template"
 	"io"
 	"io/fs"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
@@ -167,7 +167,7 @@ func funcMap() template.FuncMap {
 		"avatarS": func(uid int64, name string) template.HTML {
 			return template.HTML(avatar.Small(uid, name))
 		},
-		"timefmt": timefmt,
+		"timefmt":  timefmt,
 		"safeHTML": func(s string) template.HTML { return template.HTML(s) },
 		"forumURL": func(fid any) string {
 			switch v := fid.(type) {
@@ -187,8 +187,8 @@ func funcMap() template.FuncMap {
 			}
 			return "#"
 		},
-		"userURL":  UserURL,
-		"postVM":   PostVMOf,
+		"userURL": UserURL,
+		"postVM":  PostVMOf,
 		"threadNext": func(tid int64) string {
 			return urlQueryEscape(ThreadURL(tid, 1))
 		},
@@ -198,7 +198,7 @@ func funcMap() template.FuncMap {
 			}
 			return "版"
 		},
-		"smileyURL": func(c smiley.Code) string { return smiley.URL(c) },
+		"smileyURL":   func(c smiley.Code) string { return smiley.URL(c) },
 		"smileyIsImg": func(c smiley.Code) bool { return c.File != "" },
 		"reasonLabel": func(code string) string {
 			if l, ok := ReasonLabels[code]; ok {

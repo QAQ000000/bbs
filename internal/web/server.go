@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"dzforum/internal/config"
-	"dzforum/internal/mail"
 	"dzforum/internal/limiter"
 	"dzforum/internal/live"
+	"dzforum/internal/mail"
 	"dzforum/internal/store"
 )
 
@@ -76,11 +76,11 @@ func Session(r *http.Request) *store.Session {
 func (s *Server) common(r *http.Request) Common {
 	st := s.sets(r)
 	c := Common{
-		SiteName: st.SiteName,
-		SiteLogo: s.cfg.SiteLogo,
-		User:     User(r),
+		SiteName:  st.SiteName,
+		SiteLogo:  s.cfg.SiteLogo,
+		User:      User(r),
 		NavActive: r.URL.Path,
-		Year:     time.Now().Year(),
+		Year:      time.Now().Year(),
 	}
 	if sess := Session(r); sess != nil {
 		c.CSRF = sess.CSRF

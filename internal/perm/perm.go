@@ -9,8 +9,8 @@ package perm
 type Role int
 
 const (
-	RoleMember   Role = 0 // 会员
-	RoleAdmin    Role = 1 // 管理员
+	RoleMember    Role = 0 // 会员
+	RoleAdmin     Role = 1 // 管理员
 	RoleModerator Role = 2 // 版主
 )
 
@@ -63,7 +63,7 @@ var rolePerms = map[Role]map[Point]bool{
 	},
 	RoleModerator: {
 		ContentModerate: true,
-		ContentEditOwn: true, ContentDeleteOwn: true, ContentDeleteAny: true,
+		ContentEditOwn:  true, ContentDeleteOwn: true, ContentDeleteAny: true,
 		RecycleBin: true, PruneRun: true, ModerateQueue: true,
 		UploadUse: true,
 	},

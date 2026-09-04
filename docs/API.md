@@ -28,7 +28,7 @@ GET /api/live?user={uid}            订阅个人通知（页面自动带上）
 ## Markdown 预览
 
 ```
-POST /api/preview      {"content": "...markdown..."}
+POST /api/preview      {"content": "...markdown..."}   需登录；30/min
 → {"html": "..."}      服务端统一渲染（与发帖结果一致），HTML 已消毒
 ```
 
@@ -63,7 +63,7 @@ POST /api/draft   {"context": "...", "content": "...", "csrf": "..."}
 
 ```
 GET /api/status
-→ {"ok": true, "subs": 12, "ts": "..."}   subs = 当前 SSE 连接数
+→ {"ok": true, "ts": "..."}   健康检查（不含内部连接数）
 ```
 
 ## 头像

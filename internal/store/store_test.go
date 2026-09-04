@@ -182,10 +182,10 @@ func TestPrunePostsRecompute(t *testing.T) {
 		}
 	}
 	// 无条件拒绝
-	if _, err := testStore.PrunePosts(ctx, "", 0, 0); err == nil {
+	if _, err := testStore.PrunePosts(ctx, "", 0, 0, nil); err == nil {
 		t.Fatal("无条件批量删除应被拒绝")
 	}
-	n, err := testStore.PrunePosts(ctx, "回复者"+t.Name(), 0, 0)
+	n, err := testStore.PrunePosts(ctx, "回复者"+t.Name(), 0, 0, nil)
 	if err != nil || n != 3 {
 		t.Fatalf("应删 3 条: n=%d err=%v", n, err)
 	}
@@ -277,4 +277,72 @@ func TestSearch(t *testing.T) {
 		t.Fatalf("无关词不应命中: %d", total)
 	}
 	_ = p
+}
+
+func TestSetPostApprovedCounters(t *testing.T) {
+	ctx := context.Background()
+	author, replier := setupUsers(t)
+	fid := setupForum(t)
+	th, _, err := testStore.CreateThread(ctx, fid, author, "作者", "审批回复", "首楼", "<p>x</p>", false, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, p, err := testStore.CreateReply(ctx, th.ID, replier, "回复者", "待审回复", "<p>y</p>", true, "manual")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var pc, upc int64
+	if err := testStore.pool.QueryRow(ctx, `SELECT post_count FROM forums WHERE id=$1`, fid).Scan(&pc); err != nil {
+		t.Fatal(err)
+	}
+	if err := testStore.pool.QueryRow(ctx, `SELECT post_count FROM users WHERE id=$1`, replier).Scan(&upc); err != nil {
+		t.Fatal(err)
+	}
+	if pc != 1 || upc != 0 {
+		t.Fatalf("待审回复不应进入公开口径: forum=%d user=%d", pc, upc)
+	}
+	p2, th2, err := testStore.SetPostApproved(ctx, p.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p2.Pending {
+		t.Fatal("过审后楼层仍 pending")
+	}
+	if err := testStore.pool.QueryRow(ctx, `SELECT post_count FROM forums WHERE id=$1`, fid).Scan(&pc); err != nil {
+		t.Fatal(err)
+	}
+	if err := testStore.pool.QueryRow(ctx, `SELECT post_count FROM users WHERE id=$1`, replier).Scan(&upc); err != nil {
+		t.Fatal(err)
+	}
+	if pc != 2 || upc != 1 {
+		t.Fatalf("过审后公开口径应为 forum=2 user=1，得到 %d/%d", pc, upc)
+	}
+	if th2.LastPostUID != replier {
+		t.Fatalf("主题 last_post_uid 应为回复者: %d", th2.LastPostUID)
+	}
+}
+
+func TestModeratorRelationTable(t *testing.T) {
+	ctx := context.Background()
+	uid, _ := setupUsers(t)
+	fid := setupForum(t)
+	u, err := testStore.UserByID(ctx, uid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := testStore.SaveForum(ctx, fid, 1, "测试版块", "", u.Username); err != nil {
+		t.Fatal(err)
+	}
+	ids, err := testStore.ModeratorForumIDs(ctx, uid)
+	if err != nil || len(ids) != 1 || ids[0] != fid {
+		t.Fatalf("关系表未写入: ids=%v err=%v", ids, err)
+	}
+	// 改名后仍按 user_id 命中
+	if _, err := testStore.pool.Exec(ctx, `UPDATE users SET username=$2 WHERE id=$1`, uid, u.Username+"改名"); err != nil {
+		t.Fatal(err)
+	}
+	ids, err = testStore.ModeratorForumIDs(ctx, uid)
+	if err != nil || len(ids) != 1 || ids[0] != fid {
+		t.Fatalf("改名后丢权: ids=%v err=%v", ids, err)
+	}
 }

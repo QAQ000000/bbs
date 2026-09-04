@@ -190,3 +190,22 @@ func (s *Server) authMW(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
+
+// siteOpenMW 关站闸门：后台、登录/注册/找回、静态资源与健康检查放行。
+func (s *Server) siteOpenMW(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		p := r.URL.Path
+		if isStaticPath(p) ||
+			strings.HasPrefix(p, "/admin") ||
+			p == "/login" || p == "/register" || p == "/logout" ||
+			p == "/forgot" || p == "/reset" ||
+			p == "/api/status" || p == "/robots.txt" || p == "/favicon.ico" {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if !s.checkSiteOpen(w, r) {
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}

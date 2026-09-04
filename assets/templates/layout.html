@@ -26,9 +26,11 @@
 		<div class="um y">
 			{{if .User}}
 				<a href="{{userURL .User.ID}}" class="avt" title="{{.User.Username}}">{{avatar .User.ID .User.Username}}</a>
-				<span class="vwmy"><a href="{{userURL .User.ID}}">{{.User.Username}}</a></span>
-				<span class="pipe">|</span><span class="xg1">帖子 <em class="xi1">{{.User.PostCount}}</em></span>
-				{{if .User.IsAdmin}}<span class="pipe">|</span><span class="badge badge-admin">管理员</span>{{end}}
+					<span class="vwmy"><a href="{{userURL .User.ID}}">{{.User.Username}}</a></span>
+					<span class="pipe">|</span>
+					<a href="/notify" class="notify-link{{if gt .NotifyCount 0}} has-unread{{end}}">通知{{if gt .NotifyCount 0}} <em class="notify-num">{{.NotifyCount}}</em>{{end}}</a>
+					<span class="pipe">|</span><span class="xg1">帖子 <em class="xi1">{{.User.PostCount}}</em></span>
+					{{if eq .User.GroupID 1}}<span class="pipe">|</span><span class="badge badge-admin">管理员</span>{{end}}
 				<span class="pipe">|</span>
 				<form method="post" action="/logout" class="inlineform"><input type="hidden" name="_csrf" value="{{.CSRF}}"><button type="submit" class="linklike">退出</button></form>
 			{{else}}

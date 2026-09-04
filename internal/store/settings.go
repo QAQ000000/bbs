@@ -12,13 +12,13 @@ import (
 
 // SiteSettings 站点可动态修改的设置（settings KV 表的类型化视图）。
 type SiteSettings struct {
-	SiteName        string
-	ThreadsPerPage  int
-	PostsPerPage    int
-	RegisterEnabled bool
-	SiteClosed      bool
+	SiteName         string
+	ThreadsPerPage   int
+	PostsPerPage     int
+	RegisterEnabled  bool
+	SiteClosed       bool
 	SiteClosedReason string
-	ModerateEnabled bool // 新用户发帖需审核
+	ModerateEnabled  bool // 新用户发帖需审核
 
 	UploadEnabled bool // 本站上传开关（关闭 = 仅外链模式）
 	MaxImageMB    int  // 图片上传上限（MB）
@@ -27,15 +27,15 @@ type SiteSettings struct {
 
 func defaultSettings() SiteSettings {
 	return SiteSettings{
-		SiteName:        "GoBBS 社区",
-		ThreadsPerPage:  20,
-		PostsPerPage:    10,
-		RegisterEnabled: true,
-		SiteClosed:      false,
+		SiteName:         "GoBBS 社区",
+		ThreadsPerPage:   20,
+		PostsPerPage:     10,
+		RegisterEnabled:  true,
+		SiteClosed:       false,
 		SiteClosedReason: "站点维护中，请稍后再访。",
-		UploadEnabled:   true,
-		MaxImageMB:      8,
-		MaxFileMB:       20,
+		UploadEnabled:    true,
+		MaxImageMB:       8,
+		MaxFileMB:        20,
 	}
 }
 

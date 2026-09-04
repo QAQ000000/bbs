@@ -30,9 +30,9 @@ var allowedImageMime = map[string]string{
 }
 
 var allowedFileMime = map[string]string{
-	"application/pdf":  ".pdf",
-	"text/plain":       ".txt",
-	"application/zip":  ".zip",
+	"application/pdf":              ".pdf",
+	"text/plain":                   ".txt",
+	"application/zip":              ".zip",
 	"application/x-zip-compressed": ".zip",
 }
 
@@ -47,7 +47,11 @@ func (s *Server) uploadImage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"csrf"}`, http.StatusForbidden)
 		return
 	}
-	if !perm.Allowed(perm.RoleFromGroupID(u.GroupID), perm.UploadUse) {
+	if !s.checkNotBanned(w, r) {
+		http.Error(w, `{"error":"banned"}`, http.StatusForbidden)
+		return
+	}
+	if !hasPoint(u, perm.UploadUse) {
 		http.Error(w, `{"error":"没有上传权限"}`, http.StatusForbidden)
 		return
 	}

@@ -22,7 +22,7 @@ func (s *Server) requireAdmin(w http.ResponseWriter, r *http.Request) bool {
 		http.Redirect(w, r, "/login?next="+urlQueryEscape(r.URL.RequestURI()), http.StatusFound)
 		return false
 	}
-	if !perm.Allowed(perm.RoleFromGroupID(u.GroupID), perm.AdminPanel) {
+	if !hasPoint(u, perm.AdminPanel) {
 		s.renderError(w, r, http.StatusForbidden, "无权访问", "该区域仅管理员可访问。")
 		return false
 	}
@@ -59,13 +59,13 @@ func (s *Server) adminDash(w http.ResponseWriter, r *http.Request) {
 	}
 	data := struct {
 		Common
-		Stats      store.SiteStats
-		Recycle    int64
-		Banned     int64
-		DBSize     string
-		Subs       int
-		Uptime     string
-		GoVersion  string
+		Stats     store.SiteStats
+		Recycle   int64
+		Banned    int64
+		DBSize    string
+		Subs      int
+		Uptime    string
+		GoVersion string
 	}{s.adminCommon(r, "dash"), st,
 		s.st.RecycleCount(r.Context()), s.st.BannedCount(r.Context()),
 		s.st.DBSize(r.Context()), s.hub.Count(),

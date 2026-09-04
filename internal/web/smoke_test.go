@@ -82,6 +82,10 @@ func TestMain(m *testing.M) {
 		fmt.Println("FATAL:", err)
 		os.Exit(1)
 	}
+	if _, err := st.SaveForum(ctx, fid, 1, "冒烟版块", "冒烟测试版块", "admin"); err != nil {
+		fmt.Println("FATAL:", err)
+		os.Exit(1)
+	}
 	th, _, err := st.CreateThread(ctx, fid, user.ID, user.Username, "冒烟测试主题", "首楼内容 :smile:", "<p>首楼内容</p>", false, "")
 	if err != nil {
 		fmt.Println("FATAL:", err)
@@ -211,7 +215,7 @@ func TestPageSmoke(t *testing.T) {
 }
 
 // TestLikeButtonVisibility 楼层操作区按身份的可见性回归
-//（曾发生：点赞按钮被包进 {{if .Editable}}，普通用户看不到任何点赞按钮）。
+// （曾发生：点赞按钮被包进 {{if .Editable}}，普通用户看不到任何点赞按钮）。
 // 冒烟数据：主题 1 首楼由 user01 发、回复由 admin 发。
 func TestLikeButtonVisibility(t *testing.T) {
 	thread := "/thread-1-1-1.html"

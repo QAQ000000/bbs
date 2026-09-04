@@ -113,7 +113,7 @@ func (s *Store) Stickies(ctx context.Context, forumID int64) ([]*Thread, error) 
 func (s *Store) Threads(ctx context.Context, forumID int64, page, size int) ([]*Thread, int, error) {
 	var total int
 	if err := s.pool.QueryRow(ctx,
-		`SELECT count(*) FROM threads WHERE forum_id=$1 AND NOT deleted AND sticky=0`, forumID).Scan(&total); err != nil {
+		`SELECT count(*) FROM threads WHERE forum_id=$1 AND NOT deleted AND NOT pending AND sticky=0`, forumID).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 	rows, err := s.pool.Query(ctx,
@@ -163,7 +163,7 @@ const postCols = `p.id, p.thread_id, p.author_id, u.username, u.group_id,
 const postJoins = `FROM posts p JOIN users u ON u.id = p.author_id`
 
 // Posts 帖子页楼层分页（楼层升序）；includePending 控制是否包含待审核楼层
-//（作者与管理员/版主可见，普通访客不可见）。
+// （作者与管理员/版主可见，普通访客不可见）。
 func (s *Store) Posts(ctx context.Context, threadID int64, page, size int, includePending bool) ([]*Post, error) {
 	pendingFilter := " AND NOT p.pending"
 	if includePending {

@@ -9,7 +9,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
 )
 
 // ---- 点赞 ----
@@ -23,6 +22,10 @@ func (s *Server) likeToggle(w http.ResponseWriter, r *http.Request) {
 	}
 	if !s.checkCSRF(r) {
 		http.Error(w, `{"error":"csrf"}`, http.StatusForbidden)
+		return
+	}
+	if !s.checkNotBanned(w, r) {
+		http.Error(w, `{"error":"banned"}`, http.StatusForbidden)
 		return
 	}
 	pid := pathID(r, "pid")
@@ -71,8 +74,12 @@ func (s *Server) draftSave(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"bad request"}`, http.StatusBadRequest)
 		return
 	}
-	if sess := Session(r); sess != nil && req.CSRF != "" && req.CSRF != sess.CSRF {
+	if sess := Session(r); sess == nil || req.CSRF != sess.CSRF {
 		http.Error(w, `{"error":"csrf"}`, http.StatusForbidden)
+		return
+	}
+	if !s.checkNotBanned(w, r) {
+		http.Error(w, `{"error":"banned"}`, http.StatusForbidden)
 		return
 	}
 	if len(req.Content) > 40000 {

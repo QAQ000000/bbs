@@ -18,7 +18,7 @@ func (s *Server) adminRecycle(w http.ResponseWriter, r *http.Request) {
 	if page < 1 {
 		page = 1
 	}
-	threads, total, err := s.st.RecycleThreads(r.Context(), page, 20)
+	threads, total, err := s.st.RecycleThreads(r.Context(), page, 20, s.staffForumScope(r))
 	if err != nil {
 		s.renderError(w, r, http.StatusInternalServerError, "加载失败", err.Error())
 		return
@@ -49,8 +49,12 @@ func (s *Server) adminRecycleRestore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tid := formInt64(r, "tid")
+	if !s.canModerateRecycleThread(r, tid) {
+		s.renderError(w, r, http.StatusForbidden, "无权操作", "只能恢复自己管辖版块的内容。")
+		return
+	}
 	if err := s.st.RestoreThread(r.Context(), tid); err != nil {
-		s.setFlash(w, "恢复失败：" + err.Error())
+		s.setFlash(w, "恢复失败："+err.Error())
 	} else {
 		if th, err := s.st.Thread(r.Context(), tid); err == nil {
 			s.broadcastThread("thread.new", th)
@@ -70,8 +74,12 @@ func (s *Server) adminRecyclePurge(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tid := formInt64(r, "tid")
+	if !s.canModerateRecycleThread(r, tid) {
+		s.renderError(w, r, http.StatusForbidden, "无权操作", "只能彻底删除自己管辖版块的内容。")
+		return
+	}
 	if err := s.st.PurgeThread(r.Context(), tid); err != nil {
-		s.setFlash(w, "删除失败：" + err.Error())
+		s.setFlash(w, "删除失败："+err.Error())
 	} else {
 		s.logOp(r, "recycle.purge", "彻底删除主题 #"+strconv.FormatInt(tid, 10))
 		s.setFlash(w, "主题已彻底删除")
@@ -87,12 +95,12 @@ func (s *Server) adminRecyclePurgeAll(w http.ResponseWriter, r *http.Request) {
 		s.forbidden(w, r)
 		return
 	}
-	n, err := s.st.PurgeRecycle(r.Context())
+	n, err := s.st.PurgeRecycle(r.Context(), s.staffForumScope(r))
 	if err != nil {
-		s.setFlash(w, "清空失败：" + err.Error())
+		s.setFlash(w, "清空失败："+err.Error())
 	} else {
 		s.logOp(r, "recycle.purgeAll", "清空回收站，共 "+strconv.FormatInt(n, 10)+" 个主题")
-		s.setFlash(w, "已清空 " + strconv.FormatInt(n, 10) + " 个主题")
+		s.setFlash(w, "已清空 "+strconv.FormatInt(n, 10)+" 个主题")
 	}
 	http.Redirect(w, r, "/admin/recyclebin", http.StatusSeeOther)
 }
@@ -125,7 +133,7 @@ func (s *Server) adminCensorAdd(w http.ResponseWriter, r *http.Request) {
 	word := r.PostFormValue("word")
 	repl := r.PostFormValue("replacement")
 	if err := s.st.AddCensorWord(r.Context(), word, repl); err != nil {
-		s.setFlash(w, "添加失败：" + err.Error())
+		s.setFlash(w, "添加失败："+err.Error())
 	} else {
 		s.logOp(r, "censor.add", "敏感词："+word+" → "+displayRepl(repl))
 		s.setFlash(w, "敏感词已添加")
@@ -143,7 +151,7 @@ func (s *Server) adminCensorDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	id := formInt64(r, "id")
 	if err := s.st.DeleteCensorWord(r.Context(), id); err != nil {
-		s.setFlash(w, "删除失败：" + err.Error())
+		s.setFlash(w, "删除失败："+err.Error())
 	} else {
 		s.logOp(r, "censor.delete", "删除敏感词 #"+strconv.FormatInt(id, 10))
 		s.setFlash(w, "敏感词已删除")
@@ -189,7 +197,7 @@ func (s *Server) adminAnnounceAdd(w http.ResponseWriter, r *http.Request) {
 	}
 	u := User(r)
 	if err := s.st.SaveAnnouncement(r.Context(), u.ID, u.Username, r.PostFormValue("content")); err != nil {
-		s.setFlash(w, "发布失败：" + err.Error())
+		s.setFlash(w, "发布失败："+err.Error())
 	} else {
 		s.logOp(r, "announce.add", "发布公告："+truncate(r.PostFormValue("content"), 50))
 		s.setFlash(w, "公告已发布")
@@ -208,7 +216,7 @@ func (s *Server) adminAnnounceToggle(w http.ResponseWriter, r *http.Request) {
 	id := formInt64(r, "id")
 	enabled := r.PostFormValue("enabled") == "1"
 	if err := s.st.SetAnnouncementEnabled(r.Context(), id, enabled); err != nil {
-		s.setFlash(w, "操作失败：" + err.Error())
+		s.setFlash(w, "操作失败："+err.Error())
 	} else {
 		state := "停用"
 		if enabled {
@@ -230,7 +238,7 @@ func (s *Server) adminAnnounceDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	id := formInt64(r, "id")
 	if err := s.st.DeleteAnnouncement(r.Context(), id); err != nil {
-		s.setFlash(w, "删除失败：" + err.Error())
+		s.setFlash(w, "删除失败："+err.Error())
 	} else {
 		s.logOp(r, "announce.delete", "删除公告 #"+strconv.FormatInt(id, 10))
 		s.setFlash(w, "公告已删除")
@@ -244,4 +252,13 @@ func truncate(s string, n int) string {
 		return s
 	}
 	return string(r[:n]) + "…"
+}
+
+// canModerateRecycleThread 回收站操作校验：主题须已软删且在管辖范围内。
+func (s *Server) canModerateRecycleThread(r *http.Request, tid int64) bool {
+	fid, err := s.st.DeletedThreadForumID(r.Context(), tid)
+	if err != nil {
+		return false
+	}
+	return inForumScope(s.staffForumScope(r), fid)
 }

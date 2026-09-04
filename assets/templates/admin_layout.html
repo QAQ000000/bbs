@@ -33,7 +33,7 @@
 			<li{{if eq .NavActive "threads"}} class="a"{{end}}><a href="/admin/threads">内容管理</a></li>
 			<li{{if eq .NavActive "prune"}} class="a"{{end}}><a href="/admin/prune">批量删帖</a></li>
 			<li{{if eq .NavActive "recycle"}} class="a"{{end}}><a href="/admin/recyclebin">回收站</a></li>
-			{{if .User.IsAdmin}}
+				{{if eq .User.GroupID 1}}
 			<li{{if eq .NavActive "forums"}} class="a"{{end}}><a href="/admin/forums">版块管理</a></li>
 			<li{{if eq .NavActive "users"}} class="a"{{end}}><a href="/admin/users">用户管理</a></li>
 			<li{{if eq .NavActive "settings"}} class="a"{{end}}><a href="/admin/settings">站点设置</a></li>

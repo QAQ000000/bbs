@@ -25,7 +25,7 @@ func TestRoleMatrix(t *testing.T) {
 		},
 		RoleModerator: {
 			ContentModerate: true,
-			ContentEditOwn: true, ContentDeleteOwn: true, ContentDeleteAny: true,
+			ContentEditOwn:  true, ContentDeleteOwn: true, ContentDeleteAny: true,
 			RecycleBin: true, PruneRun: true, ModerateQueue: true,
 			UploadUse: true,
 		},

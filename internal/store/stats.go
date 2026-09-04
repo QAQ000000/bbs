@@ -77,8 +77,8 @@ func (s *Store) RecomputeThreadLastPost(ctx context.Context, threadID int64) err
 
 // ApproveThreadPendingAuthors 审批前读取待审核楼层的作者分布（用于回补发帖计数）。
 func (s *Store) ApproveThreadPendingAuthors(ctx context.Context, threadID int64) ([]struct {
-	UID    int64
-	Count  int
+	UID   int64
+	Count int
 }, error) {
 	rows, err := s.pool.Query(ctx,
 		`SELECT author_id, count(*) FROM posts WHERE thread_id=$1 AND pending AND NOT deleted GROUP BY author_id`, threadID)

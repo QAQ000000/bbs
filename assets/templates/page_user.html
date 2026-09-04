@@ -9,7 +9,7 @@
 			<div class="bm_c cl">
 				<div class="z profile-avatar">{{avatar .Profile.ID .Profile.Username}}</div>
 				<div class="profile-info">
-					<h2>{{.Profile.Username}} {{if .Profile.IsAdmin}}<span class="badge badge-admin">管理员</span>{{end}}</h2>
+						<h2>{{.Profile.Username}} {{if eq .Profile.GroupID 1}}<span class="badge badge-admin">管理员</span>{{else if eq .Profile.GroupID 2}}<span class="badge badge-digest">版主</span>{{end}}</h2>
 					<p class="xg1">用户组：{{.Group}}<span class="pipe">|</span>等级：{{.Trust}}<span class="pipe">|</span>帖子：{{.Profile.PostCount}}<span class="pipe">|</span>注册于：{{timefmt .Profile.CreatedAt}}</p>
 					{{if .Profile.Signature}}<p class="signature">{{.Profile.Signature}}</p>{{end}}
 				</div>

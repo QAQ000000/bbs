@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -69,9 +68,8 @@ func safeSmileyName(s string) bool {
 	return !strings.Contains(s, "..")
 }
 
-// GET /api/status — 简单健康检查（含 SSE 在线连接数）。
+// GET /api/status — 简单健康检查。
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	_, _ = w.Write([]byte(`{"ok":true,"subs":` + strconv.Itoa(s.hub.Count()) +
-		`,"ts":"` + time.Now().Format(time.RFC3339) + `"}`))
+	_, _ = w.Write([]byte(`{"ok":true,"ts":"` + time.Now().Format(time.RFC3339) + `"}`))
 }
