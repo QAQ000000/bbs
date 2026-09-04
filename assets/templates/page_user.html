@@ -12,6 +12,7 @@
 						<h2>{{.Profile.Username}} {{if eq .Profile.GroupID 1}}<span class="badge badge-admin">管理员</span>{{else if eq .Profile.GroupID 2}}<span class="badge badge-digest">版主</span>{{end}}</h2>
 					<p class="xg1">用户组：{{.Group}}<span class="pipe">|</span>等级：{{.Trust}}<span class="pipe">|</span>帖子：{{.Profile.PostCount}}<span class="pipe">|</span>注册于：{{timefmt .Profile.CreatedAt}}</p>
 					{{if .Profile.Signature}}<p class="signature">{{.Profile.Signature}}</p>{{end}}
+					{{if .IsSelf}}<p class="xg1"><a href="/profile">› 资料设置</a></p>{{end}}
 				</div>
 			</div>
 		</div>
@@ -28,6 +29,21 @@
 					</tr>{{end}}
 				</table>
 				{{else}}<p class="xg1">暂无主题。</p>{{end}}
+			</div>
+		</div>
+
+		<div class="bm bmw">
+			<div class="bm_h"><h2>回复过的主题</h2></div>
+			<div class="bm_c">
+				{{if .Replies}}
+				<table class="list mini">
+					{{range .Replies}}<tr>
+						<th><a href="{{threadURL .ID}}" class="xst">{{.Title}}</a></th>
+						<td class="num xg1">回复 {{.Replies}} · 查看 {{.ViewCount}}</td>
+						<td class="by xg1">{{timefmt .LastPostAt}}</td>
+					</tr>{{end}}
+				</table>
+				{{else}}<p class="xg1">暂无回复。</p>{{end}}
 			</div>
 		</div>
 	</div>

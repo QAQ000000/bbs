@@ -62,6 +62,18 @@ func (c *sessionCache) invalidate(token string) {
 	c.mu.Unlock()
 }
 
+// invalidateUser 清掉该用户的全部会话缓存项（改密/重置后其他设备立即下线，
+// 不等 30s 正缓存自然过期）。
+func (c *sessionCache) invalidateUser(uid int64) {
+	c.mu.Lock()
+	for k, e := range c.m {
+		if e.val != nil && e.val.UserID == uid {
+			delete(c.m, k)
+		}
+	}
+	c.mu.Unlock()
+}
+
 func (c *sessionCache) janitor() {
 	for range time.Tick(time.Minute) {
 		now := time.Now()

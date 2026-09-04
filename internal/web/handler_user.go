@@ -183,8 +183,9 @@ func (s *Server) registerSubmit(w http.ResponseWriter, r *http.Request) {
 // ---- 退出 ----
 
 func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
-	if sess := Session(r); sess != nil {
-		s.st.DeleteSession(r.Context(), sess.Token)
+	// Cookie 里是原始 token，DeleteSession 内部做哈希；不能传 sess.Token（已是哈希，会二次哈希删不掉）
+	if c, err := r.Cookie(cookieSession); err == nil && c.Value != "" {
+		s.st.DeleteSession(r.Context(), c.Value)
 	}
 	s.setSessionCookie(w, "", -1)
 	s.setFlash(w, "已退出登录")
@@ -208,9 +209,16 @@ func (s *Server) userPage(w http.ResponseWriter, r *http.Request) {
 		s.renderError(w, r, http.StatusInternalServerError, "加载失败", err.Error())
 		return
 	}
-	var tvms []*store.Thread
-	for _, t := range threads {
-		tvms = append(tvms, t)
+	replies, err := s.st.RecentRepliesOfUser(r.Context(), uid, 10)
+	if err != nil {
+		s.renderError(w, r, http.StatusInternalServerError, "加载失败", err.Error())
+		return
+	}
+	if threads == nil {
+		threads = []*store.Thread{}
+	}
+	if replies == nil {
+		replies = []*store.Thread{}
 	}
 	groupName := perm.RoleName(perm.RoleFromGroupID(u.GroupID))
 	data := struct {
@@ -219,8 +227,9 @@ func (s *Server) userPage(w http.ResponseWriter, r *http.Request) {
 		Group   string
 		Trust   string
 		Threads []*store.Thread
+		Replies []*store.Thread
 		IsSelf  bool
-	}{s.common(r), u, groupName, store.TrustLevelName(u.TrustLevel), tvms, User(r) != nil && User(r).ID == u.ID}
+	}{s.common(r), u, groupName, store.TrustLevelName(u.TrustLevel), threads, replies, User(r) != nil && User(r).ID == u.ID}
 	_ = s.rd.Render(w, "page_user.html", &data)
 }
 

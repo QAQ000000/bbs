@@ -136,6 +136,21 @@ func (s *Store) RecentThreadsOfUser(ctx context.Context, uid int64, limit int) (
 	return collectThreads(rows, err)
 }
 
+// RecentRepliesOfUser 用户回复过的主题（楼层 >1，按其最后回复时间排序，公开口径）。
+func (s *Store) RecentRepliesOfUser(ctx context.Context, uid int64, limit int) ([]*Thread, error) {
+	rows, err := s.pool.Query(ctx,
+		`SELECT `+threadCols+` `+threadJoins+`
+		 WHERE t.id IN (
+			SELECT p.thread_id FROM posts p
+			WHERE p.author_id=$1 AND p.floor > 1 AND NOT p.deleted AND NOT p.pending
+		 )
+		   AND NOT t.deleted AND NOT t.pending
+		 ORDER BY (SELECT max(p.created_at) FROM posts p
+		           WHERE p.thread_id = t.id AND p.author_id=$1 AND p.floor > 1) DESC
+		 LIMIT $2`, uid, limit)
+	return collectThreads(rows, err)
+}
+
 func collectThreads(rows pgx.Rows, err error) ([]*Thread, error) {
 	if err != nil {
 		return nil, err

@@ -22,6 +22,12 @@ var ErrNotFound = errors.New("not found")
 // ErrUserHasContent 用户仍有公开内容，不能直接删号。
 var ErrUserHasContent = errors.New("该用户仍有未删除的发帖，不能直接删号，请先处理其内容或使用禁言")
 
+// ErrWrongPassword 密码校验失败。
+var ErrWrongPassword = errors.New("wrong password")
+
+// ErrEmailTaken 邮箱已被其他账号使用。
+var ErrEmailTaken = errors.New("该邮箱已被其他账号使用")
+
 // Store 封装全部数据库访问。
 type Store struct {
 	pool     *pgxpool.Pool

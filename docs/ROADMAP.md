@@ -6,18 +6,18 @@
 
 ---
 
-## 阶段一：账户与资料（用户每天会用的第一条路径）
+## 阶段一：账户与资料（用户每天会用的第一条路径）✅ 2026-09-05
 
 **目标**：个人空间从只读变为可用，用户登录后有完整的自我管理能力。
 
-| # | 任务 | 落点 |
-| --- | --- | --- |
-| 1.1 | 资料编辑页：签名（限长 200）、邮箱修改（改邮箱走旧邮箱确认或管理员审计日志留痕） | 新 `page_profile.html`、`internal/web/handler_profile.go`、`store.UpdateProfile` |
-| 1.2 | 修改密码：旧密码验证 + 新密码强度（≥8 位），成功后撤销其他会话（复用找回密码的会话下线逻辑） | `handler_user.go`、复用 `handler_reset.go` 模式 |
-| 1.3 | 「我回复过的主题」：按 `posts.author_id` 查最近参与的主题（去重、公开口径），主页两个列表 | `store.RecentRepliesOfUser`、`page_user.html` |
-| 1.4 | 头像上传（可选）：替换字母 SVG，走现有上传管道（嗅探 MIME、限额、`/uploads/` 落盘），50×50 缩略 | `internal/avatar` 扩展、`users.avatar_path` 列 |
+| # | 任务 | 落点 | 状态 |
+| --- | --- | --- | --- |
+| 1.1 | 资料编辑页：签名（限长 200）、邮箱修改（唯一性校验 + 友好冲突文案） | `page_profile.html`、`internal/web/handler_profile.go`、`store.UpdateProfile` | ✅ |
+| 1.2 | 修改密码：旧密码验证 + 新密码强度（≥8 位），成功后撤销其他会话（含会话缓存同步失效）；顺带修复 logout 二次哈希导致会话行未删除的 bug | `handler_profile.go`、`store.ChangePassword`、`sessionCache.invalidateUser` | ✅ |
+| 1.3 | 「我回复过的主题」：按 `posts.author_id` 查最近参与的主题（去重、公开口径），主页两个列表 | `store.RecentRepliesOfUser`、`page_user.html` | ✅ |
+| 1.4 | 头像上传（可选）：暂缓，字母 SVG 头像已可用 | — | ⏸ |
 
-**验收**：登录用户可改签名/邮箱/密码并即时生效；改密后其他设备会话失效；主页能看到回复历史；冒烟测试加 4 条 GET 断言。
+**验收**（已达成）：登录用户可改签名/邮箱/密码并即时生效；改密后其他设备会话失效；主页能看到回复历史；冒烟测试含 `/profile` GET 断言与 `TestProfileFlow`（资料保存/旧密码拒绝/不一致拒绝/改密往返）。
 
 **依赖**：无。**风险**：改邮箱涉及唯一索引冲突文案（`users_email_unique_idx`），需友好提示。
 

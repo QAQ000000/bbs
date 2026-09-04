@@ -46,6 +46,9 @@ func (s *Server) routes() http.Handler {
 	m.HandleFunc("POST /register", s.registerSubmit)
 	m.HandleFunc("POST /logout", s.logout)
 	m.HandleFunc("GET /user/{id}", s.userPage)
+	m.HandleFunc("GET /profile", s.profileForm)
+	m.HandleFunc("POST /profile/save", s.profileSave)
+	m.HandleFunc("POST /profile/password", s.profilePassword)
 
 	// 发帖
 	m.HandleFunc("GET /new", s.newThreadForm)

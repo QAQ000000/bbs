@@ -174,6 +174,7 @@ func TestPageSmoke(t *testing.T) {
 		{"回复表单", "/reply/1", userCookie, 2500},
 		{"编辑表单", "/edit/1", userCookie, 2500},
 		{"通知页", "/notify", userCookie, 1200},
+		{"资料设置", "/profile", userCookie, 1800},
 		{"后台仪表盘", "/admin", adminCookie, 1800},
 		{"版块管理", "/admin/forums", adminCookie, 2000},
 		{"内容管理", "/admin/threads", adminCookie, 1800},
@@ -347,6 +348,48 @@ func TestAPIJSON(t *testing.T) {
 	w := smokeGet(t, "/api/status", nil)
 	if w.Code != 200 || !strings.Contains(w.Body.String(), `"ok":true`) {
 		t.Fatalf("/api/status 异常: %d %s", w.Code, w.Body.String())
+	}
+}
+
+// TestProfileFlow 阶段一回归：资料保存生效、回复历史可见、改密校验旧密码。
+// 结束时把 user01 密码改回原值，保持种子状态可复跑。
+func TestProfileFlow(t *testing.T) {
+	// 资料保存：签名 + 邮箱（保持原邮箱）
+	w := smokePost(t, "/profile/save", userCSRF,
+		"signature=冒烟签名&email=user%40test.local", userCookie)
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("保存资料 → %d，期望 303: %s", w.Code, firstLine(w.Body.String()))
+	}
+	body := smokeGet(t, "/user/2", nil).Body.String()
+	if !strings.Contains(body, "冒烟签名") {
+		t.Fatal("个人空间未显示新签名")
+	}
+	if !strings.Contains(body, "回复过的主题") {
+		t.Fatal("个人空间缺少回复历史区块")
+	}
+
+	// 改密：旧密码错误被拒
+	w = smokePost(t, "/profile/password", userCSRF,
+		"old_password=wrongpass&new_password=user123456x&confirm_password=user123456x", userCookie)
+	if !strings.Contains(w.Body.String(), "当前密码不正确") {
+		t.Fatalf("错误旧密码应被拒: %d %s", w.Code, firstLine(w.Body.String()))
+	}
+	// 改密：两次输入不一致被拒
+	w = smokePost(t, "/profile/password", userCSRF,
+		"old_password=user123456&new_password=user123456x&confirm_password=other12345", userCookie)
+	if !strings.Contains(w.Body.String(), "不一致") {
+		t.Fatalf("不一致确认应被拒: %d %s", w.Code, firstLine(w.Body.String()))
+	}
+	// 改密成功（当前会话保留），再改回
+	w = smokePost(t, "/profile/password", userCSRF,
+		"old_password=user123456&new_password=user123456x&confirm_password=user123456x", userCookie)
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("改密 → %d，期望 303: %s", w.Code, firstLine(w.Body.String()))
+	}
+	w = smokePost(t, "/profile/password", userCSRF,
+		"old_password=user123456x&new_password=user123456&confirm_password=user123456", userCookie)
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("改回密码 → %d，期望 303: %s", w.Code, firstLine(w.Body.String()))
 	}
 }
 

@@ -140,7 +140,48 @@ func (s *Store) ConsumePasswordReset(ctx context.Context, raw string) error {
 		return err
 	}
 	_, err := s.pool.Exec(ctx, `DELETE FROM sessions WHERE user_id=$1`, uid)
+	s.sessions.invalidateUser(uid)
 	return err
+}
+
+// UpdateProfile 更新签名与邮箱（邮箱唯一性由 users_email_unique_idx 兜底）。
+func (s *Store) UpdateProfile(ctx context.Context, uid int64, signature, email string) error {
+	_, err := s.pool.Exec(ctx,
+		`UPDATE users SET signature=$2, email=$3 WHERE id=$1`, uid, signature, email)
+	return err
+}
+
+// ChangePassword 修改密码：校验旧密码；成功后撤销当前会话之外的全部会话。
+// keepRawToken 为当前设备的原始会话 token（空则撤销全部会话）。
+func (s *Store) ChangePassword(ctx context.Context, uid int64, oldPassword, newPassword, keepRawToken string) error {
+	var hash string
+	err := s.pool.QueryRow(ctx, `SELECT password_hash FROM users WHERE id=$1`, uid).Scan(&hash)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrNotFound
+	}
+	if err != nil {
+		return err
+	}
+	if bcrypt.CompareHashAndPassword([]byte(hash), []byte(oldPassword)) != nil {
+		return ErrWrongPassword
+	}
+	newHash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	if _, err := s.pool.Exec(ctx, `UPDATE users SET password_hash=$2 WHERE id=$1`, uid, string(newHash)); err != nil {
+		return err
+	}
+	if keepRawToken != "" {
+		if _, err := s.pool.Exec(ctx,
+			`DELETE FROM sessions WHERE user_id=$1 AND token<>$2`, uid, hashToken(keepRawToken)); err != nil {
+			return err
+		}
+	} else if _, err := s.pool.Exec(ctx, `DELETE FROM sessions WHERE user_id=$1`, uid); err != nil {
+		return err
+	}
+	s.sessions.invalidateUser(uid)
+	return nil
 }
 
 // UpdatePassword 重设密码（bcrypt）。
