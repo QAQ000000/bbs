@@ -241,9 +241,23 @@ func (s *Server) handleThread(w http.ResponseWriter, r *http.Request, tid int64,
 		ids = append(ids, p.ID)
 	}
 	atts, _ := s.st.UploadsForPosts(r.Context(), ids)
+	editFlag := map[int64]bool{}
+	if viewer != nil {
+		for _, pid := range ids {
+			if s.st.PostEditCount(r.Context(), pid) > 0 {
+				editFlag[pid] = true
+			}
+		}
+	}
+	viewerIsAdmin := viewer != nil && hasPoint(viewer, perm.AdminPanel)
 	for _, p := range posts {
 		vm := PostVMOf(p, viewer, common.CSRF)
 		vm.Attachments = atts[p.ID]
+		vm.HasEdits = editFlag[p.ID]
+		if viewerIsAdmin && p.IP != "" {
+			vm.ShowIP = true
+			vm.MaskedIP = maskIP(p.IP)
+		}
 		pvm = append(pvm, vm)
 	}
 	// 版主删除限管辖版块（管理员不限；删自己的内容始终允许）
@@ -289,13 +303,30 @@ func (s *Server) handleThread(w http.ResponseWriter, r *http.Request, tid int64,
 		LiveTopic    string
 		QuickReply   *editorData
 		PostsPerPage int
+		Favorited    bool
 	}{common, th, forum, pvm, pager, page, totalPages,
-		"thread=" + strconv.FormatInt(tid, 10), quick, perPage}
+		"thread=" + strconv.FormatInt(tid, 10), quick, perPage, viewer != nil && s.st.IsFavorite(r.Context(), viewer.ID, tid)}
 	data.Title = th.Title
 	if page == 1 && len(pvm) > 0 {
 		data.MetaDesc = metaDesc(pvm[0].ContentMD)
 	}
 	_ = s.rd.Render(w, "page_thread.html", &data)
+}
+
+// maskIP IP 掩码：IPv4 保留前两段，IPv6 保留前四组。
+func maskIP(ip string) string {
+	if strings.Contains(ip, ":") {
+		parts := strings.SplitN(ip, ":", 5)
+		if len(parts) > 4 {
+			return strings.Join(parts[:4], ":") + ":…"
+		}
+		return ip
+	}
+	parts := strings.SplitN(ip, ".", 4)
+	if len(parts) == 4 {
+		return parts[0] + "." + parts[1] + ".x.x"
+	}
+	return ip
 }
 
 // metaDesc 楼层 Markdown 转纯文本摘要（meta description / OG 用，≤150 字）。

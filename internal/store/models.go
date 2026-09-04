@@ -108,6 +108,7 @@ type Post struct {
 	PendingReason string // 进入审核的原因（manual / newuser_link）
 	LikeCount     int    // 点赞数（冗余回写）
 	Version       int    // 编辑版本号（冲突检测）
+	IP            string // 发布来源 IP（隐私政策声明，仅管理员可见掩码）
 }
 
 // Session 服务端会话。

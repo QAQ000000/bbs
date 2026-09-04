@@ -920,3 +920,112 @@ func TestSetupRedirect(t *testing.T) {
 		t.Fatalf("已有用户时 /setup 应重定向: %d", w.Code)
 	}
 }
+
+// TestFavoriteFlow 收藏：收藏→收藏页可见→取消后消失。
+func TestFavoriteFlow(t *testing.T) {
+	w := smokePost(t, "/favorite/1", userCSRF, "", userCookie)
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("收藏 → %d", w.Code)
+	}
+	body := smokeGet(t, "/favorites", userCookie).Body.String()
+	if !strings.Contains(body, "冒烟测试主题") {
+		t.Fatal("收藏页未显示已收藏主题")
+	}
+	w = smokePost(t, "/favorite/1", userCSRF, "", userCookie)
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("取消收藏 → %d", w.Code)
+	}
+	body = smokeGet(t, "/favorites", userCookie).Body.String()
+	if strings.Contains(body, "冒烟测试主题") {
+		t.Fatal("取消后收藏页仍显示")
+	}
+}
+
+// TestDraftsPage 草稿箱：云端保存的草稿出现在页面并可删除。
+func TestDraftsPage(t *testing.T) {
+	// 经 API 保存草稿（编辑器自动保存同路径）
+	req := httptest.NewRequest(http.MethodPost, "/api/draft",
+		strings.NewReader(`{"context":"reply:1","content":"草稿箱回归内容","csrf":"`+userCSRF+`"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(userCookie)
+	resp := httptest.NewRecorder()
+	smokeSrv.Handler().ServeHTTP(resp, req)
+	if resp.Code != 200 {
+		t.Fatalf("草稿保存 → %d", resp.Code)
+	}
+	body := smokeGet(t, "/drafts", userCookie).Body.String()
+	if !strings.Contains(body, "草稿箱回归内容") || !strings.Contains(body, "回复主题 #1") {
+		t.Fatal("草稿箱未显示草稿")
+	}
+	// 删除
+	w := smokePost(t, "/drafts/delete", userCSRF, "context=reply:1", userCookie)
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("删除草稿 → %d", w.Code)
+	}
+	body = smokeGet(t, "/drafts", userCookie).Body.String()
+	if strings.Contains(body, "草稿箱回归内容") {
+		t.Fatal("删除后草稿仍显示")
+	}
+}
+
+// TestPostHistory 编辑历史：作者可查快照，游客跳登录。
+func TestPostHistory(t *testing.T) {
+	// 不带 version（避免与本文件其他用例的版本号断言互相干扰）
+	w := smokePost(t, "/edit/1", userCSRF, "subject=冒烟测试主题&content=改后内容", userCookie)
+	if w.Code != http.StatusFound && w.Code != http.StatusSeeOther {
+		t.Fatalf("编辑 → %d，Location=%q，body=%s", w.Code, w.Header().Get("Location"), firstLine(w.Body.String()))
+	}
+	body := smokeGet(t, "/post/1/history", userCookie).Body.String()
+	if !strings.Contains(body, "编辑前的内容") || !strings.Contains(body, "首楼内容") {
+		t.Fatal("编辑历史缺快照")
+	}
+	w = smokeGet(t, "/post/1/history", nil)
+	if w.Code != http.StatusFound || !strings.HasPrefix(w.Header().Get("Location"), "/login") {
+		t.Fatalf("游客查历史应跳登录: %d", w.Code)
+	}
+}
+
+// TestPostIP 楼层 IP：写入 DB，管理员可见掩码，游客与作者不可见。
+func TestPostIP(t *testing.T) {
+	ctx := context.Background()
+	// 回帖产生新楼层（HTTP 路径写入 IP；TestMain 直建楼层无 IP）
+	w := smokePost(t, "/reply/1", adminCSRF, "content=IP 记录回归", adminCookie)
+	if w.Code != http.StatusFound && w.Code != http.StatusSeeOther {
+		t.Fatalf("回帖 → %d", w.Code)
+	}
+	var pid int64
+	if err := smokePool.QueryRow(ctx,
+		`SELECT id FROM posts WHERE content_md='IP 记录回归'`).Scan(&pid); err != nil {
+		t.Fatal(err)
+	}
+	var ip string
+	if err := smokePool.QueryRow(ctx, `SELECT ip FROM posts WHERE id=$1`, pid).Scan(&ip); err != nil {
+		t.Fatal(err)
+	}
+	if ip == "" {
+		t.Fatal("楼层 IP 未记录")
+	}
+	body := smokeGet(t, "/thread-1-1-1.html", adminCookie).Body.String()
+	if !strings.Contains(body, "IP 192.0.x.x") {
+		t.Fatal("管理员应看到掩码 IP")
+	}
+	body = smokeGet(t, "/thread-1-1-1.html", userCookie).Body.String()
+	if strings.Contains(body, "ip-line") {
+		t.Fatal("非管理员不应看到 IP")
+	}
+}
+
+// TestUserPagination 个人页分页：tab 切换与页码参数可用。
+func TestUserPagination(t *testing.T) {
+	body := smokeGet(t, "/user/2?tab=threads&page=1", nil).Body.String()
+	if !strings.Contains(body, "最近主题") || strings.Contains(body, "加载失败") {
+		t.Fatal("主题 tab 异常")
+	}
+	body = smokeGet(t, "/user/2?tab=replies&page=1", nil).Body.String()
+	if !strings.Contains(body, "回复过的主题") || strings.Contains(body, "加载失败") {
+		t.Fatal("回复 tab 异常")
+	}
+	if !strings.Contains(body, "声望") {
+		t.Fatal("个人页缺声望展示")
+	}
+}

@@ -141,7 +141,10 @@ type PostVM struct {
 	Quotable    bool           // 可引用（登录即可）
 	CanReport   bool           // 可举报（登录且非本人楼层）
 	Attachments []store.Upload // 楼层附件（uploads 挂靠）
-	CSRF        string         // 删除表单用
+	ShowIP      bool           // 管理员可见 IP 掩码
+	MaskedIP    string
+	HasEdits    bool   // 楼层有编辑历史（显示「历史」入口）
+	CSRF        string // 删除表单用
 }
 
 // PostVMOf 构建楼层视图模型；viewer 为 nil 时（SSE 广播）无编辑权限。

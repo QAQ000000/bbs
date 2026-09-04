@@ -250,3 +250,12 @@ func (s *Store) SetThreadProperties(ctx context.Context, tid int64, sticky int, 
 		WHERE id=$1`, tid, sticky, digest, closed)
 	return err
 }
+
+// SetPostIP 记录楼层发布来源 IP（隐私政策声明；仅管理员可见掩码）。
+// 首次写入后不再覆盖（编辑不改来源）。
+func (s *Store) SetPostIP(ctx context.Context, postID int64, ip string) {
+	if ip == "" {
+		return
+	}
+	_, _ = s.pool.Exec(ctx, `UPDATE posts SET ip=$2 WHERE id=$1 AND ip=''`, postID, ip)
+}

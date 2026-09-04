@@ -141,17 +141,33 @@ func (s *Store) Threads(ctx context.Context, forumID int64, page, size int, sort
 	return list, total, nil
 }
 
-// RecentThreads 用户主页：最近参与的主题。
-func (s *Store) RecentThreadsOfUser(ctx context.Context, uid int64, limit int) ([]*Thread, error) {
+// RecentThreadsOfUser 用户主页：最近参与的主题（分页，公开口径）。
+func (s *Store) RecentThreadsOfUser(ctx context.Context, uid int64, limit, offset int) ([]*Thread, int, error) {
+	var total int
+	if err := s.pool.QueryRow(ctx,
+		`SELECT count(*) FROM threads WHERE author_id=$1 AND NOT deleted AND NOT pending`, uid).Scan(&total); err != nil {
+		return nil, 0, err
+	}
 	rows, err := s.pool.Query(ctx,
 		`SELECT `+threadCols+` `+threadJoins+`
 		 WHERE t.author_id=$1 AND NOT t.deleted AND NOT t.pending
-		 ORDER BY t.last_post_at DESC LIMIT $2`, uid, limit)
-	return collectThreads(rows, err)
+		 ORDER BY t.last_post_at DESC LIMIT $2 OFFSET $3`, uid, limit, offset)
+	list, err := collectThreads(rows, err)
+	if err != nil {
+		return nil, 0, err
+	}
+	return list, total, nil
 }
 
-// RecentRepliesOfUser 用户回复过的主题（楼层 >1，按其最后回复时间排序，公开口径）。
-func (s *Store) RecentRepliesOfUser(ctx context.Context, uid int64, limit int) ([]*Thread, error) {
+// RecentRepliesOfUser 用户回复过的主题（楼层 >1，按其最后回复时间排序，公开口径，分页）。
+func (s *Store) RecentRepliesOfUser(ctx context.Context, uid int64, limit, offset int) ([]*Thread, int, error) {
+	var total int
+	if err := s.pool.QueryRow(ctx, `
+		SELECT count(DISTINCT p.thread_id) FROM posts p
+		JOIN threads t ON t.id = p.thread_id AND NOT t.deleted AND NOT t.pending
+		WHERE p.author_id=$1 AND p.floor > 1 AND NOT p.deleted AND NOT p.pending`, uid).Scan(&total); err != nil {
+		return nil, 0, err
+	}
 	rows, err := s.pool.Query(ctx,
 		`SELECT `+threadCols+` `+threadJoins+`
 		 WHERE t.id IN (
@@ -161,8 +177,12 @@ func (s *Store) RecentRepliesOfUser(ctx context.Context, uid int64, limit int) (
 		   AND NOT t.deleted AND NOT t.pending
 		 ORDER BY (SELECT max(p.created_at) FROM posts p
 		           WHERE p.thread_id = t.id AND p.author_id=$1 AND p.floor > 1) DESC
-		 LIMIT $2`, uid, limit)
-	return collectThreads(rows, err)
+		 LIMIT $2 OFFSET $3`, uid, limit, offset)
+	list, err := collectThreads(rows, err)
+	if err != nil {
+		return nil, 0, err
+	}
+	return list, total, nil
 }
 
 // SitemapThread 站点地图条目。
@@ -232,7 +252,8 @@ func collectThreads(rows pgx.Rows, err error) ([]*Thread, error) {
 
 const postCols = `p.id, p.thread_id, p.author_id, u.username, u.group_id,
 	p.floor, p.content_md, p.content_html, p.created_at,
-	coalesce(p.edited_at, 'epoch'::timestamptz), p.edited_at IS NOT NULL, p.pending, p.pending_reason, p.like_count, p.version`
+	coalesce(p.edited_at, 'epoch'::timestamptz), p.edited_at IS NOT NULL, p.pending, p.pending_reason, p.like_count, p.version,
+	p.ip`
 
 const postJoins = `FROM posts p JOIN users u ON u.id = p.author_id`
 
@@ -255,7 +276,7 @@ func (s *Store) Posts(ctx context.Context, threadID int64, page, size int, inclu
 	for rows.Next() {
 		var p Post
 		if err := rows.Scan(&p.ID, &p.ThreadID, &p.AuthorID, &p.AuthorName, &p.AuthorGroup,
-			&p.Floor, &p.ContentMD, &p.ContentHTML, &p.CreatedAt, &p.EditedAt, &p.HasEdited, &p.Pending, &p.PendingReason, &p.LikeCount, &p.Version); err != nil {
+			&p.Floor, &p.ContentMD, &p.ContentHTML, &p.CreatedAt, &p.EditedAt, &p.HasEdited, &p.Pending, &p.PendingReason, &p.LikeCount, &p.Version, &p.IP); err != nil {
 			return nil, err
 		}
 		out = append(out, &p)
@@ -268,7 +289,7 @@ func (s *Store) Post(ctx context.Context, id int64) (*Post, error) {
 	err := s.pool.QueryRow(ctx,
 		`SELECT `+postCols+` `+postJoins+` WHERE p.id=$1 AND NOT p.deleted`, id).
 		Scan(&p.ID, &p.ThreadID, &p.AuthorID, &p.AuthorName, &p.AuthorGroup,
-			&p.Floor, &p.ContentMD, &p.ContentHTML, &p.CreatedAt, &p.EditedAt, &p.HasEdited, &p.Pending, &p.PendingReason, &p.LikeCount, &p.Version)
+			&p.Floor, &p.ContentMD, &p.ContentHTML, &p.CreatedAt, &p.EditedAt, &p.HasEdited, &p.Pending, &p.PendingReason, &p.LikeCount, &p.Version, &p.IP)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	}

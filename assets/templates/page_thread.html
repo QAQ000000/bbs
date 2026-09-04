@@ -16,6 +16,14 @@
 				{{if .Thread.Sticky}}<span class="badge badge-sticky">置顶</span>{{end}}
 			</h1>
 			{{if .Thread.Pending}}<div class="pending-tip">⏳ 该主题正在等待审核，审核通过前仅作者与管理人员可见。</div>{{end}}
+			{{if .User}}
+			<div class="thread-actions">
+				<form method="post" action="/favorite/{{.Thread.ID}}" class="inlineform">
+					<input type="hidden" name="_csrf" value="{{.CSRF}}">
+					<button type="submit" class="linklike">{{if .Favorited}}★ 已收藏{{else}}☆ 收藏本主题{{end}}</button>
+				</form>
+			</div>
+			{{end}}
 			<p class="xg1 hm-meta">
 				<a href="{{forumURL .Forum.ID}}">{{.Forum.Name}}</a><span class="pipe">|</span>
 				<a href="{{userURL .Thread.AuthorID}}">{{.Thread.AuthorName}}</a><span class="pipe">|</span>

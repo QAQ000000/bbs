@@ -31,6 +31,8 @@
 		<div class="um y">
 			{{if .User}}
 				<a href="{{userURL .User.ID}}" class="avt" title="{{.User.Username}}">{{avatar .User.ID .User.Username}}</a>
+					<a href="/favorites" class="xg1" title="我的收藏">收藏</a><span class="pipe">|</span>
+					<a href="/drafts" class="xg1" title="草稿箱">草稿</a><span class="pipe">|</span>
 					<span class="vwmy"><a href="{{userURL .User.ID}}">{{.User.Username}}</a></span>
 					<span class="pipe">|</span>
 					<a href="/notify" class="notify-link{{if gt .NotifyCount 0}} has-unread{{end}}">通知{{if gt .NotifyCount 0}} <em class="notify-num">{{.NotifyCount}}</em>{{end}}</a>

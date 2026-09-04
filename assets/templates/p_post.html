@@ -6,6 +6,7 @@
 				<a href="{{userURL .AuthorID}}" class="authi xw1">{{.AuthorName}}</a>
 				{{if eq .AuthorGroup 1}}<span class="badge badge-admin">管理员</span>{{else if eq .AuthorGroup 2}}<span class="badge badge-digest">版主</span>{{end}}
 				{{if .Pending}}<span class="badge badge-sticky">待审核</span>{{end}}
+				{{if .ShowIP}}<p class="xg1 ip-line" title="仅管理员可见">IP {{.MaskedIP}}</p>{{end}}
 			</div>
 		</div>
 	</div>
@@ -37,6 +38,7 @@
 					<span class="like-count" data-lc="{{.ID}}"{{if gt .LikeCount 0}} data-likes-toggle="{{.ID}}"{{end}}>{{if gt .LikeCount 0}}👍 ×{{.LikeCount}}{{end}}</span>
 				</span>
 				{{if .Quotable}}<a href="/reply/{{.ThreadID}}?quote={{.ID}}" class="linklike quotebtn" title="引用回复">引用</a>{{end}}
+				{{if .HasEdits}}<a href="/post/{{.ID}}/history" class="linklike xg1" title="编辑历史">历史</a>{{end}}
 				{{if .CanReport}}
 				<details class="report-box">
 					<summary class="linklike reportbtn" title="举报">举报</summary>

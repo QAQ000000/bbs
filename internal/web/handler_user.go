@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -301,23 +302,20 @@ func (s *Server) userPage(w http.ResponseWriter, r *http.Request) {
 		s.renderError(w, r, http.StatusInternalServerError, "加载失败", err.Error())
 		return
 	}
-	threads, err := s.st.RecentThreadsOfUser(r.Context(), uid, 10)
-	if err != nil {
-		s.renderError(w, r, http.StatusInternalServerError, "加载失败", err.Error())
-		return
+	// tab: threads（默认）/ replies；各 10 条分页
+	tab := r.URL.Query().Get("tab")
+	if tab != "replies" {
+		tab = "threads"
 	}
-	replies, err := s.st.RecentRepliesOfUser(r.Context(), uid, 10)
-	if err != nil {
-		s.renderError(w, r, http.StatusInternalServerError, "加载失败", err.Error())
-		return
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	if page < 1 {
+		page = 1
 	}
-	if threads == nil {
-		threads = []*store.Thread{}
-	}
-	if replies == nil {
-		replies = []*store.Thread{}
-	}
+	const size = 10
+
 	groupName := perm.RoleName(perm.RoleFromGroupID(u.GroupID))
+	posts, likes, _ := s.st.Reputation(r.Context(), uid)
+
 	data := struct {
 		Common
 		Profile *store.User
@@ -326,7 +324,45 @@ func (s *Server) userPage(w http.ResponseWriter, r *http.Request) {
 		Threads []*store.Thread
 		Replies []*store.Thread
 		IsSelf  bool
-	}{s.common(r), u, groupName, store.TrustLevelName(u.TrustLevel), threads, replies, User(r) != nil && User(r).ID == u.ID}
+		Tab     string
+		Page    []PageItem
+		Posts   int64
+		Likes   int64
+	}{s.common(r), u, groupName, store.TrustLevelName(u.TrustLevel), nil, nil,
+		User(r) != nil && User(r).ID == u.ID, tab, nil, posts, likes}
+
+	pager := func(n int) string {
+		return UserURL(uid) + "?tab=" + tab + "&page=" + strconv.Itoa(n)
+	}
+	if tab == "replies" {
+		rows, total, err := s.st.RecentRepliesOfUser(r.Context(), uid, size, (page-1)*size)
+		if err != nil {
+			s.renderError(w, r, http.StatusInternalServerError, "加载失败", err.Error())
+			return
+		}
+		if rows == nil {
+			rows = []*store.Thread{}
+		}
+		data.Replies = rows
+		totalPage := (total + size - 1) / size
+		if totalPage > 1 {
+			data.Page = BuildPage(page, totalPage, pager)
+		}
+	} else {
+		rows, total, err := s.st.RecentThreadsOfUser(r.Context(), uid, size, (page-1)*size)
+		if err != nil {
+			s.renderError(w, r, http.StatusInternalServerError, "加载失败", err.Error())
+			return
+		}
+		if rows == nil {
+			rows = []*store.Thread{}
+		}
+		data.Threads = rows
+		totalPage := (total + size - 1) / size
+		if totalPage > 1 {
+			data.Page = BuildPage(page, totalPage, pager)
+		}
+	}
 	_ = s.rd.Render(w, "page_user.html", &data)
 }
 

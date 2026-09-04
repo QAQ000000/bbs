@@ -178,6 +178,7 @@ func (s *Server) newThreadSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.linkUploads(r, u.ID, p.ID, content)
+	s.st.SetPostIP(r.Context(), p.ID, remoteIP(r))
 	// 待审核内容不进入事件层（SSE 订阅者含匿名访客），审批通过时再广播
 	if !pending {
 		s.broadcastPost("post.new", th, p)
@@ -302,6 +303,7 @@ func (s *Server) replySubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.linkUploads(r, u.ID, p.ID, content)
+	s.st.SetPostIP(r.Context(), p.ID, remoteIP(r))
 	if !pending {
 		s.broadcastPost("post.new", th, p)
 		s.broadcastThread("thread.update", th)
@@ -423,6 +425,10 @@ func (s *Server) editSubmit(w http.ResponseWriter, r *http.Request) {
 	ct := s.censorTexts(r, subject, content)
 	subject, content = ct[0], ct[1]
 	html := markdown.Render(content)
+	if err := s.st.SavePostEdit(r.Context(), pid, u.ID, p.ContentMD); err != nil {
+		s.renderError(w, r, http.StatusInternalServerError, "保存失败", err.Error())
+		return
+	}
 	p2, th, err := s.st.UpdatePost(r.Context(), pid, subject, content, html)
 	if err != nil {
 		s.renderError(w, r, http.StatusInternalServerError, "保存失败", err.Error())

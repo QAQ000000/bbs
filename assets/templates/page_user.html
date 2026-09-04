@@ -9,43 +9,47 @@
 			<div class="bm_c cl">
 				<div class="z profile-avatar">{{avatar .Profile.ID .Profile.Username}}</div>
 				<div class="profile-info">
-						<h2>{{.Profile.Username}} {{if eq .Profile.GroupID 1}}<span class="badge badge-admin">管理员</span>{{else if eq .Profile.GroupID 2}}<span class="badge badge-digest">版主</span>{{end}}</h2>
-					<p class="xg1">用户组：{{.Group}}<span class="pipe">|</span>等级：{{.Trust}}<span class="pipe">|</span>帖子：{{.Profile.PostCount}}<span class="pipe">|</span>注册于：{{timefmt .Profile.CreatedAt}}</p>
+					<h2>{{.Profile.Username}} {{if eq .Profile.GroupID 1}}<span class="badge badge-admin">管理员</span>{{else if eq .Profile.GroupID 2}}<span class="badge badge-digest">版主</span>{{end}}</h2>
+					<p class="xg1">用户组：{{.Group}}<span class="pipe">|</span>等级：{{.Trust}}<span class="pipe">|</span>帖子：{{.Profile.PostCount}}<span class="pipe">|</span>声望：<em class="xi1">{{.Posts}} 帖 + {{.Likes}} 赞</em><span class="pipe">|</span>注册于：{{timefmt .Profile.CreatedAt}}</p>
 					{{if .Profile.Signature}}<p class="signature">{{.Profile.Signature}}</p>{{end}}
-					{{if .IsSelf}}<p class="xg1"><a href="/profile">› 资料设置</a></p>{{end}}
+					<p class="xg1">
+						<a href="{{userURL .Profile.ID}}?tab=threads"{{if ne .Tab "replies"}} class="xi2"{{end}}>最近主题</a><span class="pipe">|</span>
+						<a href="{{userURL .Profile.ID}}?tab=replies"{{if eq .Tab "replies"}} class="xi2"{{end}}>回复过的主题</a>
+						{{if .IsSelf}}<span class="pipe">|</span><a href="/profile">资料设置</a>{{end}}
+					</p>
 				</div>
 			</div>
 		</div>
 
 		<div class="bm bmw">
-			<div class="bm_h"><h2>最近主题</h2></div>
+			<div class="bm_h cl"><h2 class="z">{{if eq .Tab "replies"}}回复过的主题{{else}}最近主题{{end}}</h2></div>
 			<div class="bm_c">
-				{{if .Threads}}
-				<table class="list mini">
-					{{range .Threads}}<tr>
-						<th><a href="{{threadURL .ID}}" class="xst">{{.Title}}</a></th>
-						<td class="num xg1">回复 {{.Replies}} · 查看 {{.ViewCount}}</td>
-						<td class="by xg1">{{timefmt .LastPostAt}}</td>
-					</tr>{{end}}
-				</table>
-				{{else}}<p class="xg1">暂无主题。</p>{{end}}
+				{{if eq .Tab "threads"}}
+					{{if .Threads}}
+					<table class="list mini">
+						{{range .Threads}}<tr>
+							<th><a href="{{threadURL .ID}}" class="xst">{{.Title}}</a></th>
+							<td class="num xg1">回复 {{.Replies}} · 查看 {{.ViewCount}}</td>
+							<td class="by xg1">{{timefmt .LastPostAt}}</td>
+						</tr>{{end}}
+					</table>
+					{{else}}<p class="xg1">暂无主题。</p>{{end}}
+				{{end}}
+				{{if eq .Tab "replies"}}
+					{{if .Replies}}
+					<table class="list mini">
+						{{range .Replies}}<tr>
+							<th><a href="{{threadURL .ID}}" class="xst">{{.Title}}</a></th>
+							<td class="num xg1">回复 {{.Replies}} · 查看 {{.ViewCount}}</td>
+							<td class="by xg1">{{timefmt .LastPostAt}}</td>
+						</tr>{{end}}
+					</table>
+					{{else}}<p class="xg1">暂无回复。</p>{{end}}
+				{{end}}
 			</div>
 		</div>
 
-		<div class="bm bmw">
-			<div class="bm_h"><h2>回复过的主题</h2></div>
-			<div class="bm_c">
-				{{if .Replies}}
-				<table class="list mini">
-					{{range .Replies}}<tr>
-						<th><a href="{{threadURL .ID}}" class="xst">{{.Title}}</a></th>
-						<td class="num xg1">回复 {{.Replies}} · 查看 {{.ViewCount}}</td>
-						<td class="by xg1">{{timefmt .LastPostAt}}</td>
-					</tr>{{end}}
-				</table>
-				{{else}}<p class="xg1">暂无回复。</p>{{end}}
-			</div>
-		</div>
+		{{if .Page}}<div class="pgs bm bw0 cl"><div class="y pg">{{template "pagination" .}}</div></div>{{end}}
 	</div>
 </div>
 {{end}}

@@ -34,6 +34,11 @@ func (s *Server) routes() http.Handler {
 	m.HandleFunc("GET /avatar/{uid}", s.avatarSVG)
 	m.HandleFunc("GET /api/likes/{pid}", s.likesList)
 	m.HandleFunc("GET /notify", s.notifyPage)
+	m.HandleFunc("GET /favorites", s.favoritesPage)
+	m.HandleFunc("POST /favorite/{tid}", s.favoriteToggle)
+	m.HandleFunc("GET /drafts", s.draftsPage)
+	m.HandleFunc("POST /drafts/delete", s.draftDelete)
+	m.HandleFunc("GET /post/{pid}/history", s.postHistory)
 	m.HandleFunc("POST /api/draft", s.draftSave)
 	m.HandleFunc("GET /api/status", s.handleStatus)
 

@@ -1,0 +1,37 @@
+{{define "content"}}
+<div id="pt" class="bm cl"><div class="z">
+	<a href="/" class="nvhm">{{.SiteName}}</a> <em>›</em> <span>草稿箱</span>
+</div></div>
+
+<div id="ct" class="wp cl">
+	<div class="mn">
+		<div class="bm bmw">
+			<div class="bm_h"><h2>草稿箱</h2></div>
+			<div class="bm_c">
+				{{if .Rows}}
+				<table class="list mini">
+					{{range .Rows}}
+					<tr>
+						<th>
+							<a href="{{.Link}}" class="xst">{{.Label}}</a>
+							<p class="excerpt">{{.Excerpt}}</p>
+						</th>
+						<td class="by xg1">{{timefmt .UpdatedAt}}</td>
+						<td class="ops">
+							<form method="post" action="/drafts/delete" class="inlineform" data-confirm="删除该草稿？">
+								<input type="hidden" name="_csrf" value="{{$.CSRF}}">
+								<input type="hidden" name="context" value="{{.Context}}">
+								<button type="submit" class="pn pn-sm pn-danger">删除</button>
+							</form>
+						</td>
+					</tr>
+					{{end}}
+				</table>
+				{{else}}
+				<p class="xg1">没有草稿。编辑器每 10 秒自动保存的未发送内容会出现在这里。</p>
+				{{end}}
+			</div>
+		</div>
+	</div>
+</div>
+{{end}}
