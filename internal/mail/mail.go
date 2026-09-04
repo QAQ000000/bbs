@@ -42,6 +42,28 @@ func New(cfg Config, logger *slog.Logger) *Mailer {
 
 func (m *Mailer) Enabled() bool { return m != nil && m.cfg.Host != "" }
 
+// NotifyPasswordReset 密码重置邮件（异步；队列满则丢弃）。
+func (m *Mailer) NotifyPasswordReset(to, link string) {
+	if !m.Enabled() || to == "" {
+		return
+	}
+	subject := fmt.Sprintf("[%s] 密码重置", m.cfg.SiteName)
+	body := strings.Join([]string{
+		"有人申请了您账号的密码重置。如果是您本人，请通过下面的链接设置新密码：",
+		"",
+		link,
+		"",
+		"链接 15 分钟内有效。如果不是您本人操作，请忽略本邮件。",
+		"--",
+		m.cfg.SiteName,
+	}, "\n")
+	select {
+	case m.ch <- message{to: to, subject: subject, body: body}:
+	default:
+		m.log.Warn("邮件队列已满，丢弃一封提醒", "to", to)
+	}
+}
+
 // NotifyMention 被提及邮件（异步；队列满则丢弃）。
 func (m *Mailer) NotifyMention(to, fromName, threadTitle, link, excerpt string) {
 	if !m.Enabled() || to == "" {

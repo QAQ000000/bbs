@@ -13,12 +13,39 @@ import (
 	"dzforum/internal/store"
 )
 
+// canViewPending 待审核主题的可见性：作者本人或管理人员（与帖子页同口径）。
+func canViewPending(viewer *store.User, th *store.Thread) bool {
+	return viewer != nil && (viewer.IsStaff() || viewer.ID == th.AuthorID)
+}
+
 // ---- SSE 端点 ----
 
-// GET /api/live?thread=123&forums=1,2,3
+// handleLive 校验通过后按主题建立 SSE 订阅。
+// 事件层与页面层同口径：待审核主题仅作者与管理人员可订阅；
+// 个人通知主题强制绑定当前会话用户（query 参数仅为显式声明）。
+// 版块主题只承载公开口径行，匿名可订阅。
 func (s *Server) handleLive(w http.ResponseWriter, r *http.Request) {
+	if !s.allow(r, "sse", 60, time.Minute) {
+		http.Error(w, "too many requests", http.StatusTooManyRequests)
+		return
+	}
+	viewer := User(r)
 	var topics []string
 	if th := r.URL.Query().Get("thread"); th != "" {
+		tid, err := strconv.ParseInt(th, 10, 64)
+		if err != nil || tid <= 0 {
+			http.Error(w, "bad topic", http.StatusBadRequest)
+			return
+		}
+		t, err := s.st.Thread(r.Context(), tid)
+		if err != nil { // 不存在或已删除：拒绝订阅
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		if t.Pending && !canViewPending(viewer, t) {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
 		topics = append(topics, "t:"+th)
 	}
 	if fs := r.URL.Query().Get("forums"); fs != "" {
@@ -27,6 +54,10 @@ func (s *Server) handleLive(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if uid := r.URL.Query().Get("user"); uid != "" {
+		if viewer == nil || uid != strconv.FormatInt(viewer.ID, 10) {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
 		topics = append(topics, "u:"+uid)
 	}
 	if len(topics) == 0 {

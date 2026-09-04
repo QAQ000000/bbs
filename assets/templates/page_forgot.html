@@ -1,0 +1,28 @@
+{{define "content"}}
+<div id="ct" class="wp cl">
+	<div class="mn auth-box">
+		<div class="bm bmw">
+			<div class="bm_h"><h2>找回密码</h2></div>
+			<div class="bm_c">
+				{{if .Done}}
+					<p>如果该邮箱存在于本站，重置邮件已发出（15 分钟内有效）。</p>
+					<p class="xg1">请查收邮件并按链接设置新密码。<a href="/login">返回登录</a></p>
+				{{else}}
+					<form method="post" action="/forgot" class="auth-form">
+						<input type="hidden" name="_csrf" value="{{.CSRF}}">
+						<div class="form-row">
+							<label for="email">注册邮箱</label>
+							<input type="email" name="email" id="email" class="px" required autofocus>
+							<p class="xg1 tip">重置链接将发送到该邮箱（15 分钟有效）</p>
+						</div>
+						<div class="submit-row">
+							<button type="submit" class="pn pnc">发送重置邮件</button>
+							<span class="xg1"><a href="/login">返回登录</a></span>
+						</div>
+					</form>
+				{{end}}
+			</div>
+		</div>
+	</div>
+</div>
+{{end}}

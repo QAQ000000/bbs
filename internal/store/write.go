@@ -80,10 +80,12 @@ func (s *Store) CreateReply(ctx context.Context, threadID, authorID int64, autho
 
 	var th Thread
 	err = tx.QueryRow(ctx,
-		`UPDATE threads SET post_count=post_count+1, last_post_at=now(), last_post_uid=$2
+		`UPDATE threads SET post_count=post_count+1,
+			last_post_at = CASE WHEN $3::bool THEN last_post_at ELSE now() END,
+			last_post_uid = CASE WHEN $3::bool THEN last_post_uid ELSE $2 END
 		 WHERE id=$1 AND NOT deleted AND NOT closed
 		 RETURNING id, forum_id, author_id, title, sticky, digest, closed, post_count, view_count, created_at, last_post_at, last_post_uid`,
-		threadID, authorID).
+		threadID, authorID, pending).
 		Scan(&th.ID, &th.ForumID, &th.AuthorID, &th.Title, &th.Sticky, &th.Digest, &th.Closed,
 			&th.PostCount, &th.ViewCount, &th.CreatedAt, &th.LastPostAt, &th.LastPostUID)
 	if errors.Is(err, pgx.ErrNoRows) {

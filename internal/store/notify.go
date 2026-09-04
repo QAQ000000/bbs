@@ -4,7 +4,11 @@ package store
 
 import (
 	"context"
+	"errors"
 	"time"
+
+	"github.com/jackc/pgx/v5"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // ---- 上传记录 ----
@@ -98,4 +102,64 @@ func (s *Store) Notifications(ctx context.Context, uid int64, limit int) ([]*Not
 func (s *Store) MarkNotificationsRead(ctx context.Context, uid int64) {
 	_, err := s.pool.Exec(ctx, `UPDATE notifications SET read=true WHERE uid=$1 AND NOT read`, uid)
 	_ = err
+}
+
+// ---- 密码重置 ----
+
+// CreatePasswordReset 为用户创建重置令牌（库中只存哈希），有效期 15 分钟。
+func (s *Store) CreatePasswordReset(ctx context.Context, uid int64) (string, error) {
+	raw := newToken(32)
+	_, err := s.pool.Exec(ctx,
+		`INSERT INTO password_resets (uid, token_hash, expires_at)
+		 VALUES ($1,$2, now() + interval '15 minutes')`, uid, hashToken(raw))
+	return raw, err
+}
+
+// ResetUIDByToken 校验重置令牌（未用、未过期），返回用户 id。
+func (s *Store) ResetUIDByToken(ctx context.Context, raw string) (int64, error) {
+	var uid int64
+	err := s.pool.QueryRow(ctx,
+		`SELECT uid FROM password_resets
+		 WHERE token_hash=$1 AND NOT used AND expires_at > now()`,
+		hashToken(raw)).Scan(&uid)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, ErrNotFound
+	}
+	return uid, err
+}
+
+// ConsumePasswordReset 作废令牌并强制该用户全部会话下线。
+func (s *Store) ConsumePasswordReset(ctx context.Context, raw string) error {
+	if _, err := s.pool.Exec(ctx,
+		`UPDATE password_resets SET used=true WHERE token_hash=$1`, hashToken(raw)); err != nil {
+		return err
+	}
+	var uid int64
+	if err := s.pool.QueryRow(ctx,
+		`SELECT uid FROM password_resets WHERE token_hash=$1`, hashToken(raw)).Scan(&uid); err != nil {
+		return err
+	}
+	_, err := s.pool.Exec(ctx, `DELETE FROM sessions WHERE user_id=$1`, uid)
+	return err
+}
+
+// UpdatePassword 重设密码（bcrypt）。
+func (s *Store) UpdatePassword(ctx context.Context, uid int64, password string) error {
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	_, err = s.pool.Exec(ctx, `UPDATE users SET password_hash=$2 WHERE id=$1`, uid, string(hash))
+	return err
+}
+
+// UserEmailExists 是否存在使用该邮箱的账号（找回流程的前置查询）。
+func (s *Store) UIDByEmail(ctx context.Context, email string) (int64, error) {
+	var uid int64
+	err := s.pool.QueryRow(ctx,
+		`SELECT id FROM users WHERE lower(email)=lower($1) AND email <> ''`, email).Scan(&uid)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, ErrNotFound
+	}
+	return uid, err
 }

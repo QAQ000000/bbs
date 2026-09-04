@@ -37,6 +37,15 @@
 		if (back && !back.value) back.value = window.location.pathname;
 	}, true);
 
+	// ---- 表格全选（data-checkall）----
+	document.addEventListener('change', function (e) {
+		var master = e.target.closest('[data-checkall]');
+		if (!master) return;
+		document.querySelectorAll(master.getAttribute('data-checkall')).forEach(function (c) {
+			c.checked = master.checked;
+		});
+	});
+
 	// ---- 点赞（本地乐观更新 + SSE 全局同步）----
 	document.addEventListener('click', function (e) {
 		var btn = e.target.closest('.likebtn');

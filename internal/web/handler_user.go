@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"dzforum/internal/store"
@@ -43,6 +44,12 @@ func (s *Server) loginForm(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) loginSubmit(w http.ResponseWriter, r *http.Request) {
+	// 反爆破：IP 与用户名双维度限流（在线爆破由本层拦截，bcrypt 只防离线）
+	if !s.allow(r, "login", 15, 10*time.Minute) ||
+		!s.allowKey("loginu:"+strings.ToLower(strings.TrimSpace(r.PostFormValue("username"))), 8, 10*time.Minute) {
+		s.renderError(w, r, http.StatusTooManyRequests, "操作过于频繁", "登录尝试过多，请 10 分钟后再试。")
+		return
+	}
 	if !s.checkCSRF(r) {
 		s.renderError(w, r, http.StatusForbidden, "操作被拒绝", "表单已过期，请刷新重试。")
 		return
@@ -114,6 +121,11 @@ func (s *Server) registerForm(w http.ResponseWriter, r *http.Request) {
 func (s *Server) registerSubmit(w http.ResponseWriter, r *http.Request) {
 	if !s.sets(r).RegisterEnabled {
 		s.renderError(w, r, http.StatusForbidden, "注册已关闭", "本站已关闭新用户注册，请联系管理员。")
+		return
+	}
+	// 反批量注册：单 IP 每小时 5 次、每天 20 次
+	if !s.allow(r, "reg", 5, time.Hour) || !s.allow(r, "regd", 20, 24*time.Hour) {
+		s.renderError(w, r, http.StatusTooManyRequests, "操作过于频繁", "注册尝试过多，请稍后再试。")
 		return
 	}
 	if !s.checkCSRF(r) {

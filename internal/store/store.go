@@ -4,7 +4,9 @@ package store
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"sync"
 	"time"
@@ -122,21 +124,27 @@ func newToken(n int) string {
 	return base64.RawURLEncoding.EncodeToString(b)
 }
 
-// CreateSession 建立会话，返回 token 与 csrf token。
+// CreateSession 建立会话，返回原始 token（仅出现在 Cookie 中）与 csrf token。
+// 库中只保存 token 的 SHA-256：库泄露不直接等同会话接管。
 func (s *Store) CreateSession(ctx context.Context, uid int64) (token, csrf string, err error) {
 	token = newToken(32)
 	csrf = newToken(24)
 	_, err = s.pool.Exec(ctx,
 		`INSERT INTO sessions (token, user_id, csrf, expires_at) VALUES ($1,$2,$3,now()+$4::interval)`,
-		token, uid, csrf, sessionTTL.String())
+		hashToken(token), uid, csrf, sessionTTL.String())
 	return
+}
+
+func hashToken(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:])
 }
 
 func (s *Store) Session(ctx context.Context, token string) (*Session, error) {
 	var sess Session
 	err := s.pool.QueryRow(ctx,
 		`SELECT token, user_id, csrf, expires_at FROM sessions WHERE token=$1 AND expires_at > now()`,
-		token).Scan(&sess.Token, &sess.UserID, &sess.CSRF, &sess.ExpiresAt)
+		hashToken(token)).Scan(&sess.Token, &sess.UserID, &sess.CSRF, &sess.ExpiresAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -150,7 +158,7 @@ func (s *Store) SessionCached(ctx context.Context, token string) (*Session, erro
 
 func (s *Store) DeleteSession(ctx context.Context, token string) {
 	s.sessions.invalidate(token)
-	_, _ = s.pool.Exec(ctx, `DELETE FROM sessions WHERE token=$1`, token)
+	_, _ = s.pool.Exec(ctx, `DELETE FROM sessions WHERE token=$1`, hashToken(token))
 }
 
 func (s *Store) PurgeSessions(ctx context.Context) {

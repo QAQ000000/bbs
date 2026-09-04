@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"dzforum/internal/store"
 )
@@ -208,6 +209,10 @@ func (s *Server) searchPage(w http.ResponseWriter, r *http.Request) {
 	var hits []*store.SearchHit
 	var total int
 	if q != "" {
+		if !s.allow(r, "search", 30, time.Minute) {
+			s.renderError(w, r, http.StatusTooManyRequests, "操作过于频繁", "搜索太快了，请稍后再试。")
+			return
+		}
 		var err error
 		hits, total, err = s.st.Search(r.Context(), q, page, 20)
 		if err != nil {

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"dzforum/internal/markdown"
@@ -101,6 +102,11 @@ func (s *Server) newThreadSubmit(w http.ResponseWriter, r *http.Request) {
 		s.renderError(w, r, http.StatusForbidden, "操作被拒绝", "表单已过期，请返回刷新后重试。")
 		return
 	}
+	if !s.allowKey("post:"+strconv.FormatInt(u.ID, 10), 10, time.Minute) ||
+		!s.allowKey("postd:"+strconv.FormatInt(u.ID, 10), 100, 24*time.Hour) {
+		s.renderError(w, r, http.StatusTooManyRequests, "操作过于频繁", "发帖太快了，休息一下再试。")
+		return
+	}
 	if !s.checkNotBanned(w, r) {
 		return
 	}
@@ -134,9 +140,10 @@ func (s *Server) newThreadSubmit(w http.ResponseWriter, r *http.Request) {
 		s.renderError(w, r, http.StatusInternalServerError, "发帖失败", err.Error())
 		return
 	}
-	s.broadcastPost("post.new", th, p)
-	s.broadcastThread("thread.new", th)
+	// 待审核内容不进入事件层（SSE 订阅者含匿名访客），审批通过时再广播
 	if !pending {
+		s.broadcastPost("post.new", th, p)
+		s.broadcastThread("thread.new", th)
 		s.notifyMentions(r, u, content, th, p)
 	}
 	_ = s.st.SaveDraft(r.Context(), u.ID, "new:"+strconv.FormatInt(fid, 10), "")
@@ -205,9 +212,9 @@ func (s *Server) replySubmit(w http.ResponseWriter, r *http.Request) {
 		s.renderError(w, r, http.StatusInternalServerError, "回复失败", err.Error())
 		return
 	}
-	s.broadcastPost("post.new", th, p)
-	s.broadcastThread("thread.update", th)
 	if !pending {
+		s.broadcastPost("post.new", th, p)
+		s.broadcastThread("thread.update", th)
 		s.notifyMentions(r, u, content, th, p)
 	}
 	_ = s.st.SaveDraft(r.Context(), u.ID, "reply:"+strconv.FormatInt(tid, 10), "")
@@ -298,6 +305,13 @@ func (s *Server) editSubmit(w http.ResponseWriter, r *http.Request) {
 		s.formError(w, r, "/edit/"+strconv.FormatInt(pid, 10), msg)
 		return
 	}
+	// 编辑复检：过审内容被编辑时按规则重新入队（堵住"过审后编辑加链接"的绕过）；
+	// 已在待审队列的内容保持待审
+	reenqueue := false
+	reason := ""
+	if !p.Pending {
+		reenqueue, reason = s.moderationDecision(r, u, subject+" "+content)
+	}
 	ct := s.censorTexts(r, subject, content)
 	subject, content = ct[0], ct[1]
 	html := markdown.Render(content)
@@ -306,9 +320,14 @@ func (s *Server) editSubmit(w http.ResponseWriter, r *http.Request) {
 		s.renderError(w, r, http.StatusInternalServerError, "保存失败", err.Error())
 		return
 	}
-	s.broadcastPost("post.edit", th, p2)
-	if p.Floor == 1 {
-		s.broadcastThread("thread.update", th)
+	if reenqueue {
+		_ = s.st.SetPostPendingModeration(r.Context(), pid, reason)
+		s.setFlash(w, "内容已提交重新审核，审核通过前不可见")
+	} else {
+		s.broadcastPost("post.edit", th, p2)
+		if p.Floor == 1 {
+			s.broadcastThread("thread.update", th)
+		}
 	}
 	_ = s.st.SaveDraft(r.Context(), u.ID, "edit:"+strconv.FormatInt(pid, 10), "")
 	s.bustPageCache()

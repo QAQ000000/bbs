@@ -71,12 +71,12 @@ func (s *Server) adminModerate(w http.ResponseWriter, r *http.Request) {
 	if !s.requireStaff(w, r) {
 		return
 	}
-	threads, err := s.st.PendingThreads(r.Context(), 50)
+	threads, err := s.st.PendingThreads(r.Context(), 50, s.staffForumScope(r))
 	if err != nil {
 		s.renderError(w, r, http.StatusInternalServerError, "加载失败", err.Error())
 		return
 	}
-	posts, err := s.st.PendingPosts(r.Context(), 50)
+	posts, err := s.st.PendingPosts(r.Context(), 50, s.staffForumScope(r))
 	if err != nil {
 		s.renderError(w, r, http.StatusInternalServerError, "加载失败", err.Error())
 		return

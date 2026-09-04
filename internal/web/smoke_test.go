@@ -162,6 +162,8 @@ func TestPageSmoke(t *testing.T) {
 		{"帖子页", "/thread-1-1-1.html", nil, 2500},
 		{"搜索页", "/search?q=%E5%86%85%E5%AE%B9", nil, 1500},
 		{"登录页", "/login", nil, 1500},
+		{"忘记密码页", "/forgot", nil, 1500},
+		{"重置页(无效令牌走错误页)", "/reset?token=invalid", nil, 800},
 		{"注册页", "/register", nil, 2000},
 		{"个人空间", "/user/2", nil, 1500},
 		{"发帖表单", "/new?fid=1", userCookie, 2500},
@@ -184,6 +186,12 @@ func TestPageSmoke(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			w := smokeGet(t, c.path, c.cookie)
 			body := w.Body.String()
+			if c.name == "重置页(无效令牌走错误页)" {
+				if w.Code != http.StatusBadRequest || !strings.Contains(body, "链接无效") {
+					t.Fatalf("无效令牌应 400+提示: %d %s", w.Code, firstLine(body))
+				}
+				return
+			}
 			if w.Code != http.StatusOK {
 				t.Fatalf("状态码 %d（期望 200）: %s", w.Code, firstLine(body))
 			}

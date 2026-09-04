@@ -58,6 +58,10 @@ func (s *Server) uploadImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	kind := r.FormValue("kind")
+	if !s.allowKey("up:"+strconv.FormatInt(u.ID, 10), 30, time.Hour) {
+		http.Error(w, `{"error":"上传过于频繁"}`, http.StatusTooManyRequests)
+		return
+	}
 	limit, allowed, errMsg := int64(sets.MaxImageMB)<<20, allowedImageMime, "仅支持 JPG/PNG/GIF/WebP 图片"
 	if kind == "file" {
 		limit, allowed, errMsg = int64(sets.MaxFileMB)<<20, allowedFileMime, "仅支持 PDF/TXT/ZIP 附件"

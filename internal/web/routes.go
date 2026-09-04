@@ -5,8 +5,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-
-	"dzforum/internal/store"
 )
 
 // routes 注册全部路由。
@@ -38,6 +36,10 @@ func (s *Server) routes() http.Handler {
 	m.HandleFunc("GET /api/status", s.handleStatus)
 
 	// 用户
+	m.HandleFunc("GET /forgot", s.forgotForm)
+	m.HandleFunc("POST /forgot", s.forgotSubmit)
+	m.HandleFunc("GET /reset", s.resetForm)
+	m.HandleFunc("POST /reset", s.resetSubmit)
 	m.HandleFunc("GET /login", s.loginForm)
 	m.HandleFunc("POST /login", s.loginSubmit)
 	m.HandleFunc("GET /register", s.registerForm)
@@ -144,9 +146,4 @@ func (s *Server) renderError(w http.ResponseWriter, r *http.Request, code int, t
 		return
 	}
 	_ = s.rd.Render(w, "page_error.html", &data)
-}
-
-// canModerate 管理员可管理全部内容。
-func canModerate(u *store.User, authorID int64) bool {
-	return u != nil && (u.IsAdmin() || u.ID == authorID)
 }

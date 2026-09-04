@@ -5,6 +5,7 @@ package store
 import (
 	"context"
 	"html"
+	"log/slog"
 	"regexp"
 	"strings"
 	"sync"
@@ -82,6 +83,9 @@ func (s *Store) IndexPost(ctx context.Context, postID int64, title, body string)
 			setweight(to_tsvector('simple', $2), 'A') ||
 			setweight(to_tsvector('simple', $3), 'B')
 		 WHERE id=$1`, postID, SearchTokens(title), SearchTokens(body))
+	if err != nil {
+		slog.Warn("搜索索引更新失败（启动时会自动补齐）", "post", postID, "err", err)
+	}
 	return err
 }
 

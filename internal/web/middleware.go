@@ -58,6 +58,10 @@ func (s *Server) securityMW(next http.Handler) http.Handler {
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("X-Frame-Options", "SAMEORIGIN")
 		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		// 样式允许内联（模板含少量 style 属性）；脚本全部为外链文件
+		h.Set("Content-Security-Policy",
+			"default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; "+
+				"script-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'")
 		next.ServeHTTP(w, r)
 	})
 }

@@ -215,3 +215,26 @@ CREATE TABLE IF NOT EXISTS notifications (
     created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS notifications_uid_idx ON notifications (uid, read, id DESC);
+
+-- ---- 安全与治理加固 ----
+
+-- 密码重置令牌（库中只存哈希，原始 token 仅出现在邮件链接里）
+CREATE TABLE IF NOT EXISTS password_resets (
+    id         bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    uid        bigint      NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash text        NOT NULL UNIQUE,
+    expires_at timestamptz NOT NULL,
+    used       boolean     NOT NULL DEFAULT false,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- 邮箱部分唯一索引（空串不限；注册/改邮箱冲突由索引兜底）
+CREATE UNIQUE INDEX IF NOT EXISTS users_email_unique_idx ON users (email) WHERE email <> '';
+
+-- 迁移版本基线：schema.sql 整体幂等重放；后续破坏性变更以递增 version 的
+-- 编号迁移文件处理并在本表登记（当前全部历史合并为基线 1）
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    version    int         PRIMARY KEY,
+    applied_at timestamptz NOT NULL DEFAULT now()
+);
+INSERT INTO schema_migrations (version) VALUES (1) ON CONFLICT DO NOTHING;

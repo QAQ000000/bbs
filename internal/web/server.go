@@ -10,6 +10,7 @@ import (
 
 	"dzforum/internal/config"
 	"dzforum/internal/mail"
+	"dzforum/internal/limiter"
 	"dzforum/internal/live"
 	"dzforum/internal/store"
 )
@@ -34,6 +35,7 @@ type Server struct {
 	start   time.Time
 	pcache  *pageCache
 	mailer  *mail.Mailer
+	limiter *limiter.Limiter
 	prod    bool
 }
 
@@ -43,7 +45,7 @@ func New(cfg config.Config, st *store.Store, hub *live.Hub, logger *slog.Logger)
 		return nil, err
 	}
 	s := &Server{cfg: cfg, st: st, rd: rd, hub: hub, log: logger, mux: http.NewServeMux(),
-		start: time.Now(), pcache: newPageCache(60 * time.Second),
+		start: time.Now(), pcache: newPageCache(60 * time.Second), limiter: limiter.New(),
 		mailer: mail.New(mail.Config{
 			Host: cfg.SMTPHost, Port: cfg.SMTPPort, User: cfg.SMTPUser,
 			Password: cfg.SMTPPassword, From: cfg.SMTPFrom,
@@ -194,4 +196,29 @@ func (s *Server) requireLogin(w http.ResponseWriter, r *http.Request) bool {
 
 func urlQueryEscape(s string) string {
 	return strings.ReplaceAll(strings.ReplaceAll(s, "%", "%25"), "&", "%26")
+}
+
+// allow 入口限流判定：action 维度 + 客户端 IP（反代场景回环地址时采信
+// X-Real-IP，与部署文档的 nginx 配置配套；直连部署不受影响）。
+func (s *Server) allow(r *http.Request, action string, limit int, window time.Duration) bool {
+	return s.limiter.Allow(action+":"+s.clientIP(r), limit, window)
+}
+
+// allowKey 同上，但使用显式 key（如登录的用户名维度）。
+func (s *Server) allowKey(key string, limit int, window time.Duration) bool {
+	return s.limiter.Allow(key, limit, window)
+}
+
+func (s *Server) clientIP(r *http.Request) string {
+	ip := remoteIP(r)
+	if isLoopbackIP(ip) {
+		if real := r.Header.Get("X-Real-IP"); real != "" {
+			return real
+		}
+	}
+	return ip
+}
+
+func isLoopbackIP(ip string) bool {
+	return ip == "127.0.0.1" || ip == "::1" || strings.HasPrefix(ip, "127.")
 }

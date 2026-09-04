@@ -45,6 +45,26 @@ func (s *Store) SetThreadApproved(ctx context.Context, tid int64) error {
 	return s.RecomputeForumStats(ctx, fid)
 }
 
+// SetPostPendingModeration 将楼层（首楼连主题）标记为待审核并记录原因。
+// 编辑复检使用：过审内容被重新编辑时按规则重新入队。
+func (s *Store) SetPostPendingModeration(ctx context.Context, postID int64, reason string) error {
+	var tid int64
+	var floor int
+	if err := s.pool.QueryRow(ctx,
+		`UPDATE posts SET pending=true, pending_reason=$2 WHERE id=$1 AND NOT deleted
+		 RETURNING thread_id, floor`, postID, reason).Scan(&tid, &floor); err != nil {
+		return err
+	}
+	if floor == 1 {
+		_, err := s.pool.Exec(ctx,
+			`UPDATE threads SET pending=true, pending_reason=$2 WHERE id=$1`, tid, reason)
+		return err
+	}
+	// 非首楼重新入队：主题活跃度回退到最新公开楼层
+	_ = s.RecomputeThreadLastPost(ctx, tid)
+	return nil
+}
+
 func (s *Store) SetPostApproved(ctx context.Context, pid int64) error {
 	_, err := s.pool.Exec(ctx, `UPDATE posts SET pending=false WHERE id=$1`, pid)
 	return err
@@ -56,17 +76,24 @@ type PendingThreadRow struct {
 	Excerpt string
 }
 
-// PendingThreads 待审核主题列表。
-func (s *Store) PendingThreads(ctx context.Context, limit int) ([]*PendingThreadRow, error) {
+// PendingThreads 待审核主题列表；forumIDs 非空时限定版主管辖范围。
+func (s *Store) PendingThreads(ctx context.Context, limit int, forumIDs []int64) ([]*PendingThreadRow, error) {
+	scope := ""
+	args := []any{}
+	if len(forumIDs) > 0 {
+		args = append(args, forumIDs)
+		scope = ` AND t.forum_id = ANY($` + strconv.Itoa(len(args)) + `)`
+	}
 	rows, err := s.pool.Query(ctx,
 		`SELECT `+threadCols+`, left(p.content_md, 200) `+threadJoins+`
 		  JOIN posts p ON p.thread_id = t.id AND p.floor = 1
-		 WHERE NOT t.deleted AND t.pending
-		 ORDER BY t.created_at DESC LIMIT `+strconv.Itoa(limit))
+		 WHERE NOT t.deleted AND t.pending`+scope+`
+		 ORDER BY t.created_at DESC LIMIT `+strconv.Itoa(limit), args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
+
 	var out []*PendingThreadRow
 	for rows.Next() {
 		var r PendingThreadRow
@@ -89,13 +116,18 @@ type PendingPostRow struct {
 	ThreadTtl string
 }
 
-// PendingPosts 待审核回复列表。
-func (s *Store) PendingPosts(ctx context.Context, limit int) ([]*PendingPostRow, error) {
+func (s *Store) PendingPosts(ctx context.Context, limit int, forumIDs []int64) ([]*PendingPostRow, error) {
+	scope := ""
+	args := []any{}
+	if len(forumIDs) > 0 {
+		args = append(args, forumIDs)
+		scope = ` AND t.forum_id = ANY($` + strconv.Itoa(len(args)) + `)`
+	}
 	rows, err := s.pool.Query(ctx,
 		`SELECT `+postCols+`, t.id, t.title `+postJoins+`
 		  JOIN threads t ON t.id = p.thread_id AND NOT t.pending
-		 WHERE NOT p.deleted AND p.pending
-		 ORDER BY p.id DESC LIMIT `+strconv.Itoa(limit))
+		 WHERE NOT p.deleted AND p.pending`+scope+`
+		 ORDER BY p.id DESC LIMIT `+strconv.Itoa(limit), args...)
 	if err != nil {
 		return nil, err
 	}

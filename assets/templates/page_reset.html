@@ -1,0 +1,24 @@
+{{define "content"}}
+<div id="ct" class="wp cl">
+	<div class="mn auth-box">
+		<div class="bm bmw">
+			<div class="bm_h"><h2>设置新密码</h2></div>
+			<div class="bm_c">
+				<form method="post" action="/reset" class="auth-form">
+					<input type="hidden" name="_csrf" value="{{.CSRF}}">
+					<input type="hidden" name="token" value="{{.Token}}">
+					{{if .Error}}<div class="form-error">{{.Error}}</div>{{end}}
+					<div class="form-row">
+						<label for="password">新密码</label>
+						<input type="password" name="password" id="password" class="px" required autofocus autocomplete="new-password">
+						<p class="xg1 tip">至少 6 位；重置后所有登录会话将失效</p>
+					</div>
+					<div class="submit-row">
+						<button type="submit" class="pn pnc">确认重置</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+</div>
+{{end}}

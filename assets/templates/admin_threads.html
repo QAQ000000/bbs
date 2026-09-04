@@ -17,7 +17,7 @@
 		<input type="hidden" name="back" value="{{.BackURL}}">
 		<table class="admin-table">
 			<thead><tr>
-				<th><input type="checkbox" onclick="document.querySelectorAll('#batchform input[name=tid]').forEach(c=>c.checked=this.checked)" title="全选"></th>
+				<th><input type="checkbox" data-checkall="#batchform input[name=tid]" title="全选"></th>
 				<th>主题</th><th>版块</th><th>作者</th><th>回复/查看</th><th>状态</th><th>最后发表</th>
 			</tr></thead>
 			<tbody>
