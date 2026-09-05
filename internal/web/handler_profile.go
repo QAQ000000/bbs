@@ -89,11 +89,17 @@ func (s *Server) profileSave(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if err := s.st.UpdateProfile(r.Context(), u.ID, signature, email); err != nil {
+	emailChanged, err := s.st.UpdateProfile(r.Context(), u.ID, signature, email)
+	if err != nil {
 		s.renderError(w, r, http.StatusInternalServerError, "保存失败", err.Error())
 		return
 	}
-	s.setFlash(w, "资料已保存")
+	if emailChanged {
+		// 换绑邮箱即作废旧验证结论与旧验证链接，需对新邮箱重新验证
+		s.setFlash(w, "资料已保存；邮箱已变更，请重新验证新邮箱")
+	} else {
+		s.setFlash(w, "资料已保存")
+	}
 	http.Redirect(w, r, "/profile", http.StatusSeeOther)
 }
 
@@ -166,7 +172,7 @@ func (s *Server) profileVerifyResend(w http.ResponseWriter, r *http.Request) {
 		s.renderError(w, r, http.StatusTooManyRequests, "操作过于频繁", "验证邮件发送过于频繁，请一小时后再试。")
 		return
 	}
-	if raw, err := s.st.CreateEmailVerify(r.Context(), u.ID); err == nil {
+	if raw, err := s.st.CreateEmailVerify(r.Context(), u.ID, u.Email); err == nil {
 		link := s.cfg.SiteURL + "/verify?token=" + url.QueryEscape(raw)
 		s.mailer.NotifyEmailVerify(u.Email, link)
 	}
@@ -181,17 +187,27 @@ func (s *Server) profileAvatar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	u := User(r)
-	if !s.checkCSRF(r) {
-		s.renderError(w, r, http.StatusForbidden, "操作被拒绝", "表单已过期，请刷新重试。")
-		return
-	}
+	// 请求体上限必须在任何表单读取（含 CSRF 的 PostFormValue）之前设置：
+	// 表单解析会触发 multipart 读取，之后再限制对已读内容无效
+	r.Body = http.MaxBytesReader(w, r.Body, (2<<20)+(64<<10))
 	if !s.allowKey("avatar:"+strconv.FormatInt(u.ID, 10), 5, time.Hour) {
 		s.renderError(w, r, http.StatusTooManyRequests, "操作过于频繁", "头像更换太频繁，请稍后再试。")
 		return
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, 2<<20)
-	if err := r.ParseMultipartForm(2 << 20); err != nil {
+	// 请求体已限长（约 2.06MB），先解析再做 CSRF 校验：
+	// 超限请求在此即被拒绝（413），不会走到任何写路径
+	if err := r.ParseMultipartForm(1 << 20); err != nil {
 		s.renderError(w, r, http.StatusRequestEntityTooLarge, "头像过大", "头像图片不能超过 2MB。")
+		return
+	}
+	if !s.checkCSRF(r) {
+		s.renderError(w, r, http.StatusForbidden, "操作被拒绝", "表单已过期，请刷新重试。")
+		return
+	}
+	// 头像计入站点上传占用，磁盘达上限时同样拒绝
+	if gb := s.sets(r).UploadMaxDiskGB; gb > 0 && s.uploadDirBytes() >= int64(gb)<<30 {
+		s.renderError(w, r, http.StatusInsufficientStorage, "存储已达上限",
+			"站点存储已达上限，暂时无法上传，请联系管理员。")
 		return
 	}
 	f, _, err := r.FormFile("avatar")
@@ -212,24 +228,41 @@ func (s *Server) profileAvatar(w http.ResponseWriter, r *http.Request) {
 		s.renderError(w, r, http.StatusUnsupportedMediaType, "格式不支持", "头像仅支持 JPG/PNG/GIF/WebP 图片。")
 		return
 	}
+	// 嗅探读取了前 512 字节，必须回到起点再复制，否则文件丢头（小图变空文件）
+	if _, err := f.Seek(0, 0); err != nil {
+		s.renderError(w, r, http.StatusInternalServerError, "上传失败", err.Error())
+		return
+	}
 	dir := filepath.Join(s.cfg.UploadDir, "avatars")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		s.renderError(w, r, http.StatusInternalServerError, "上传失败", err.Error())
 		return
 	}
-	// 清掉旧头像（换扩展名也能命中）
-	if old := s.customAvatarPath(u.ID); old != "" {
-		_ = os.Remove(old)
-	}
+	// 先写临时文件、完整落盘后再原子替换：写一半失败不丢旧头像
+	tmp := filepath.Join(dir, strconv.FormatInt(u.ID, 10)+ext+".part")
 	dst := filepath.Join(dir, strconv.FormatInt(u.ID, 10)+ext)
-	out, err := os.Create(dst)
+	out, err := os.Create(tmp)
 	if err != nil {
 		s.renderError(w, r, http.StatusInternalServerError, "上传失败", err.Error())
 		return
 	}
-	defer out.Close()
-	if _, err := io.Copy(out, f); err != nil {
-		_ = os.Remove(dst)
+	written, err := io.Copy(out, f)
+	if cerr := out.Close(); err == nil {
+		err = cerr
+	}
+	if err == nil && written == 0 {
+		err = errors.New("空文件")
+	}
+	if err != nil {
+		_ = os.Remove(tmp)
+		s.renderError(w, r, http.StatusInternalServerError, "上传失败", err.Error())
+		return
+	}
+	if old := s.customAvatarPath(u.ID); old != "" && old != dst {
+		_ = os.Remove(old) // 清掉旧扩展名头像
+	}
+	if err := os.Rename(tmp, dst); err != nil {
+		_ = os.Remove(tmp)
 		s.renderError(w, r, http.StatusInternalServerError, "上传失败", err.Error())
 		return
 	}

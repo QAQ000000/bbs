@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"dzforum/internal/perm"
 	"dzforum/internal/store"
 )
 
@@ -249,6 +250,11 @@ func (s *Server) adminUserBan(w http.ResponseWriter, r *http.Request) {
 	if !s.requireAdmin(w, r) {
 		return
 	}
+	// 细粒度权限点即时生效：矩阵撤销后即使仍能进后台也不能操作
+	if !hasPoint(User(r), perm.UserBan) {
+		s.renderError(w, r, http.StatusForbidden, "无权操作", "你没有执行该操作的权限。")
+		return
+	}
 	if !s.checkCSRF(r) {
 		s.forbidden(w, r)
 		return
@@ -276,6 +282,11 @@ func (s *Server) adminUserBan(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) adminUserUnban(w http.ResponseWriter, r *http.Request) {
 	if !s.requireAdmin(w, r) {
+		return
+	}
+	// 细粒度权限点即时生效：矩阵撤销后即使仍能进后台也不能操作
+	if !hasPoint(User(r), perm.UserBan) {
+		s.renderError(w, r, http.StatusForbidden, "无权操作", "你没有执行该操作的权限。")
 		return
 	}
 	if !s.checkCSRF(r) {
@@ -346,6 +357,11 @@ func (s *Server) adminUserGroup(w http.ResponseWriter, r *http.Request) {
 	if !s.requireAdmin(w, r) {
 		return
 	}
+	// 细粒度权限点即时生效：矩阵撤销后即使仍能进后台也不能操作
+	if !hasPoint(User(r), perm.UserSetGroup) {
+		s.renderError(w, r, http.StatusForbidden, "无权操作", "你没有执行该操作的权限。")
+		return
+	}
 	if !s.checkCSRF(r) {
 		s.forbidden(w, r)
 		return
@@ -374,6 +390,11 @@ func (s *Server) adminUserGroup(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) adminUserDelete(w http.ResponseWriter, r *http.Request) {
 	if !s.requireAdmin(w, r) {
+		return
+	}
+	// 细粒度权限点即时生效：矩阵撤销后即使仍能进后台也不能操作
+	if !hasPoint(User(r), perm.UserDelete) {
+		s.renderError(w, r, http.StatusForbidden, "无权操作", "你没有执行该操作的权限。")
 		return
 	}
 	if !s.checkCSRF(r) {

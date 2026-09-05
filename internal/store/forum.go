@@ -126,7 +126,7 @@ func (s *Store) Threads(ctx context.Context, forumID int64, page, size int, sort
 	}
 	var total int
 	if err := s.pool.QueryRow(ctx,
-		`SELECT count(*) FROM threads WHERE forum_id=$1 AND NOT deleted AND NOT pending AND sticky=0`+extra,
+		`SELECT count(*) FROM threads t WHERE t.forum_id=$1 AND NOT t.deleted AND NOT t.pending AND t.sticky=0`+extra,
 		forumID).Scan(&total); err != nil {
 		return nil, 0, err
 	}

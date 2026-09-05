@@ -79,15 +79,16 @@ func (s *Store) CreateReply(ctx context.Context, threadID, authorID int64, autho
 	defer tx.Rollback(ctx)
 
 	var th Thread
+	var floor int
 	err = tx.QueryRow(ctx,
-		`UPDATE threads SET post_count=post_count+1,
+		`UPDATE threads SET post_count=post_count+1, floor_seq=floor_seq+1,
 			last_post_at = CASE WHEN $3::bool THEN last_post_at ELSE now() END,
 			last_post_uid = CASE WHEN $3::bool THEN last_post_uid ELSE $2 END
 		 WHERE id=$1 AND NOT deleted AND NOT closed
-			 RETURNING id, forum_id, author_id, title, sticky, digest, closed, post_count, view_count, created_at, last_post_at, coalesce(last_post_uid,0)`,
+			 RETURNING id, forum_id, author_id, title, sticky, digest, closed, post_count, view_count, created_at, last_post_at, coalesce(last_post_uid,0), floor_seq`,
 		threadID, authorID, pending).
 		Scan(&th.ID, &th.ForumID, &th.AuthorID, &th.Title, &th.Sticky, &th.Digest, &th.Closed,
-			&th.PostCount, &th.ViewCount, &th.CreatedAt, &th.LastPostAt, &th.LastPostUID)
+			&th.PostCount, &th.ViewCount, &th.CreatedAt, &th.LastPostAt, &th.LastPostUID, &floor)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil, ErrNotFound
 	}
@@ -95,7 +96,8 @@ func (s *Store) CreateReply(ctx context.Context, threadID, authorID int64, autho
 		return nil, nil, err
 	}
 
-	floor := th.PostCount // 扣掉首楼后的楼层号
+	// floor 已从 floor_seq（单调楼层序号）取回：删除中间楼层后的新回复
+	// 不再复用已删除楼层号，避免出现重复公开楼层
 	var pid int64
 	if err := tx.QueryRow(ctx,
 		`INSERT INTO posts (thread_id, author_id, floor, content_md, content_html, pending, pending_reason)
@@ -127,8 +129,14 @@ func (s *Store) CreateReply(ctx context.Context, threadID, authorID int64, autho
 	return &th, p, err
 }
 
+// ErrEditConflict 编辑冲突：提交所基于的版本已落后于当前版本。
+var ErrEditConflict = errors.New("edit conflict")
+
 // UpdatePost 编辑楼层内容；若为首楼且改了标题则同步主题标题。
-func (s *Store) UpdatePost(ctx context.Context, postID int64, title, md, html string) (*Post, *Thread, error) {
+// expectedVersion 为编辑表单携带的版本号（0=不校验）：行锁内校验版本，
+// 并发编辑只有一个请求成功，后写不再覆盖先写。
+// 改前快照与内容更新同事务：更新失败快照也不会落盘（历史不重复）。
+func (s *Store) UpdatePost(ctx context.Context, postID int64, expectedVersion int, editorID int64, prevMD, title, md, html string) (*Post, *Thread, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return nil, nil, err
@@ -137,13 +145,27 @@ func (s *Store) UpdatePost(ctx context.Context, postID int64, title, md, html st
 
 	var floor int
 	var tid int64
+	var version int
 	err = tx.QueryRow(ctx,
-		`UPDATE posts SET content_md=$2, content_html=$3, edited_at=now(), version=version+1 WHERE id=$1 RETURNING thread_id, floor`,
-		postID, md, html).Scan(&tid, &floor)
+		`SELECT floor, thread_id, version FROM posts WHERE id=$1 FOR UPDATE`,
+		postID).Scan(&floor, &tid, &version)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil, ErrNotFound
 	}
 	if err != nil {
+		return nil, nil, err
+	}
+	if expectedVersion > 0 && version != expectedVersion {
+		return nil, nil, ErrEditConflict
+	}
+	if _, err := tx.Exec(ctx,
+		`INSERT INTO post_edits (post_id, editor_id, content_md) VALUES ($1,$2,$3)`,
+		postID, editorID, prevMD); err != nil {
+		return nil, nil, err
+	}
+	if _, err := tx.Exec(ctx,
+		`UPDATE posts SET content_md=$2, content_html=$3, edited_at=now(), version=version+1 WHERE id=$1`,
+		postID, md, html); err != nil {
 		return nil, nil, err
 	}
 
@@ -215,14 +237,18 @@ func (s *Store) DeletePost(ctx context.Context, postID int64) (deletedThread boo
 		if _, err := tx.Exec(ctx, `UPDATE threads SET deleted=true WHERE id=$1`, tid); err != nil {
 			return false, 0, err
 		}
-		// 回补各作者的发帖计数
+		// 随主题删除的楼层打批次标记：恢复主题时只恢复这批，
+		// 此前被单独删除的楼层保持隐藏，不重新公开
+		if _, err := tx.Exec(ctx,
+			`UPDATE posts SET deleted=true, thread_deleted=true WHERE thread_id=$1 AND NOT deleted`, tid); err != nil {
+			return false, 0, err
+		}
+		// 回补各作者的发帖计数（只算这次随主题删除的公开楼层）
 		if _, err := tx.Exec(ctx, `
-			WITH removed AS (
-				UPDATE posts SET deleted=true WHERE thread_id=$1 AND NOT deleted
-				RETURNING author_id, pending
-			)
 			UPDATE users u SET post_count = GREATEST(u.post_count - x.n, 0)
-			FROM (SELECT author_id, count(*) AS n FROM removed WHERE NOT pending GROUP BY author_id) x
+			FROM (SELECT author_id, count(*) AS n FROM posts
+			      WHERE thread_id=$1 AND deleted AND thread_deleted AND NOT pending
+			      GROUP BY author_id) x
 			WHERE u.id = x.author_id`, tid); err != nil {
 			return false, 0, err
 		}

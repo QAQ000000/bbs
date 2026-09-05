@@ -85,10 +85,24 @@ func (s *Server) canModerateThread(r *http.Request, th *store.Thread) bool {
 	return inForumScope(s.staffForumScope(r), th.ForumID)
 }
 
+// requireStaffPoint 内容治理操作守卫：ContentModerate 之外还须持有
+// 具体操作权限点——矩阵撤销（如关闭 prune.run / recycle.bin /
+// moderate.queue）必须即时生效，不能只查入口权限。
+func (s *Server) requireStaffPoint(w http.ResponseWriter, r *http.Request, p perm.Point) bool {
+	if !s.requireStaff(w, r) {
+		return false
+	}
+	if !hasPoint(User(r), p) {
+		s.renderError(w, r, http.StatusForbidden, "无权访问", "你没有执行该操作的权限。")
+		return false
+	}
+	return true
+}
+
 // ---- 审核队列 ----
 
 func (s *Server) adminModerate(w http.ResponseWriter, r *http.Request) {
-	if !s.requireStaff(w, r) {
+	if !s.requireStaffPoint(w, r, perm.ModerateQueue) {
 		return
 	}
 	threads, err := s.st.PendingThreads(r.Context(), 50, s.staffForumScope(r))
@@ -125,7 +139,7 @@ func (s *Server) adminModerate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) adminModerateThread(w http.ResponseWriter, r *http.Request) {
-	if !s.requireStaff(w, r) {
+	if !s.requireStaffPoint(w, r, perm.ModerateQueue) {
 		return
 	}
 	if !s.checkCSRF(r) {
@@ -168,7 +182,7 @@ func (s *Server) adminModerateThread(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) adminModeratePost(w http.ResponseWriter, r *http.Request) {
-	if !s.requireStaff(w, r) {
+	if !s.requireStaffPoint(w, r, perm.ModerateQueue) {
 		return
 	}
 	if !s.checkCSRF(r) {
@@ -217,7 +231,7 @@ func (s *Server) adminModeratePost(w http.ResponseWriter, r *http.Request) {
 // ---- 批量删帖 ----
 
 func (s *Server) adminPrune(w http.ResponseWriter, r *http.Request) {
-	if !s.requireStaff(w, r) {
+	if !s.requireStaffPoint(w, r, perm.PruneRun) {
 		return
 	}
 	cats, _ := s.st.CategoriesWithForums(r.Context())
@@ -229,7 +243,7 @@ func (s *Server) adminPrune(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) adminPruneExecute(w http.ResponseWriter, r *http.Request) {
-	if !s.requireStaff(w, r) {
+	if !s.requireStaffPoint(w, r, perm.PruneRun) {
 		return
 	}
 	if !s.checkCSRF(r) {

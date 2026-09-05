@@ -12,12 +12,15 @@ import (
 
 // RecomputeForumStats 从公开内容重算单个版块的全部统计与最后发表。
 func (s *Store) RecomputeForumStats(ctx context.Context, forumID int64) error {
-	// 标量子查询可引用 UPDATE 目标行（UPDATE...FROM 里 LATERAL 不能引用目标表）
+	// 标量子查询可引用 UPDATE 目标行（UPDATE...FROM 里 LATERAL 不能引用目标表）。
+	// 主题与楼层状态同时约束：待审/已删主题下的公开回复同样不进公开口径，
+	// 否则首楼被重新送审后，last_* 仍会引用隐藏主题的标题与作者。
 	latest := func(col string) string {
 		return `(SELECT ` + col + ` FROM posts p
 			JOIN threads t ON t.id = p.thread_id
 			JOIN users u ON u.id = p.author_id
 			WHERE t.forum_id = f.id AND NOT p.deleted AND NOT p.pending
+			  AND NOT t.deleted AND NOT t.pending
 			ORDER BY p.created_at DESC
 			LIMIT 1)`
 	}
@@ -26,7 +29,8 @@ func (s *Store) RecomputeForumStats(ctx context.Context, forumID int64) error {
 			thread_count = (SELECT count(*) FROM threads t
 				WHERE t.forum_id=f.id AND NOT t.deleted AND NOT t.pending),
 			post_count = (SELECT count(*) FROM posts p JOIN threads t ON t.id=p.thread_id
-				WHERE t.forum_id=f.id AND NOT p.deleted AND NOT p.pending),
+				WHERE t.forum_id=f.id AND NOT p.deleted AND NOT p.pending
+				  AND NOT t.deleted AND NOT t.pending),
 			last_post_at = `+latest("p.created_at")+`,
 			last_post_uid = `+latest("p.author_id")+`,
 			last_post_author = `+latest("u.username")+`,

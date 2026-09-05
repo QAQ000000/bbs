@@ -55,7 +55,8 @@ func (s *Store) DeletedThreadForumID(ctx context.Context, tid int64) (int64, err
 	return fid, err
 }
 
-// RestoreThread 从回收站恢复主题：连同其软删楼层一并恢复，并回补版块计数。
+// RestoreThread 从回收站恢复主题：只恢复随主题删除的楼层（thread_deleted），
+// 此前被单独删除的楼层保持隐藏，并回补版块计数。
 func (s *Store) RestoreThread(ctx context.Context, tid int64) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -64,8 +65,7 @@ func (s *Store) RestoreThread(ctx context.Context, tid int64) error {
 	defer tx.Rollback(ctx)
 
 	var forumID int64
-	var postCount int
-	err = tx.QueryRow(ctx, `SELECT forum_id, post_count FROM threads WHERE id=$1 AND deleted`, tid).Scan(&forumID, &postCount)
+	err = tx.QueryRow(ctx, `SELECT forum_id FROM threads WHERE id=$1 AND deleted FOR UPDATE`, tid).Scan(&forumID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ErrNotFound
 	}
@@ -73,23 +73,57 @@ func (s *Store) RestoreThread(ctx context.Context, tid int64) error {
 		return err
 	}
 
-	var restored int
-	if err := tx.QueryRow(ctx,
-		`WITH u AS (UPDATE threads SET deleted=false WHERE id=$1 RETURNING 1)
-		 SELECT count(*) FROM u`, tid).Scan(&restored); err != nil {
+	// 待恢复楼层与现存公开楼层同号的先挪到当前最大楼层号之后
+	// （删除期间楼层号可能被新回复占用；配合 posts_live_floor_uk 唯一索引）
+	rows, err := tx.Query(ctx, `
+		SELECT p.id FROM posts p
+		WHERE p.thread_id=$1 AND p.deleted AND p.thread_deleted
+		  AND EXISTS (SELECT 1 FROM posts q WHERE q.thread_id=$1 AND q.floor=p.floor AND NOT q.deleted)`, tid)
+	if err != nil {
 		return err
 	}
-	if _, err := tx.Exec(ctx, `UPDATE posts SET deleted=false WHERE thread_id=$1 AND deleted`, tid); err != nil {
+	var conflicts []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return err
+		}
+		conflicts = append(conflicts, id)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for _, id := range conflicts {
+		if _, err := tx.Exec(ctx, `
+			UPDATE posts SET floor=(SELECT coalesce(max(floor),0)+1 FROM posts WHERE thread_id=$1)
+			WHERE id=$2 AND deleted AND thread_deleted`, tid, id); err != nil {
+			return err
+		}
+	}
+
+	if _, err := tx.Exec(ctx, `UPDATE threads SET deleted=false WHERE id=$1`, tid); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx,
+		`UPDATE posts SET deleted=false WHERE thread_id=$1 AND deleted AND thread_deleted`, tid); err != nil {
+		return err
+	}
+	// post_count 口径 = 全部未删楼层（含待审）：删除期间的新回复与恢复楼层取并集
+	if _, err := tx.Exec(ctx, `
+		UPDATE threads SET post_count=(SELECT count(*) FROM posts WHERE thread_id=$1 AND NOT deleted)
+		WHERE id=$1`, tid); err != nil {
 		return err
 	}
 
 	if err := tx.Commit(ctx); err != nil {
 		return err
 	}
-	// 公开口径统计与作者计数统一重算/回补
+	// 作者计数回补：只补非待审楼层（待审楼层从未计入作者计数）
 	if _, err := s.pool.Exec(ctx, `
 		UPDATE users u SET post_count = u.post_count + x.n
-		FROM (SELECT author_id, count(*) AS n FROM posts WHERE thread_id=$1 AND NOT deleted GROUP BY author_id) x
+		FROM (SELECT author_id, count(*) AS n FROM posts WHERE thread_id=$1 AND NOT deleted AND NOT pending GROUP BY author_id) x
 		WHERE u.id = x.author_id`, tid); err != nil {
 		return err
 	}
@@ -100,16 +134,29 @@ func (s *Store) RestoreThread(ctx context.Context, tid int64) error {
 }
 
 // PurgeThread 彻底删除回收站中的主题（计数已在软删时扣减）。
+// 事务内锁定并确认主题仍处于软删状态：与恢复并发时二者只成一个，
+// 避免恢复后的主题被无条件清空楼层。
 func (s *Store) PurgeThread(ctx context.Context, tid int64) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback(ctx)
+	var deleted bool
+	err = tx.QueryRow(ctx, `SELECT deleted FROM threads WHERE id=$1 FOR UPDATE`, tid).Scan(&deleted)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrNotFound
+	}
+	if err != nil {
+		return err
+	}
+	if !deleted {
+		return ErrNotFound // 已被并发恢复：拒绝删除
+	}
 	if _, err := tx.Exec(ctx, `DELETE FROM posts WHERE thread_id=$1`, tid); err != nil {
 		return err
 	}
-	if _, err := tx.Exec(ctx, `DELETE FROM threads WHERE id=$1 AND deleted`, tid); err != nil {
+	if _, err := tx.Exec(ctx, `DELETE FROM threads WHERE id=$1`, tid); err != nil {
 		return err
 	}
 	return tx.Commit(ctx)

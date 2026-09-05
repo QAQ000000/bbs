@@ -138,7 +138,7 @@ func TestThreadCounters(t *testing.T) {
 
 	// 编辑：版本号自增
 	p1, _ := testStore.Post(ctx, p.ID)
-	_, thUp, err := testStore.UpdatePost(ctx, p.ID, "计数主题（改）", "改后内容", "<p>改</p>")
+	_, thUp, err := testStore.UpdatePost(ctx, p.ID, 0, 0, "", "计数主题（改）", "改后内容", "<p>改</p>")
 	if err != nil {
 		t.Fatal(err)
 	}

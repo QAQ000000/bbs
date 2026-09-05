@@ -315,3 +315,8 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
     applied_at timestamptz NOT NULL DEFAULT now()
 );
 INSERT INTO schema_migrations (version) VALUES (1) ON CONFLICT DO NOTHING;
+
+-- ---- 安全整改批次（迁移 005）----
+ALTER TABLE threads ADD COLUMN IF NOT EXISTS floor_seq int NOT NULL DEFAULT 1;            -- 单调楼层序号（与有效帖数分离，删楼不复用楼层号）
+ALTER TABLE posts   ADD COLUMN IF NOT EXISTS thread_deleted boolean NOT NULL DEFAULT false; -- 随主题删除的楼层标记（恢复主题时只恢复这批）
+ALTER TABLE email_verifications ADD COLUMN IF NOT EXISTS email text NOT NULL DEFAULT '';    -- 验证令牌绑定的申请邮箱（换绑后旧令牌失效）

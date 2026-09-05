@@ -155,9 +155,16 @@ func (s *Server) postHistory(w http.ResponseWriter, r *http.Request) {
 		s.renderError(w, r, http.StatusInternalServerError, "加载失败", err.Error())
 		return
 	}
+	// 历史含此前正文：作者本人，或管辖该楼层所属版块的管理人员
 	u := User(r)
-	if !canEditContent(u, p.AuthorID) && !hasPoint(u, perm.ContentModerate) {
-		s.renderError(w, r, http.StatusForbidden, "没有权限", "只有作者与版主可以查看编辑历史。")
+	th, err := s.st.Thread(r.Context(), p.ThreadID)
+	if err != nil {
+		s.renderError(w, r, http.StatusNotFound, "内容不存在", "所属主题不存在或已被删除。")
+		return
+	}
+	if !canEditContent(u, p.AuthorID) &&
+		!(hasPoint(u, perm.ContentModerate) && inForumScope(s.staffForumScope(r), th.ForumID)) {
+		s.renderError(w, r, http.StatusForbidden, "没有权限", "只有作者与管辖版块内的版主可以查看编辑历史。")
 		return
 	}
 	edits, err := s.st.PostEditsOf(r.Context(), pid)

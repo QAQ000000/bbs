@@ -216,6 +216,11 @@ func (s *Server) replyForm(w http.ResponseWriter, r *http.Request) {
 		s.renderError(w, r, http.StatusInternalServerError, "加载失败", err.Error())
 		return
 	}
+	// 待审核主题仅作者与管理人员可见可回复（与帖子页同口径）
+	if th.Pending && !canViewPending(User(r), th) {
+		s.renderError(w, r, http.StatusNotFound, "主题不存在", "该主题不存在或已被删除。")
+		return
+	}
 	if th.Closed {
 		s.renderError(w, r, http.StatusForbidden, "无法回复", "该主题已锁定。")
 		return
@@ -225,15 +230,32 @@ func (s *Server) replyForm(w http.ResponseWriter, r *http.Request) {
 	d.Thread = th
 	d.Common.Title = "回复主题：" + th.Title
 	d.DraftContext = "reply:" + strconv.FormatInt(tid, 10)
-	// 引用回复（ROADMAP 阶段三）：?quote=pid 服务端预填 Markdown 引用块
+	// 引用回复（ROADMAP 阶段三）：?quote=pid 服务端预填 Markdown 引用块。
+	// 引用会携带原文，仅对当前用户可见的楼层预填（待审楼层只对作者/版主可见），
+	// 否则第三人可通过 quote 参数枚举读取待审核正文
 	if qs := r.URL.Query().Get("quote"); qs != "" {
 		if qpid, err := strconv.ParseInt(qs, 10, 64); err == nil && qpid > 0 {
-			if qp, err := s.st.Post(r.Context(), qpid); err == nil && qp.ThreadID == tid {
+			if qp, err := s.st.Post(r.Context(), qpid); err == nil && qp.ThreadID == tid && postVisibleTo(User(r), qp, th) {
 				d.Content = buildQuote(qp)
 			}
 		}
 	}
 	_ = s.rd.Render(w, "page_editor.html", &d)
+}
+
+// postVisibleTo 楼层对当前用户是否可见：公开楼层对所有人可见；
+// 待审楼层仅作者本人与内容管理人员可见（与帖子页/SSE 口径一致）。
+func postVisibleTo(viewer *store.User, p *store.Post, th *store.Thread) bool {
+	if !p.Pending && !th.Pending {
+		return true
+	}
+	if viewer == nil {
+		return false
+	}
+	if viewer.ID == p.AuthorID || viewer.ID == th.AuthorID {
+		return true
+	}
+	return isStaff(viewer)
 }
 
 // buildQuote 生成引用 Markdown 块（截取原文前 ~140 字，逐行加 >）。
@@ -242,24 +264,33 @@ func buildQuote(p *store.Post) string {
 	if text == "" {
 		return ""
 	}
+	const maxQuote = 140
 	var lines []string
 	total := 0
+	truncated := false
 	for _, l := range strings.Split(text, "\n") {
 		l = strings.TrimSpace(l)
 		if l == "" {
 			continue
 		}
-		lines = append(lines, l)
-		total += utf8.RuneCountInString(l)
-		if total > 140 {
+		n := utf8.RuneCountInString(l)
+		if total+n > maxQuote {
+			// 当前行放不下：截取能放下的部分后收尾，单行长段落同样严格截断
+			if remain := maxQuote - total; remain > 0 {
+				r := []rune(l)
+				lines = append(lines, string(r[:remain]))
+			}
+			truncated = true
 			break
 		}
+		lines = append(lines, l)
+		total += n
 	}
 	if len(lines) == 0 {
 		return ""
 	}
 	joined := "> " + strings.Join(lines, "\n> ")
-	if total > 140 {
+	if truncated {
 		joined += " …"
 	}
 	return "引用 " + p.AuthorName + "（" + strconv.Itoa(p.Floor) + " 楼）：\n" + joined + "\n\n"
@@ -306,9 +337,13 @@ func (s *Server) replySubmit(w http.ResponseWriter, r *http.Request) {
 	s.st.SetPostIP(r.Context(), p.ID, remoteIP(r))
 	if !pending {
 		s.broadcastPost("post.new", th, p)
-		s.broadcastThread("thread.update", th)
-		mentioned := s.notifyMentions(r, u, content, th, p)
-		s.notifyReply(r, u, th, p, mentioned)
+		// 待审主题的行不能进版块页 SSE（游客订阅 f: 版块主题）：
+		// 主题可见后由审批路径广播
+		if !th.Pending {
+			s.broadcastThread("thread.update", th)
+			mentioned := s.notifyMentions(r, u, content, th, p)
+			s.notifyReply(r, u, th, p, mentioned)
+		}
 	}
 	_ = s.st.SaveDraft(r.Context(), u.ID, "reply:"+strconv.FormatInt(tid, 10), "")
 	s.bustPageCache()
@@ -403,8 +438,10 @@ func (s *Server) editSubmit(w http.ResponseWriter, r *http.Request) {
 		s.renderError(w, r, http.StatusForbidden, "没有权限", "只能编辑自己的内容。")
 		return
 	}
-	// 编辑冲突检测（版本号比对）：携带版本落后于当前版本则拒绝
-	if v, _ := strconv.Atoi(r.PostFormValue("version")); v > 0 && v != p.Version {
+	// 编辑冲突检测：携带版本落后于当前版本则拒绝；
+	// 版本号继续传入 UpdatePost 在事务（行锁）内做权威校验，封死并发窗口
+	v, _ := strconv.Atoi(r.PostFormValue("version"))
+	if v > 0 && v != p.Version {
 		s.renderError(w, r, http.StatusConflict, "内容已被他人更新",
 			"你编辑期间该楼层被其他会话修改过（当前版本 "+strconv.Itoa(p.Version)+"，你基于版本 "+strconv.Itoa(v)+"）。请刷新查看最新内容后重新编辑。")
 		return
@@ -425,11 +462,14 @@ func (s *Server) editSubmit(w http.ResponseWriter, r *http.Request) {
 	ct := s.censorTexts(r, subject, content)
 	subject, content = ct[0], ct[1]
 	html := markdown.Render(content)
-	if err := s.st.SavePostEdit(r.Context(), pid, u.ID, p.ContentMD); err != nil {
-		s.renderError(w, r, http.StatusInternalServerError, "保存失败", err.Error())
+	// 版本校验、改前快照与内容更新在 UpdatePost 事务内完成：
+	// 并发编辑只有一个请求成功，后写不覆盖先写
+	p2, th, err := s.st.UpdatePost(r.Context(), pid, v, u.ID, p.ContentMD, subject, content, html)
+	if errors.Is(err, store.ErrEditConflict) {
+		s.renderError(w, r, http.StatusConflict, "内容已被他人更新",
+			"你编辑期间该楼层被其他会话修改过，请刷新查看最新内容后重新编辑。")
 		return
 	}
-	p2, th, err := s.st.UpdatePost(r.Context(), pid, subject, content, html)
 	if err != nil {
 		s.renderError(w, r, http.StatusInternalServerError, "保存失败", err.Error())
 		return
@@ -438,9 +478,11 @@ func (s *Server) editSubmit(w http.ResponseWriter, r *http.Request) {
 	if reenqueue {
 		_ = s.st.SetPostPendingModeration(r.Context(), pid, reason)
 		s.setFlash(w, "内容已提交重新审核，审核通过前不可见")
-	} else {
+	} else if postVisibleTo(nil, p2, th) {
+		// 只有最终公开的楼层才广播：编辑待审内容不能把完整正文
+		// 推给订阅了该主题的游客
 		s.broadcastPost("post.edit", th, p2)
-		if p.Floor == 1 {
+		if p.Floor == 1 && !th.Pending {
 			s.broadcastThread("thread.update", th)
 		}
 	}
@@ -496,11 +538,10 @@ func (s *Server) deletePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if deletedThread {
-		th, err := s.st.Thread(r.Context(), tid)
-		if err == nil {
-			s.publish("t:"+strconv.FormatInt(tid, 10), eventBody{Type: "thread.deleted", TID: tid})
-			s.broadcastThread("thread.delete", th)
-		}
+		// 用删除前取出的主题快照广播：删后再查必然不存在，
+		// 会连带跳过缓存失效，游客最长 60s 继续看到旧全文
+		s.publish("t:"+strconv.FormatInt(tid, 10), eventBody{Type: "thread.deleted", TID: tid})
+		s.broadcastThread("thread.delete", th)
 		s.setFlash(w, "主题已删除")
 		http.Redirect(w, r, r.PostFormValue("back"), http.StatusSeeOther)
 		return

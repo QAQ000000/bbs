@@ -34,8 +34,12 @@ func (s *Subscriber) send(payload []byte) bool {
 	select {
 	case s.ch <- payload:
 		return true
-	default: // 缓冲已满 = 慢消费者，直接断开让其重连
+	default:
+		// 缓冲已满 = 慢消费者：关闭通道让 SSE handler 退出（客户端自动重连）。
+		// 必须同时 close：只标记 closed 会让 handler 永远阻塞在心跳上，
+		// 已投进缓冲的事件也不再被消费，连接既不断开也收不到后续事件。
 		s.closed = true
+		close(s.ch)
 		return false
 	}
 }

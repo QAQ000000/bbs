@@ -5,11 +5,13 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -199,9 +201,46 @@ func (s *Server) likesList(w http.ResponseWriter, r *http.Request) {
 }
 
 // GET /uploads/...：运行时上传文件服务（长缓存）。
+// 只服务有上传记录的具体文件：禁止目录列表，无记录路径一律 404
+// （杜绝逐级枚举目录与猜未挂载文件）；挂载到非公开楼层（待审/已删/
+// 待审主题）的附件仅作者与管理人员可取，公开楼层附件对所有人开放。
 func (s *Server) serveUploads(w http.ResponseWriter, r *http.Request) {
+	name := strings.TrimPrefix(r.URL.Path, "/uploads/")
+	if name == "" || strings.HasSuffix(name, "/") {
+		http.NotFound(w, r)
+		return
+	}
+	name = path.Clean(name)
+	if name == "." || name == ".." || strings.HasPrefix(name, "../") {
+		http.NotFound(w, r)
+		return
+	}
+	// 头像本就是公开资料（/avatar/{uid} 直接展示），保持可访问
+	if strings.HasPrefix(name, "avatars/") {
+		w.Header().Set("Cache-Control", "public, max-age=300")
+		http.ServeFile(w, r, filepath.Join(s.cfg.UploadDir, filepath.FromSlash(name)))
+		return
+	}
+	up, err := s.st.UploadByPath(r.Context(), "/uploads/"+name)
+	if errors.Is(err, store.ErrNotFound) {
+		http.NotFound(w, r)
+		return
+	} else if err != nil {
+		http.Error(w, "internal", http.StatusInternalServerError)
+		return
+	}
+	public := up.PostID > 0 && !up.PostPending && !up.PostDeleted && !up.ThreadPending && !up.ThreadDeleted
+	if !public {
+		// 未挂载的新上传（编辑器预览期）与挂载在非公开楼层的附件：
+		// 仅上传者本人与管理人员可取
+		u := User(r)
+		if u == nil || (u.ID != up.UID && !isStaff(u)) {
+			http.NotFound(w, r)
+			return
+		}
+	}
 	w.Header().Set("Cache-Control", "public, max-age=604800")
-	http.StripPrefix("/uploads/", http.FileServer(http.Dir(s.cfg.UploadDir))).ServeHTTP(w, r)
+	http.ServeFile(w, r, filepath.Join(s.cfg.UploadDir, filepath.FromSlash(name)))
 }
 
 // uploadsPathRe 从 Markdown 内容中提取本站上传文件路径。

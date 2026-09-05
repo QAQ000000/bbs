@@ -1,10 +1,13 @@
 package web
 
 import (
+	"errors"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+
+	"dzforum/internal/store"
 )
 
 // ---- 忘记密码 / 重置（P1 闭环）----
@@ -93,21 +96,16 @@ func (s *Server) resetSubmit(w http.ResponseWriter, r *http.Request) {
 		d.Title = "设置新密码"
 		_ = s.rd.Render(w, "page_reset.html", &d)
 	}
-	uid, err := s.st.ResetUIDByToken(r.Context(), token)
-	if err != nil {
-		s.renderError(w, r, http.StatusBadRequest, "链接无效", "重置链接无效或已过期。请重新申请。")
-		return
-	}
 	if len([]rune(password)) < 8 {
 		fail("密码至少 8 位")
 		return
 	}
-	if err := s.st.UpdatePassword(r.Context(), uid, password); err != nil {
-		s.renderError(w, r, http.StatusInternalServerError, "重置失败", err.Error())
-		return
-	}
-	// 令牌作废 + 全部会话下线（旧会话可能已被盗用）
-	if err := s.st.ConsumePasswordReset(r.Context(), token); err != nil {
+	// 原子重置：令牌条件消费 + 撤销其余重置链接 + 改密 + 全部会话下线
+	if _, err := s.st.ResetPasswordByToken(r.Context(), token, password); err != nil {
+		if errors.Is(err, store.ErrTokenInvalid) {
+			s.renderError(w, r, http.StatusBadRequest, "链接无效", "重置链接无效或已过期。请重新申请。")
+			return
+		}
 		s.renderError(w, r, http.StatusInternalServerError, "重置失败", err.Error())
 		return
 	}

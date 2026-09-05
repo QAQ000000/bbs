@@ -20,6 +20,12 @@ func (s *Store) LikeToggle(ctx context.Context, pid, uid int64) (bool, int, erro
 	}
 	defer tx.Rollback(ctx)
 
+	// 先锁楼层行再改动作与计数：并发点赞各自事务的计数子查询看不到
+	// 对方未提交的插入，会写出偏小的 like_count；锁序化后第二条事务
+	// 计数语句开始时能看到第一条已提交的全部动作行。
+	if _, err := tx.Exec(ctx, `SELECT 1 FROM posts WHERE id=$1 FOR UPDATE`, pid); err != nil {
+		return false, 0, err
+	}
 	var exists bool
 	if err := tx.QueryRow(ctx,
 		`SELECT EXISTS (SELECT 1 FROM post_actions WHERE pid=$1 AND uid=$2 AND action=1)`, pid, uid).Scan(&exists); err != nil {

@@ -101,13 +101,8 @@ type PostEdit struct {
 	CreatedAt time.Time
 }
 
-// SavePostEdit 保存编辑前快照（UpdatePost 前调用）。
-func (s *Store) SavePostEdit(ctx context.Context, postID, editorID int64, contentMD string) error {
-	_, err := s.pool.Exec(ctx,
-		`INSERT INTO post_edits (post_id, editor_id, content_md) VALUES ($1,$2,$3)`,
-		postID, editorID, contentMD)
-	return err
-}
+// 快照写入已并入 store.UpdatePost 的事务（单独写入会脱离版本校验，
+// 更新因冲突失败时快照仍落盘，产生重复历史）。
 
 // PostEditsOf 楼层编辑历史（最新在前）。
 func (s *Store) PostEditsOf(ctx context.Context, postID int64) ([]*PostEdit, error) {

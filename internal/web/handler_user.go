@@ -238,7 +238,7 @@ func (s *Server) registerSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 	// 邮箱验证开关开启且邮件可用：注册即发验证邮件（24h 有效）
 	if s.emailGateEnabled() && email != "" {
-		if raw, err := s.st.CreateEmailVerify(r.Context(), u.ID); err == nil {
+		if raw, err := s.st.CreateEmailVerify(r.Context(), u.ID, email); err == nil {
 			link := s.cfg.SiteURL + "/verify?token=" + url.QueryEscape(raw)
 			s.mailer.NotifyEmailVerify(email, link)
 		}
@@ -259,9 +259,16 @@ func (s *Server) verifyEmail(w http.ResponseWriter, r *http.Request) {
 		s.renderError(w, r, http.StatusTooManyRequests, "操作过于频繁", "请稍后再试。")
 		return
 	}
-	if _, err := s.st.ConsumeEmailVerify(r.Context(), r.URL.Query().Get("token")); err != nil {
+	_, verified, err := s.st.ConsumeEmailVerify(r.Context(), r.URL.Query().Get("token"))
+	if err != nil {
 		s.renderError(w, r, http.StatusBadRequest, "链接无效",
 			"验证链接无效或已过期（有效期 24 小时）。请在资料设置中重发验证邮件。")
+		return
+	}
+	if !verified {
+		// 令牌有效但账号当前邮箱已不是申请验证时的邮箱
+		s.setFlash(w, "邮箱已变更，本次验证未生效，请对新邮箱重新验证")
+		http.Redirect(w, r, "/profile", http.StatusSeeOther)
 		return
 	}
 	s.setFlash(w, "邮箱验证成功")

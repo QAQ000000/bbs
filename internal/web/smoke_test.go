@@ -772,9 +772,7 @@ func TestPermMatrix(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("admin.panel 硬保护被破坏: %d", w.Code)
 	}
-	body := "allow.0.content.edit.own=1&allow.0.content.delete.own=1&allow.0.upload.use=1" +
-		"&allow.2.content.moderate=1&allow.2.content.delete.any=1&allow.2.recycle.bin=1&allow.2.prune.run=1&allow.2.moderate.queue=1&allow.2.upload.use=1"
-	w = smokePost(t, "/admin/perms/save", adminCSRF, body, adminCookie)
+	w = smokePost(t, "/admin/perms/save", adminCSRF, fullMatrixBody(), adminCookie)
 	if w.Code != http.StatusSeeOther {
 		t.Fatalf("恢复矩阵 → %d", w.Code)
 	}

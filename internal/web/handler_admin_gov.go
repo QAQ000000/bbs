@@ -5,13 +5,14 @@ import (
 	"net/http"
 	"strconv"
 
+	"dzforum/internal/perm"
 	"dzforum/internal/store"
 )
 
 // ---- 回收站 ----
 
 func (s *Server) adminRecycle(w http.ResponseWriter, r *http.Request) {
-	if !s.requireStaff(w, r) {
+	if !s.requireStaffPoint(w, r, perm.RecycleBin) {
 		return
 	}
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
@@ -41,7 +42,7 @@ func (s *Server) adminRecycle(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) adminRecycleRestore(w http.ResponseWriter, r *http.Request) {
-	if !s.requireStaff(w, r) {
+	if !s.requireStaffPoint(w, r, perm.RecycleBin) {
 		return
 	}
 	if !s.checkCSRF(r) {
@@ -66,7 +67,7 @@ func (s *Server) adminRecycleRestore(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) adminRecyclePurge(w http.ResponseWriter, r *http.Request) {
-	if !s.requireStaff(w, r) {
+	if !s.requireStaffPoint(w, r, perm.RecycleBin) {
 		return
 	}
 	if !s.checkCSRF(r) {
@@ -88,7 +89,7 @@ func (s *Server) adminRecyclePurge(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) adminRecyclePurgeAll(w http.ResponseWriter, r *http.Request) {
-	if !s.requireStaff(w, r) {
+	if !s.requireStaffPoint(w, r, perm.RecycleBin) {
 		return
 	}
 	if !s.checkCSRF(r) {

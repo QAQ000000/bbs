@@ -3,10 +3,13 @@
 package mail
 
 import (
+	"crypto/tls"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/smtp"
 	"strings"
+	"time"
 )
 
 type Config struct {
@@ -143,19 +146,28 @@ func (m *Mailer) worker() {
 }
 
 func (m *Mailer) send(msg message) error {
-	addr := fmt.Sprintf("%s:%d", m.cfg.Host, m.cfg.Port)
+	addr := net.JoinHostPort(m.cfg.Host, fmt.Sprint(m.cfg.Port))
 	from := m.cfg.From
 	headers := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\n"+
 		"Content-Type: text/plain; charset=UTF-8\r\n\r\n", from, msg.to, msg.subject)
 	body := headers + msg.body
 
-	cl, err := smtp.Dial(addr)
+	// 整个 SMTP 交互限时：连接 10s、会话 60s，避免慢服务器拖住发送 worker
+	conn, err := net.DialTimeout("tcp", addr, 10*time.Second)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	_ = conn.SetDeadline(time.Now().Add(60 * time.Second))
+
+	cl, err := smtp.NewClient(conn, m.cfg.Host)
 	if err != nil {
 		return err
 	}
 	defer cl.Close()
 	if ok, _ := cl.Extension("STARTTLS"); ok {
-		if err := cl.StartTLS(nil); err != nil {
+		// 必须带 ServerName：nil 配置没有服务器名，TLS 握手必然失败
+		if err := cl.StartTLS(&tls.Config{ServerName: m.cfg.Host}); err != nil {
 			return fmt.Errorf("STARTTLS: %w", err)
 		}
 	}

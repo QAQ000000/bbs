@@ -48,22 +48,39 @@ func (s *Store) SetThreadApproved(ctx context.Context, tid int64) error {
 
 // SetPostPendingModeration 将楼层（首楼连主题）标记为待审核并记录原因。
 // 编辑复检使用：过审内容被重新编辑时按规则重新入队。
+// 公开口径对称：楼层退出公开即回扣作者发帖计数（批准时再加回），
+// 防止反复「重新入队→批准」抬升计数影响信任升级。
 func (s *Store) SetPostPendingModeration(ctx context.Context, postID int64, reason string) error {
-	var tid int64
+	var tid, uid int64
 	var floor int
 	if err := s.pool.QueryRow(ctx,
-		`UPDATE posts SET pending=true, pending_reason=$2 WHERE id=$1 AND NOT deleted
-		 RETURNING thread_id, floor`, postID, reason).Scan(&tid, &floor); err != nil {
+		`UPDATE posts SET pending=true, pending_reason=$2 WHERE id=$1 AND NOT deleted AND NOT pending
+		 RETURNING thread_id, floor, author_id`, postID, reason).Scan(&tid, &floor, &uid); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil // 已删除或已在待审队列：无需处理
+		}
+		return err
+	}
+	if err := s.BumpUsersPostCount(ctx, uid, -1); err != nil {
 		return err
 	}
 	if floor == 1 {
 		_, err := s.pool.Exec(ctx,
 			`UPDATE threads SET pending=true, pending_reason=$2 WHERE id=$1`, tid, reason)
+		if err != nil {
+			return err
+		}
+	} else {
+		// 非首楼重新入队：主题活跃度回退到最新公开楼层
+		if err := s.RecomputeThreadLastPost(ctx, tid); err != nil {
+			return err
+		}
+	}
+	var fid int64
+	if err := s.pool.QueryRow(ctx, `SELECT forum_id FROM threads WHERE id=$1`, tid).Scan(&fid); err != nil {
 		return err
 	}
-	// 非首楼重新入队：主题活跃度回退到最新公开楼层
-	_ = s.RecomputeThreadLastPost(ctx, tid)
-	return nil
+	return s.RecomputeForumStats(ctx, fid)
 }
 
 // SetPostApproved 审核通过单条回复：翻 pending、回补作者计数、重算主题最后发表与版块公开统计。
@@ -172,7 +189,7 @@ func (s *Store) PendingPosts(ctx context.Context, limit int, forumIDs []int64) (
 		var r PendingPostRow
 		p := &r.Post
 		if err := rows.Scan(&p.ID, &p.ThreadID, &p.AuthorID, &p.AuthorName, &p.AuthorGroup,
-			&p.Floor, &p.ContentMD, &p.ContentHTML, &p.CreatedAt, &p.EditedAt, &p.HasEdited, &p.Pending, &p.PendingReason, &p.LikeCount, &p.Version,
+			&p.Floor, &p.ContentMD, &p.ContentHTML, &p.CreatedAt, &p.EditedAt, &p.HasEdited, &p.Pending, &p.PendingReason, &p.LikeCount, &p.Version, &p.IP,
 			&r.ThreadID, &r.ThreadTtl); err != nil {
 			return nil, err
 		}

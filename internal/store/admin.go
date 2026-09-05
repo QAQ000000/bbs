@@ -408,7 +408,7 @@ func (s *Store) BanUser(ctx context.Context, uid int64, days int, reason string)
 		return err
 	}
 	_, err := s.pool.Exec(ctx,
-		`UPDATE users SET banned_until = 'infinity', ban_reason=$2 WHERE id=$1`, uid, reason)
+		`UPDATE users SET banned_until = now() + interval '100 years', ban_reason=$2 WHERE id=$1`, uid, reason)
 	return err
 }
 
@@ -498,18 +498,33 @@ func (s *Store) DBSize(ctx context.Context) string {
 }
 
 // MoveThread 主题跨版块移动：迁移主题并重算新旧两个版块的公开口径统计。
+// 必须先锁定读取旧版块 id 再更新——UPDATE...RETURNING 返回的是新值，
+// 直接赋给 oldForumID 会导致旧版块统计与最后发表长期残留。
 func (s *Store) MoveThread(ctx context.Context, tid, newForumID int64) (int64, error) {
-	var oldForumID int64
-	err := s.pool.QueryRow(ctx,
-		"UPDATE threads SET forum_id=$2 WHERE id=$1 RETURNING forum_id", tid, newForumID).
-		Scan(&oldForumID)
+	tx, err := s.pool.Begin(ctx)
 	if err != nil {
-		if err == pgx.ErrNoRows {
-			err = ErrNotFound
+		return 0, err
+	}
+	defer tx.Rollback(ctx)
+	var oldForumID int64
+	err = tx.QueryRow(ctx,
+		`SELECT forum_id FROM threads WHERE id=$1 FOR UPDATE`, tid).Scan(&oldForumID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return 0, ErrNotFound
 		}
 		return 0, err
 	}
-	s.RecomputeForumStats(ctx, oldForumID)
+	if _, err := tx.Exec(ctx,
+		`UPDATE threads SET forum_id=$2 WHERE id=$1`, tid, newForumID); err != nil {
+		return 0, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return 0, err
+	}
+	if oldForumID != newForumID {
+		s.RecomputeForumStats(ctx, oldForumID)
+	}
 	s.RecomputeForumStats(ctx, newForumID)
 	return oldForumID, nil
 }
@@ -538,7 +553,7 @@ func (s *Store) BlockUser(ctx context.Context, uid int64, days int) error {
 			`UPDATE users SET blocked_until = now() + make_interval(days => $2) WHERE id=$1`, uid, days)
 	} else {
 		_, err = s.pool.Exec(ctx,
-			`UPDATE users SET blocked_until = 'infinity' WHERE id=$1`, uid)
+			`UPDATE users SET blocked_until = now() + interval '100 years' WHERE id=$1`, uid)
 	}
 	if err != nil {
 		return err

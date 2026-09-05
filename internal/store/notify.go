@@ -5,6 +5,7 @@ package store
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -59,6 +60,35 @@ func (s *Store) LinkUploadsToPost(ctx context.Context, uid, postID int64, paths 
 		return err
 	}
 	return tx.Commit(ctx)
+}
+
+// UploadVisibility 上传文件的可见性要素（挂载楼层与所属主题的状态）。
+type UploadVisibility struct {
+	UID           int64
+	PostID        int64
+	PostPending   bool
+	PostDeleted   bool
+	ThreadPending bool
+	ThreadDeleted bool
+}
+
+// UploadByPath 按站点路径（/uploads/...）查上传记录及挂载楼层/主题状态。
+// 无记录返回 ErrNotFound：未登记的磁盘文件一律不可经 HTTP 访问。
+func (s *Store) UploadByPath(ctx context.Context, path string) (*UploadVisibility, error) {
+	var v UploadVisibility
+	err := s.pool.QueryRow(ctx, `
+		SELECT u.uid, coalesce(u.post_id,0),
+		       coalesce(p.pending,false), coalesce(p.deleted,false),
+		       coalesce(t.pending,false), coalesce(t.deleted,false)
+		FROM uploads u
+		LEFT JOIN posts p ON p.id = u.post_id
+		LEFT JOIN threads t ON t.id = p.thread_id
+		WHERE u.path=$1`, path).
+		Scan(&v.UID, &v.PostID, &v.PostPending, &v.PostDeleted, &v.ThreadPending, &v.ThreadDeleted)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	return &v, err
 }
 
 // UploadsForPosts 楼层附件列表（按楼层分组返回）。
@@ -180,27 +210,79 @@ func (s *Store) ResetUIDByToken(ctx context.Context, raw string) (int64, error) 
 	return uid, err
 }
 
-// ConsumePasswordReset 作废令牌并强制该用户全部会话下线。
-func (s *Store) ConsumePasswordReset(ctx context.Context, raw string) error {
-	if _, err := s.pool.Exec(ctx,
-		`UPDATE password_resets SET used=true WHERE token_hash=$1`, hashToken(raw)); err != nil {
-		return err
+// ErrTokenInvalid 令牌无效、已使用或已过期。
+var ErrTokenInvalid = errors.New("token invalid")
+
+// ResetPasswordByToken 原子完成密码重置：单事务内条件消费令牌（未用且未过期，
+// 只允许一个并发请求成功）→ 撤销该用户其余全部重置令牌（旧链接随即失效）→
+// 写入新密码 → 撤销全部会话。此前「校验→改密→消费」三步非原子，
+// 同一令牌并发提交可两次改密。
+func (s *Store) ResetPasswordByToken(ctx context.Context, raw, newPassword string) (int64, error) {
+	hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return 0, err
 	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback(ctx)
 	var uid int64
-	if err := s.pool.QueryRow(ctx,
-		`SELECT uid FROM password_resets WHERE token_hash=$1`, hashToken(raw)).Scan(&uid); err != nil {
-		return err
+	err = tx.QueryRow(ctx,
+		`UPDATE password_resets SET used=true
+		 WHERE token_hash=$1 AND NOT used AND expires_at > now()
+		 RETURNING uid`, hashToken(raw)).Scan(&uid)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, ErrTokenInvalid
 	}
-	_, err := s.pool.Exec(ctx, `DELETE FROM sessions WHERE user_id=$1`, uid)
+	if err != nil {
+		return 0, err
+	}
+	if _, err := tx.Exec(ctx,
+		`UPDATE password_resets SET used=true WHERE uid=$1 AND NOT used`, uid); err != nil {
+		return 0, err
+	}
+	if _, err := tx.Exec(ctx,
+		`UPDATE users SET password_hash=$2, must_change_password=false WHERE id=$1`, uid, string(hash)); err != nil {
+		return 0, err
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM sessions WHERE user_id=$1`, uid); err != nil {
+		return 0, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return 0, err
+	}
 	s.sessions.invalidateUser(uid)
-	return err
+	return uid, nil
 }
 
 // UpdateProfile 更新签名与邮箱（邮箱唯一性由 users_email_unique_idx 兜底）。
-func (s *Store) UpdateProfile(ctx context.Context, uid int64, signature, email string) error {
-	_, err := s.pool.Exec(ctx,
-		`UPDATE users SET signature=$2, email=$3 WHERE id=$1`, uid, signature, email)
-	return err
+// 邮箱变更即清除 email_verified 并作废旧验证令牌：验证状态跟随具体邮箱，
+// 换绑后不能沿用旧邮箱的验证结论。返回邮箱是否发生变更。
+func (s *Store) UpdateProfile(ctx context.Context, uid int64, signature, email string) (bool, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback(ctx)
+	var oldEmail string
+	if err := tx.QueryRow(ctx,
+		`SELECT email FROM users WHERE id=$1 FOR UPDATE`, uid).Scan(&oldEmail); err != nil {
+		return false, err
+	}
+	changed := oldEmail != email
+	if _, err := tx.Exec(ctx, `
+		UPDATE users SET signature=$2, email=$3,
+		       email_verified = CASE WHEN email=$3 THEN email_verified ELSE false END
+		WHERE id=$1`, uid, signature, email); err != nil {
+		return false, err
+	}
+	if changed {
+		if _, err := tx.Exec(ctx, `DELETE FROM email_verifications WHERE uid=$1`, uid); err != nil {
+			return false, err
+		}
+	}
+	return changed, tx.Commit(ctx)
 }
 
 // ChangePassword 修改密码：校验旧密码；成功后撤销当前会话之外的全部会话。
@@ -225,6 +307,11 @@ func (s *Store) ChangePassword(ctx context.Context, uid int64, oldPassword, newP
 		`UPDATE users SET password_hash=$2, must_change_password=false WHERE id=$1`, uid, string(newHash)); err != nil {
 		return err
 	}
+	// 改密后撤销全部未用重置令牌：持旧链接者不能在用户改密后重新控制账号
+	if _, err := s.pool.Exec(ctx,
+		`UPDATE password_resets SET used=true WHERE uid=$1 AND NOT used`, uid); err != nil {
+		return err
+	}
 	if keepRawToken != "" {
 		if _, err := s.pool.Exec(ctx,
 			`DELETE FROM sessions WHERE user_id=$1 AND token<>$2`, uid, hashToken(keepRawToken)); err != nil {
@@ -238,41 +325,39 @@ func (s *Store) ChangePassword(ctx context.Context, uid int64, oldPassword, newP
 }
 
 // CreateEmailVerify 生成邮箱验证令牌（24h 有效；库中存哈希，同用户覆盖旧令牌）。
-func (s *Store) CreateEmailVerify(ctx context.Context, uid int64) (string, error) {
+// 令牌绑定申请时的邮箱地址：换绑后旧链接不能验证新邮箱。
+func (s *Store) CreateEmailVerify(ctx context.Context, uid int64, email string) (string, error) {
 	raw := newToken(24)
 	_, err := s.pool.Exec(ctx, `
-		INSERT INTO email_verifications (uid, token_hash, expires_at)
-		VALUES ($1,$2, now() + interval '24 hours')
+		INSERT INTO email_verifications (uid, token_hash, expires_at, email)
+		VALUES ($1,$2, now() + interval '24 hours', $3)
 		ON CONFLICT (uid) DO UPDATE SET
-			token_hash = EXCLUDED.token_hash, expires_at = EXCLUDED.expires_at, created_at = now()`,
-		uid, hashToken(raw))
+			token_hash = EXCLUDED.token_hash, expires_at = EXCLUDED.expires_at,
+			created_at = now(), email = EXCLUDED.email`,
+		uid, hashToken(raw), strings.ToLower(email))
 	return raw, err
 }
 
-// ConsumeEmailVerify 一次性消费验证令牌并标记用户邮箱已验证，返回用户 id。
-func (s *Store) ConsumeEmailVerify(ctx context.Context, raw string) (int64, error) {
+// ConsumeEmailVerify 一次性消费验证令牌；仅当用户当前邮箱与令牌绑定的
+// 邮箱一致时标记已验证。返回 (uid, 是否已验证)。
+func (s *Store) ConsumeEmailVerify(ctx context.Context, raw string) (int64, bool, error) {
 	var uid int64
+	var email string
 	err := s.pool.QueryRow(ctx,
-		`DELETE FROM email_verifications WHERE token_hash=$1 AND expires_at > now() RETURNING uid`,
-		hashToken(raw)).Scan(&uid)
+		`DELETE FROM email_verifications WHERE token_hash=$1 AND expires_at > now() RETURNING uid, email`,
+		hashToken(raw)).Scan(&uid, &email)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return 0, ErrNotFound
+		return 0, false, ErrNotFound
 	}
 	if err != nil {
-		return 0, err
+		return 0, false, err
 	}
-	_, err = s.pool.Exec(ctx, `UPDATE users SET email_verified=true WHERE id=$1`, uid)
-	return uid, err
-}
-
-// UpdatePassword 重设密码（bcrypt）。
-func (s *Store) UpdatePassword(ctx context.Context, uid int64, password string) error {
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	tag, err := s.pool.Exec(ctx,
+		`UPDATE users SET email_verified=true WHERE id=$1 AND lower(email)=$2`, uid, email)
 	if err != nil {
-		return err
+		return uid, false, err
 	}
-	_, err = s.pool.Exec(ctx, `UPDATE users SET password_hash=$2 WHERE id=$1`, uid, string(hash))
-	return err
+	return uid, tag.RowsAffected() > 0, nil
 }
 
 // UserEmailExists 是否存在使用该邮箱的账号（找回流程的前置查询）。
