@@ -186,8 +186,19 @@ func (s *Store) DeletePost(ctx context.Context, postID int64) (deletedThread boo
 
 	var uid, floor int
 	var forumID int64
-	err = tx.QueryRow(ctx, `SELECT thread_id, author_id, floor FROM posts WHERE id=$1 AND NOT deleted`, postID).
-		Scan(&tid, &uid, &floor)
+	// Lock the parent before posts, matching CreateReply's lock order.
+	err = tx.QueryRow(ctx, `SELECT t.id, t.forum_id FROM threads t
+		WHERE t.id=(SELECT thread_id FROM posts WHERE id=$1) AND NOT t.deleted
+		FOR UPDATE`, postID).Scan(&tid, &forumID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, 0, ErrNotFound
+	}
+	if err != nil {
+		return false, 0, err
+	}
+	var pending bool
+	err = tx.QueryRow(ctx, `SELECT author_id, floor, pending FROM posts WHERE id=$1 AND NOT deleted FOR UPDATE`, postID).
+		Scan(&uid, &floor, &pending)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return false, 0, ErrNotFound
 	}
@@ -204,13 +215,14 @@ func (s *Store) DeletePost(ctx context.Context, postID int64) (deletedThread boo
 		if _, err := tx.Exec(ctx, `UPDATE threads SET deleted=true WHERE id=$1`, tid); err != nil {
 			return false, 0, err
 		}
-		if _, err := tx.Exec(ctx, `UPDATE posts SET deleted=true WHERE thread_id=$1`, tid); err != nil {
-			return false, 0, err
-		}
 		// 回补各作者的发帖计数
 		if _, err := tx.Exec(ctx, `
+			WITH removed AS (
+				UPDATE posts SET deleted=true WHERE thread_id=$1 AND NOT deleted
+				RETURNING author_id, pending
+			)
 			UPDATE users u SET post_count = GREATEST(u.post_count - x.n, 0)
-			FROM (SELECT author_id, count(*) AS n FROM posts WHERE thread_id=$1 AND deleted GROUP BY author_id) x
+			FROM (SELECT author_id, count(*) AS n FROM removed WHERE NOT pending GROUP BY author_id) x
 			WHERE u.id = x.author_id`, tid); err != nil {
 			return false, 0, err
 		}
@@ -225,10 +237,10 @@ func (s *Store) DeletePost(ctx context.Context, postID int64) (deletedThread boo
 		return false, 0, err
 	}
 	if _, err := tx.Exec(ctx,
-		`UPDATE users SET post_count = GREATEST(post_count-1, 0) WHERE id=$1`, uid); err != nil {
+		`UPDATE users SET post_count = GREATEST(post_count-1, 0) WHERE id=$1 AND NOT $2::bool`, uid, pending); err != nil {
 		return false, 0, err
 	}
-	if _, err := tx.Exec(ctx, `UPDATE threads SET post_count=post_count-1 WHERE id=$1`, tid); err != nil {
+	if _, err := tx.Exec(ctx, `UPDATE threads SET post_count=GREATEST(post_count-1, 0) WHERE id=$1`, tid); err != nil {
 		return false, 0, err
 	}
 	if err := tx.Commit(ctx); err != nil {

@@ -4,14 +4,15 @@ package web
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 	"unicode/utf8"
 
 	"dzforum/internal/perm"
+	"dzforum/internal/store"
 )
 
 // ---- 权限矩阵（P1-6）----
@@ -182,7 +183,15 @@ func (s *Server) setupSubmit(w http.ResponseWriter, r *http.Request) {
 		fail("邮箱格式不正确")
 		return
 	}
-	u, err := s.st.CreateUser(r.Context(), username, password, email)
+	u, err := s.st.InitializeSite(r.Context(), username, password, email, siteName)
+	if errors.Is(err, store.ErrAlreadyInitialized) {
+		s.setupMu.Lock()
+		s.setupRequiredFlag = false
+		s.setupCheckedAt = time.Time{}
+		s.setupMu.Unlock()
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
 	if err != nil {
 		if strings.Contains(err.Error(), "users_username_lower_idx") {
 			fail("用户名已被占用")
@@ -191,11 +200,10 @@ func (s *Server) setupSubmit(w http.ResponseWriter, r *http.Request) {
 		s.renderError(w, r, http.StatusInternalServerError, "安装失败", err.Error())
 		return
 	}
-	if err := s.st.PromoteToAdmin(r.Context(), u.ID); err != nil {
-		s.renderError(w, r, http.StatusInternalServerError, "安装失败", err.Error())
-		return
-	}
-	_ = s.st.SaveSettings(r.Context(), map[string]string{"site_name": siteName})
+	s.setupMu.Lock()
+	s.setupRequiredFlag = false
+	s.setupCheckedAt = time.Time{}
+	s.setupMu.Unlock()
 	s.logOp(r, "setup", "站点初始化：管理员 "+username+"，站点名 "+siteName)
 
 	token, _, err := s.st.CreateSession(r.Context(), u.ID)
@@ -209,4 +217,3 @@ func (s *Server) setupSubmit(w http.ResponseWriter, r *http.Request) {
 }
 
 // setupMu / setupCheckedAt / setupRequiredFlag 由 Server 持有（见 server.go）。
-var _ sync.Mutex

@@ -44,6 +44,14 @@ func (s *Server) uploadImage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
 		return
 	}
+	sets := s.sets(r)
+	maxMB := max(sets.MaxImageMB, sets.MaxFileMB)
+	r.Body = http.MaxBytesReader(w, r.Body, (int64(maxMB)<<20)+(1<<20))
+	if err := r.ParseMultipartForm(1 << 20); err != nil {
+		http.Error(w, `{"error":"invalid or oversized upload"}`, http.StatusRequestEntityTooLarge)
+		return
+	}
+	defer r.MultipartForm.RemoveAll()
 	if !s.checkCSRF(r) {
 		http.Error(w, `{"error":"csrf"}`, http.StatusForbidden)
 		return
@@ -57,7 +65,6 @@ func (s *Server) uploadImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// 外链模式：本站上传整体关闭
-	sets := s.sets(r)
 	if !sets.UploadEnabled {
 		http.Error(w, `{"error":"本站已切换为仅外链模式，请使用外部图片/附件链接"}`, http.StatusForbidden)
 		return
@@ -75,11 +82,6 @@ func (s *Server) uploadImage(w http.ResponseWriter, r *http.Request) {
 	limit, allowed, errMsg := int64(sets.MaxImageMB)<<20, allowedImageMime, "仅支持 JPG/PNG/GIF/WebP 图片"
 	if kind == "file" {
 		limit, allowed, errMsg = int64(sets.MaxFileMB)<<20, allowedFileMime, "仅支持 PDF/TXT/ZIP 附件"
-	}
-	r.Body = http.MaxBytesReader(w, r.Body, limit+(1<<20))
-	if err := r.ParseMultipartForm(limit); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"文件超过 %dMB 限制"}`, limit>>20), http.StatusRequestEntityTooLarge)
-		return
 	}
 	f, hdr, err := r.FormFile("file")
 	if err != nil {
@@ -130,9 +132,19 @@ func (s *Server) uploadImage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"internal"}`, http.StatusInternalServerError)
 		return
 	}
+	saved := false
+	defer func() {
+		_ = dst.Close()
+		if !saved {
+			_ = os.Remove(diskPath)
+		}
+	}()
 	written, err := io.Copy(dst, f)
 	if err != nil {
-		os.Remove(diskPath)
+		http.Error(w, `{"error":"internal"}`, http.StatusInternalServerError)
+		return
+	}
+	if err := dst.Close(); err != nil {
 		http.Error(w, `{"error":"internal"}`, http.StatusInternalServerError)
 		return
 	}
@@ -142,6 +154,7 @@ func (s *Server) uploadImage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"internal"}`, http.StatusInternalServerError)
 		return
 	}
+	saved = true
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	b, _ := json.Marshal(map[string]string{"url": webPath, "name": hdr.Filename, "kind": kind, "mime": mime})
 	_, _ = w.Write(b)
