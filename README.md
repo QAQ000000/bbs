@@ -72,7 +72,7 @@ FORUM_ADDR="127.0.0.1:8090" \
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
 | `FORUM_ADDR` | `127.0.0.1:8080` | HTTP 监听地址 |
-| `FORUM_DSN` | `postgres://123456:123456@127.0.0.1:5432/forum` | PostgreSQL 连接串 |
+| `FORUM_DSN` | 无默认值（生产必须设置） | PostgreSQL 连接串 |
 | `FORUM_SITE_NAME` | `GoBBS 社区` | 站点名称（首次启动写入设置，之后后台可改） |
 | `FORUM_SITE_LOGO` | `Go!BBS` | 头部 Logo 文案 |
 | `FORUM_SITE_URL` | `http://127.0.0.1:8090` | 站点外部地址（邮件中的链接） |
@@ -151,7 +151,8 @@ location /api/live { proxy_pass http://127.0.0.1:8090; proxy_buffering off; }
 ## 开发
 
 ```
-cmd/forumd/        入口（-seed / -import-smileys）
+cmd/forumd/        入口（-seed / -import-smileys / -version）
+cmd/gobbsctl/      发布升级与健康检查工具
 assets/            embed 打包：templates 模板、static 静态资源、db schema
 internal/
   config/          环境变量配置
@@ -167,6 +168,7 @@ scripts/           辅助脚本（素材导出、发布自检）
 ```
 
 - 模板与静态资源修改后需重新编译（或 `FORUM_DEV=1` 热重载模板）
+- 发布版本由 GitHub Actions 在 `v*` 标签推送时构建并附带 SHA256；生产升级使用 `gobbsctl`
 - API 简要说明见 [docs/API.md](docs/API.md)
 - 表结构见 `assets/db/schema.sql`（含逐表注释）
 - 测试：`go vet ./... && go test ./...`

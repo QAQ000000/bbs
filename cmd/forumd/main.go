@@ -23,8 +23,17 @@ import (
 	"dzforum/internal/web"
 )
 
+var (
+	version = "dev"
+	commit  = "unknown"
+)
+
 func main() {
 	cfg := config.FromEnv()
+	if len(os.Args) == 2 && os.Args[1] == "-version" {
+		println(version)
+		return
+	}
 	flagSeed := flag.Bool("seed", false, "灌入演示数据后启动")
 	flagCheck := flag.Bool("check-backup", false, "上线检查：DSN 可写、pg_dump 在 PATH、数据目录可写，然后退出")
 	flagImport := flag.String("import-smileys", "", "从指定目录导入图片表情包（结构：<包名>/<图片文件>），导入后退出")

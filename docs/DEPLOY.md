@@ -119,7 +119,7 @@ server {
 set -euo pipefail
 KEEP=14                                  # 保留天数
 DEST=/var/backups/gobbs
-DSN="${FORUM_DSN:-postgres://gobbs:pass@127.0.0.1:5432/forum}"
+DSN="${FORUM_DSN:?必须设置 FORUM_DSN}"
 STAMP=$(date +%F_%H%M)
 mkdir -p "$DEST"
 
@@ -166,7 +166,7 @@ systemctl start gobbs
 journalctl -u gobbs -n 20        # 确认"论坛服务已启动"与迁移/索引日志
 ```
 
-- schema 迁移全部幂等，随启动自动执行，可安全回滚到旧二进制
+- schema 迁移全部幂等，随启动自动执行；`gobbsctl` 可回滚二进制，数据库迁移不自动回滚
 - schema.sql 幂等重放之外，破坏性变更走 `db/migrations/NNN_*.sql` 编号迁移，
   启动日志出现「已应用编号迁移 version=N」即表示存量库完成升级
 - 分词器/渲染逻辑升级时，启动日志会显示"已补齐搜索索引 N 条"自动重建
@@ -174,7 +174,7 @@ journalctl -u gobbs -n 20        # 确认"论坛服务已启动"与迁移/索引
 
 ## 7. 监控与健康检查
 
-- `GET /api/status` → `{"ok":true,"db":"up","schema":2,"pending":{...},"ts":"..."}`，可接入拨测：
+- `GET /api/status` → `{"ok":true,"db":"up","schema":5,"pending":{...},"ts":"..."}`，可接入拨测：
   - `db` 数据库可达性；`schema` 为 `schema_migrations` 迁移版本（与发布版本核对）
   - `pending` 为治理队列积压（待审主题/回复/待处理举报），持续增长说明该去后台处理了
 - `forumd -check-backup`：上线检查单（DSN 可写、schema 版本、pg_dump 在 PATH、
