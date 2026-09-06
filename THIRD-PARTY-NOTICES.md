@@ -8,7 +8,6 @@
 | 组件 | 用途 | 许可证 |
 | --- | --- | --- |
 | [github.com/jackc/pgx/v5](https://github.com/jackc/pgx) | PostgreSQL 驱动与连接池 | MIT |
-| [github.com/yuin/goldmark](https://github.com/yuin/goldmark) | Markdown 渲染 | MIT |
 | [golang.org/x/crypto](https://pkg.go.dev/golang.org/x/crypto) | bcrypt 密码哈希 | BSD-3-Clause |
 | [golang.org/x/text](https://pkg.go.dev/golang.org/x/text) | Unicode 文本处理（pgx 间接依赖） | MIT |
 

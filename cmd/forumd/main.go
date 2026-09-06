@@ -15,12 +15,12 @@ import (
 	"syscall"
 	"time"
 
+	"dzforum/internal/api"
 	"dzforum/internal/config"
 	"dzforum/internal/db"
 	"dzforum/internal/live"
 	"dzforum/internal/smiley"
 	"dzforum/internal/store"
-	"dzforum/internal/web"
 )
 
 var (
@@ -119,7 +119,7 @@ func main() {
 	}
 
 	hub := live.NewHub()
-	srv, err := web.New(cfg, st, hub, logger)
+	srv, err := api.New(cfg, st, hub, logger)
 	if err != nil {
 		logger.Error("初始化服务失败", "err", err)
 		os.Exit(1)

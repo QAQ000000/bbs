@@ -1,5 +1,7 @@
 # 部署运维手册
 
+> 2026-09-06：当前源码已剥离页面，以下原单体部署流程保留供旧版运维参考。新版本仅提供 API/SSE/媒体，Nuxt 前端尚未实现，不能直接替换现有完整网站。新架构与发布约束见 [分离方案](FRONTEND_BACKEND_SEPARATION.md)。原 `/api/live` 已改为 `/api/v1/events`，所有 `/` 页面转发配置必须在 Nuxt 完成后调整。后端仍兼容 `/api/status`。
+
 面向生产部署的完整流程。默认使用 [GitHub Releases](https://github.com/QAQ000000/bbs/releases) 中的二进制，不需要下载源码；只有开发或自行构建时才需要源码。
 
 ## 1. 目录规划（推荐）

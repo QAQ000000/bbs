@@ -1,3 +1,0 @@
-{{define "pagination"}}{{if .Page}}<div class="pg">
-{{range .Page}}{{if .IsEllipsis}}<span class="dots">{{.Label}}</span>{{else if .Cur}}<strong title="当前页">{{.Label}}</strong>{{else}}<a href="{{.URL}}">{{.Label}}</a>{{end}}{{end}}
-</div>{{end}}{{end}}

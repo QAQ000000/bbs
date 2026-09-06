@@ -4,7 +4,6 @@ package store
 
 import (
 	"context"
-	"html"
 	"log/slog"
 	"regexp"
 	"strings"
@@ -142,7 +141,7 @@ type SearchHit struct {
 // mdLinkRe 摘要剥离：[文本](链接) → 文本（含图片前缀 !）。
 var mdLinkRe = regexp.MustCompile(`!?\[([^\]]*)\]\([^)]*\)`)
 
-// mdMarksRe 摘要剥离：标题井号、围栏代码、强调记号、引用符（保留 <mark> 高亮）。
+// mdMarksRe 摘要剥离：标题井号、围栏代码、强调记号、引用符。
 var mdMarksRe = regexp.MustCompile("(^|\\n)[ \\t]*#{1,6} |```|[*_`~>|]")
 
 func stripMarkdown(s string) string {
@@ -152,7 +151,7 @@ func stripMarkdown(s string) string {
 	return strings.TrimSpace(s)
 }
 
-// buildExcerpt 从 Markdown 原文构建纯文本摘要，命中词包 <mark>（先转义再包裹，防注入）。
+// buildExcerpt 返回命中位置附近的纯文本摘要；高亮由前端决定。
 func buildExcerpt(md string, tokens []string) string {
 	plain := stripMarkdown(md)
 	runes := []rune(plain)
@@ -187,14 +186,6 @@ func buildExcerpt(md string, tokens []string) string {
 		}
 	}
 	out := string(runes[start:end])
-	out = html.EscapeString(out)
-	for _, tk := range tokens {
-		if tk == "" {
-			continue
-		}
-		esc := html.EscapeString(tk)
-		out = strings.ReplaceAll(out, esc, "<mark>"+esc+"</mark>")
-	}
 	if start > 0 {
 		out = "…" + out
 	}

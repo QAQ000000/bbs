@@ -15,7 +15,6 @@ type Config struct {
 
 	SiteName  string
 	SiteLogo  string
-	DevMode   bool          // 开发模式：每次请求重载模板
 	ProdMode  bool          // 生产模式：加安全头、关闭调试输出
 	CookieTTL time.Duration // 会话 Cookie 有效期（同时是服务端会话时长）
 
@@ -57,11 +56,10 @@ func FromEnv() Config {
 
 		SiteName: getenv("FORUM_SITE_NAME", "GoBBS 社区"),
 		SiteLogo: getenv("FORUM_SITE_LOGO", "Go!BBS"),
-		DevMode:  getenv("FORUM_DEV", "") == "1",
 		ProdMode: getenv("FORUM_PROD", "") == "1",
 
-		UploadDir:      getenv("FORUM_UPLOAD_DIR", "data/uploads"),
-		SmileyDir:      getenv("FORUM_SMILEY_DIR", "data/smiley"),
+		UploadDir: getenv("FORUM_UPLOAD_DIR", "data/uploads"),
+		SmileyDir: getenv("FORUM_SMILEY_DIR", "data/smiley"),
 
 		SiteURL:      getenv("FORUM_SITE_URL", "http://127.0.0.1:8090"),
 		SMTPHost:     getenv("FORUM_SMTP_HOST", ""),

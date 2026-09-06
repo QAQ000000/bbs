@@ -10,7 +10,6 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"dzforum/internal/markdown"
 	"dzforum/internal/store"
 )
 
@@ -168,7 +167,7 @@ func seed(ctx context.Context, pool *pgxpool.Pool, st *store.Store) error {
 	threadsAdded, postsAdded := 0, 0
 	for _, t := range threads {
 		authorID := ids[t.author]
-		html := markdown.Render(t.md)
+		html := ""
 		th, p, err := st.CreateThread(ctx, fids[t.forum], authorID, t.author, t.title, t.md, html, false, "")
 		if err != nil {
 			return fmt.Errorf("创建主题 %s: %w", t.title, err)
@@ -191,7 +190,7 @@ func seed(ctx context.Context, pool *pgxpool.Pool, st *store.Store) error {
 			return err
 		}
 		for _, rp := range t.replies {
-			html := markdown.Render(rp.md)
+			html := ""
 			rth, rp2, err := st.CreateReply(ctx, th.ID, ids[rp.user], rp.user, rp.md, html, false, "")
 			if err != nil {
 				return fmt.Errorf("回复主题 %s: %w", t.title, err)

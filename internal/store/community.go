@@ -185,16 +185,3 @@ func (s *Store) DeleteDraft(ctx context.Context, uid int64, context string) erro
 	_, err := s.pool.Exec(ctx, `DELETE FROM drafts WHERE user_id=$1 AND context=$2`, uid, context)
 	return err
 }
-
-// DraftContextLabel 草稿上下文的展示信息（页面 + 跳转链接）。
-func DraftContextLabel(c string) (label, link string) {
-	switch {
-	case len(c) > 4 && c[:4] == "new:":
-		return "新主题（版块 #" + c[4:] + "）", "/new?fid=" + c[4:]
-	case len(c) > 6 && c[:6] == "reply:":
-		return "回复主题 #" + c[6:], "/thread-" + c[6:] + "-1-1.html"
-	case len(c) > 5 && c[:5] == "edit:":
-		return "编辑楼层 #" + c[5:], "/post/" + c[5:] + "/history"
-	}
-	return c, "/"
-}

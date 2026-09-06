@@ -1,9 +1,14 @@
 # GoBBS
 
-现代化的开源论坛系统：Go + PostgreSQL，单二进制部署，内置实时刷新、Markdown 编辑器、
-全文搜索与完整的站点治理能力。
+Go + PostgreSQL 论坛后端，正在迁移到 Nuxt SSR + Go API 的前后端分离架构。
 
-## 功能总览
+**当前源码已移除 Go 页面模板、CSS/JS、页面路由和 Markdown HTML 渲染。** 新二进制提供 JSON API、SSE 与受控媒体，不再直接显示论坛页面。Nuxt 前端尚未开发；本轮源码变更未部署到现有网站。旧版 Releases 可能仍为包含页面的版本，部署前须确认版本说明。
+
+开发入口：[当前 API](docs/API.md) · [分离方案与实施记录](docs/FRONTEND_BACKEND_SEPARATION.md)。
+
+## 功能范围（前端迁移中）
+
+以下清单记录原论坛的功能范围。账号、内容、互动和治理业务已保留在后端；页面、编辑器、SEO 及 HTML/Markdown 文档输出将由 Nuxt 实现，不能将下列 UI 能力视为当前纯 API 二进制已经提供。
 
 - **内容**：Markdown 编辑器（工具栏/表情/粘贴传图/云端草稿/预览）、版块与分类、伪静态地址
   （`forum-2-1.html`、`thread-68845-1-1.html`，与传统论坛习惯一致）、首页最新回复 +
@@ -64,7 +69,10 @@ FORUM_DSN="postgres://user:pass@127.0.0.1:5432/forum" \
 FORUM_ADDR="127.0.0.1:8090" \
 ./bin/forumd -seed
 
-# 4. 打开 http://127.0.0.1:8090 ，默认管理员：admin / admin123456（务必改密）
+# 4. 检查 API；该版本不提供浏览器页面
+curl http://127.0.0.1:8090/api/status
+curl http://127.0.0.1:8090/api/v1/home
+# -seed 演示管理员：admin / admin123456（通过 API 登录后须改密）
 ```
 
 ## 配置（环境变量）
@@ -80,7 +88,6 @@ FORUM_ADDR="127.0.0.1:8090" \
 | `FORUM_SMILEY_DIR` | `data/smiley` | 自定义图片表情包目录 |
 | `FORUM_THREADS_PER_PAGE` | `20` | 版块页每页主题数（首次启动写入设置） |
 | `FORUM_POSTS_PER_PAGE` | `10` | 帖子页每页楼层数（首次启动写入设置） |
-| `FORUM_DEV` | `0` | 置 1 时模板热重载（开发用） |
 | `FORUM_PROD` | `0` | 置 1 启用 Secure Cookie（HTTPS 部署时） |
 | `FORUM_SMTP_HOST` | 空 | SMTP 服务器；**为空则禁用邮件通知** |
 | `FORUM_SMTP_PORT` | `25` | SMTP 端口 |
@@ -142,8 +149,9 @@ WantedBy=multi-user.target
 **反向代理（nginx）**：
 
 ```nginx
-location / { proxy_pass http://127.0.0.1:8090; }
-location /api/live { proxy_pass http://127.0.0.1:8090; proxy_buffering off; }
+location /api/ { proxy_pass http://127.0.0.1:8090; }
+location /api/v1/events { proxy_pass http://127.0.0.1:8090; proxy_buffering off; proxy_read_timeout 60s; }
+# 页面路由须在 Nuxt 上线后转发给其独立服务；媒体路由见部署文档。
 ```
 
 生产环境务必：改默认管理员密码、`FORUM_PROD=1`（HTTPS 下 Secure Cookie）。
@@ -155,37 +163,33 @@ location /api/live { proxy_pass http://127.0.0.1:8090; proxy_buffering off; }
 ```
 cmd/forumd/        入口（-seed / -import-smileys / -version）
 cmd/gobbsctl/      发布升级与健康检查工具
-assets/            embed 打包：templates 模板、static 静态资源、db schema
+assets/            仅 embed 数据库 schema 和迁移
 internal/
   config/          环境变量配置
   db/              连接池与 schema 迁移
   store/           数据访问（查询/事务/缓存），全部 SQL 集中于此
-  markdown/        goldmark 渲染 + 表情内联扩展
   smiley/          表情系统（内置 emoji + 自定义图片包）
   live/            SSE 推送中枢（按主题分组发布订阅）
   mail/            异步邮件（net/smtp）
   avatar/          确定性字母头像 SVG
-  web/             路由、伪静态、中间件、handlers、模板渲染
+  api/             JSON 路由、DTO、认证、业务 handlers 和媒体端点
 scripts/           辅助脚本（素材导出、发布自检）
 ```
 
-- 模板与静态资源修改后需重新编译（或 `FORUM_DEV=1` 热重载模板）
+- 后端不再打包页面模板或前端静态资源；Nuxt 项目尚未创建
 - 发布版本由 GitHub Actions 在 `v*` 标签推送时构建并附带 SHA256；生产升级使用 `gobbsctl`
 - API 简要说明见 [docs/API.md](docs/API.md)
+- 后续前后端分离开发遵循 [docs/FRONTEND_BACKEND_SEPARATION.md](docs/FRONTEND_BACKEND_SEPARATION.md)（已完成后端展示层剥离；Nuxt 和 Markdown 出口待开发）
 - 表结构见 `assets/db/schema.sql`（含逐表注释）
-- 测试：`go vet ./... && go test ./...`
-  - 纯函数测试（markdown/smiley/web 分页与伪静态）无需数据库
-  - 集成与整站冒烟测试默认使用 `forum_test` / `forum_test_web` 两个独立库
-    （可用 `FORUM_TEST_DSN` 覆盖），库不可达时自动跳过；需预先创建：
-    `CREATE DATABASE forum_test OWNER "你的用户"; CREATE DATABASE forum_test_web OWNER "你的用户";`
-  - 冒烟测试逐页断言完整渲染（`</html>` 收尾）与无错误文案，是"模板字段缺失
-    截断"与"列清单与 Scan 不同步"两类事故的回归防线；列清单另有与
-    information_schema 的一致性校验
+- 检查：`go vet ./...`、`go build ./...`。
+- 后端 API 测试：`go test ./internal/api`；不设置 `FORUM_TEST_DSN` 时，仅运行无需数据库的测试，集成测试明确跳过。
+- 完整集成：为 API 和 store **分别**准备独立测试库，并分别设置 `FORUM_TEST_DSN` 执行 `go test ./internal/api` 与 `go test ./internal/store`。API 测试要求库名以 `gobbs_test_` 开头，上传文件使用临时目录。
+- 数据库测试会清空目标库 schema；禁止使用业务库，禁止两个包共用同一测试库并行执行。`store` 尚保留旧测试库默认值，执行前必须显式覆盖 DSN。
+- API 回归覆盖 JSON 数据、字段隐私、登录/CSRF、发帖/编辑/删除、权限、审核、附件及 SSE；原 HTML 展示断言已移除，后续由 Nuxt 测试接替。
 
 ## 已知边界与取舍
 
-- **单实例**：整页缓存、会话缓存、SSE Hub、浏览计数均为进程内状态，不支持多实例/滚动升级；
-  这是"零外部基础设施"定位的自觉取舍。缓存失效采用写突发合并（1s）+ 60s TTL 兜底。
+- **单实例**：会话缓存、SSE Hub、限流和浏览计数仍为进程内状态，不支持多实例/滚动升级。Go 整页 HTML 缓存已删除。
 - **搜索天花板**：中文 bigram 分词对单字查询不敏感；命中聚合取 top-400 内存去重。
   中小规模完全够用，更大规模建议外接搜索引擎。
 - **迁移策略**：启动时先幂等重放 `schema.sql`（保持当前完整形态，加表/加列友好），
