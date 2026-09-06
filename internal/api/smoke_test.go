@@ -213,6 +213,7 @@ func smokePost(t *testing.T, path, csrf, body string, cookie *http.Cookie) *http
 
 func smokeMultipart(t *testing.T, path, csrf, fileField, filename string, content []byte, extra map[string]string, cookie *http.Cookie) *httptest.ResponseRecorder {
 	t.Helper()
+	requireDB(t)
 	var buf bytes.Buffer
 	w := multipart.NewWriter(&buf)
 	if fileField != "" {

@@ -43,7 +43,7 @@ func (s *Store) UnreadFavorites(ctx context.Context, uid int64) int64 {
 		SELECT count(*) FROM thread_favorites f
 		JOIN threads t ON t.id = f.thread_id AND NOT t.deleted AND NOT t.pending
 		LEFT JOIN thread_reads r ON r.user_id = f.user_id AND r.thread_id = f.thread_id
-		WHERE f.user_id=$1 AND t.post_count > coalesce(r.last_floor, 0)`+forumFilter(ctx, "t.forum_id"), uid).Scan(&n)
+		WHERE f.user_id=$1 AND `+favoriteUnreadSQL+forumFilter(ctx, "t.forum_id"), uid).Scan(&n)
 	return n
 }
 
@@ -53,6 +53,9 @@ type FavoriteRow struct {
 	LastFloor int  // 已读进度（0 = 未读）
 	HasNew    bool // 有新回复
 }
+
+const favoriteUnreadSQL = `EXISTS (SELECT 1 FROM posts unread WHERE unread.thread_id=t.id
+ AND unread.floor>coalesce(r.last_floor,0) AND NOT unread.deleted AND NOT unread.pending)`
 
 // FavoritesOfUser 收藏列表分页（收藏时间倒序，公开口径）。
 func (s *Store) FavoritesOfUser(ctx context.Context, uid int64, page, size int) ([]*FavoriteRow, int, error) {
@@ -64,7 +67,7 @@ func (s *Store) FavoritesOfUser(ctx context.Context, uid int64, page, size int) 
 		return nil, 0, err
 	}
 	rows, err := s.pool.Query(ctx, `
-		SELECT `+threadCols+`, coalesce(r.last_floor, 0), t.post_count > coalesce(r.last_floor, 0)
+		SELECT `+threadCols+`, coalesce(r.last_floor, 0), `+favoriteUnreadSQL+`
 		FROM thread_favorites f
 		JOIN threads t ON t.id = f.thread_id AND NOT t.deleted AND NOT t.pending
 		JOIN users u ON u.id = t.author_id
@@ -156,6 +159,7 @@ func (s *Store) Reputation(ctx context.Context, uid int64) (int64, int64, error)
 // DraftRow 草稿箱条目。
 type DraftRow struct {
 	Context   string
+	Subject   string
 	Content   string
 	UpdatedAt time.Time
 }
@@ -163,8 +167,8 @@ type DraftRow struct {
 // DraftsOfUser 用户全部非空草稿（更新时间倒序）。
 func (s *Store) DraftsOfUser(ctx context.Context, uid int64) ([]*DraftRow, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT context, content, updated_at FROM drafts
-		WHERE user_id=$1 AND content <> '' ORDER BY updated_at DESC`, uid)
+		SELECT context, subject, content, updated_at FROM drafts
+		WHERE user_id=$1 AND (content <> '' OR subject <> '') ORDER BY updated_at DESC`, uid)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +176,7 @@ func (s *Store) DraftsOfUser(ctx context.Context, uid int64) ([]*DraftRow, error
 	var out []*DraftRow
 	for rows.Next() {
 		var d DraftRow
-		if err := rows.Scan(&d.Context, &d.Content, &d.UpdatedAt); err != nil {
+		if err := rows.Scan(&d.Context, &d.Subject, &d.Content, &d.UpdatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, &d)

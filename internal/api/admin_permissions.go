@@ -15,6 +15,14 @@ func requestWithUser(r *http.Request, u *store.User) *http.Request {
 func (s *Server) adminPointGuard(route string, h http.HandlerFunc) http.HandlerFunc {
 	var point perm.Point
 	switch {
+	case strings.Contains(route, "/titles/") && strings.HasPrefix(route, "PATCH "):
+		point = perm.TitleView
+	case strings.Contains(route, "/titles/") && strings.HasSuffix(route, "/logs"):
+		point = perm.TitleLogs
+	case strings.Contains(route, "/titles") && (strings.HasPrefix(route, "POST ") || strings.HasPrefix(route, "PUT ")):
+		point = perm.TitleConfigure
+	case strings.Contains(route, "/titles"):
+		point = perm.TitleView
 	case strings.Contains(route, "/membership/users/") && strings.HasPrefix(route, "PATCH "):
 		point = perm.MemberView // body selects adjust permissions separately
 	case strings.Contains(route, "/membership/logs"):

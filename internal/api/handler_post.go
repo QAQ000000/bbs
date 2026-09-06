@@ -136,7 +136,24 @@ func (s *Server) replySubmit(w http.ResponseWriter, r *http.Request) {
 	content = s.censorTexts(r, content)[0]
 	pending, reason := s.moderationDecision(r, u, visible.ForumID, content)
 	html := "" // 兼容旧存储参数；正文由独立前端渲染。
-	th, p, err := s.st.CreateReply(r.Context(), tid, u.ID, u.Username, content, html, pending, reason)
+	var replyTo int64
+	if raw := r.PostFormValue("replyToPostId"); raw != "" && raw != "0" {
+		var err error
+		replyTo, err = strconv.ParseInt(raw, 10, 64)
+		if err != nil || replyTo <= 0 {
+			s.fail(w, r, 422, "VALIDATION_FAILED", "无效回复目标")
+			return
+		}
+		target, targetThread := s.visiblePost(w, r, replyTo)
+		if target == nil {
+			return
+		}
+		if targetThread.ID != tid || target.Pending {
+			s.fail(w, r, 404, "NOT_FOUND", "回复目标不存在")
+			return
+		}
+	}
+	th, p, err := s.st.CreateReplyTo(r.Context(), tid, u.ID, u.Username, content, html, pending, reason, replyTo)
 	if errors.Is(err, store.ErrNotFound) {
 		s.fail(w, r, http.StatusNotFound, "主题不存在", "该主题不存在或已锁定。")
 		return

@@ -15,26 +15,22 @@ import (
 // SetThreadApproved 审核通过主题（连同其待审核楼层），
 // 待审核内容自此进入公开口径：回补作者计数并重算主题/版块统计。
 func (s *Store) SetThreadApproved(ctx context.Context, tid int64) error {
-	authors, err := s.ApproveThreadPendingAuthors(ctx, tid)
-	if err != nil {
-		return err
-	}
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `UPDATE threads SET pending=false WHERE id=$1`, tid); err != nil {
+	if _, err := tx.Exec(ctx, `UPDATE threads SET pending=false, pending_reason='' WHERE id=$1`, tid); err != nil {
 		return err
 	}
-	if _, err := tx.Exec(ctx, `UPDATE posts SET pending=false WHERE thread_id=$1 AND pending`, tid); err != nil {
+	if _, err := tx.Exec(ctx, `WITH approved AS (
+	 UPDATE posts SET pending=false, pending_reason='', moderation_status='approved', moderation_note=''
+	 WHERE thread_id=$1 AND pending AND NOT deleted RETURNING author_id
+	) UPDATE users u SET post_count=u.post_count+x.n FROM (SELECT author_id,count(*) n FROM approved GROUP BY author_id) x WHERE u.id=x.author_id`, tid); err != nil {
 		return err
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return err
-	}
-	for _, a := range authors {
-		_ = s.BumpUsersPostCount(ctx, a.UID, int64(a.Count))
 	}
 	if err := s.RecomputeThreadLastPost(ctx, tid); err != nil {
 		return err
@@ -54,7 +50,7 @@ func (s *Store) SetPostPendingModeration(ctx context.Context, postID int64, reas
 	var tid, uid int64
 	var floor int
 	if err := s.pool.QueryRow(ctx,
-		`UPDATE posts SET pending=true, pending_reason=$2 WHERE id=$1 AND NOT deleted AND NOT pending
+		`UPDATE posts SET pending=true, pending_reason=$2, moderation_status='pending', moderation_note='' WHERE id=$1 AND NOT deleted AND NOT pending
 		 RETURNING thread_id, floor, author_id`, postID, reason).Scan(&tid, &floor, &uid); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil // 已删除或已在待审队列：无需处理
@@ -88,7 +84,7 @@ func (s *Store) SetPostPendingModeration(ctx context.Context, postID int64, reas
 func (s *Store) SetPostApproved(ctx context.Context, pid int64) (*Post, *Thread, error) {
 	var tid, uid int64
 	err := s.pool.QueryRow(ctx,
-		`UPDATE posts SET pending=false, pending_reason='' WHERE id=$1 AND pending AND NOT deleted
+		`UPDATE posts SET pending=false, pending_reason='', moderation_status='approved', moderation_note='' WHERE id=$1 AND pending AND NOT deleted
 		 RETURNING thread_id, author_id`, pid).Scan(&tid, &uid)
 	if errors.Is(err, pgx.ErrNoRows) {
 		p, err := s.Post(ctx, pid)

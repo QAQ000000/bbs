@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"dzforum/internal/perm"
 	"dzforum/internal/store"
@@ -121,8 +122,11 @@ func (s *Server) adminModerateThread(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, http.StatusForbidden, "无权操作", "只能审核自己管辖版块的内容。")
 		return
 	}
+	if !s.validModerationAction(w, r) {
+		return
+	}
 	if r.PostFormValue("op") == "delete" {
-		if _, _, err := s.st.DeletePost(r.Context(), th.FirstPostID); err != nil {
+		if _, _, err := s.st.RejectPost(r.Context(), th.FirstPostID, r.PostFormValue("note")); err != nil {
 			s.fail(w, r, http.StatusInternalServerError, "操作失败", err.Error())
 			return
 		} else {
@@ -132,12 +136,25 @@ func (s *Server) adminModerateThread(w http.ResponseWriter, r *http.Request) {
 			result.Message = "主题已删除"
 		}
 	} else {
+		ids, err := s.st.ThreadApprovalPostIDs(r.Context(), tid)
+		if s.readError(w, r, err) {
+			return
+		}
 		if err := s.st.SetThreadApproved(r.Context(), tid); err != nil {
 			s.fail(w, r, http.StatusInternalServerError, "操作失败", err.Error())
 			return
 		} else {
 			if th2, err := s.st.Thread(r.Context(), tid); err == nil {
 				s.broadcastThread("thread.new", th2)
+				for _, pid := range ids {
+					p, err := s.st.Post(r.Context(), pid)
+					if err != nil {
+						continue
+					}
+					from := &store.User{ID: p.AuthorID, Username: p.AuthorName}
+					mentioned := s.notifyMentions(r, from, p.ContentMD, th2, p)
+					s.notifyReply(r, from, th2, p, mentioned)
+				}
 			} else {
 				s.broadcastThread("thread.new", th)
 			}
@@ -173,8 +190,15 @@ func (s *Server) adminModeratePost(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, http.StatusForbidden, "无权操作", "只能审核自己管辖版块的内容。")
 		return
 	}
+	if !s.validModerationAction(w, r) {
+		return
+	}
+	if p.Floor == 1 {
+		s.fail(w, r, 422, "VALIDATION_FAILED", "首楼请使用主题审核接口")
+		return
+	}
 	if r.PostFormValue("op") == "delete" {
-		if _, _, err := s.st.DeletePost(r.Context(), pid); err != nil {
+		if _, _, err := s.st.RejectPost(r.Context(), pid, r.PostFormValue("note")); err != nil {
 			s.fail(w, r, http.StatusInternalServerError, "操作失败", err.Error())
 			return
 		} else {
@@ -191,12 +215,27 @@ func (s *Server) adminModeratePost(w http.ResponseWriter, r *http.Request) {
 			s.broadcastPost("post.new", th2, p2)
 			s.broadcastThread("thread.update", th2)
 			s.linkUploads(r, p2.AuthorID, p2.ID, p2.ContentMD)
-			s.notifyMentions(r, &store.User{ID: p2.AuthorID, Username: p2.AuthorName}, p2.ContentMD, th2, p2)
+			from := &store.User{ID: p2.AuthorID, Username: p2.AuthorName}
+			mentioned := s.notifyMentions(r, from, p2.ContentMD, th2, p2)
+			s.notifyReply(r, from, th2, p2, mentioned)
 			s.logOp(r, "moderate.post.approve", "审核通过回复 #"+strconv.FormatInt(pid, 10))
 			result.Message = "回复已通过审核"
 		}
 	}
 	s.respond(w, http.StatusOK, result)
+}
+
+func (s *Server) validModerationAction(w http.ResponseWriter, r *http.Request) bool {
+	op := r.PostFormValue("op")
+	if op != "approve" && op != "delete" {
+		s.fail(w, r, 422, "VALIDATION_FAILED", "op 必须为 approve 或 delete")
+		return false
+	}
+	if utf8.RuneCountInString(r.PostFormValue("note")) > 500 {
+		s.fail(w, r, 422, "VALIDATION_FAILED", "审核说明不能超过 500 字")
+		return false
+	}
+	return true
 }
 
 // ---- 批量删帖 ----

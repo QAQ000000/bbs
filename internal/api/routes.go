@@ -7,6 +7,7 @@ import "net/http"
 func (s *Server) routes() http.Handler {
 	m := s.mux
 	s.membershipRoutes()
+	s.titleRoutes()
 	m.HandleFunc("GET /api/v1/session", s.sessionGet)
 	m.HandleFunc("GET /api/v1/site", s.siteGet)
 	m.HandleFunc("GET /api/v1/home", s.homeGet)
@@ -23,6 +24,10 @@ func (s *Server) routes() http.Handler {
 	m.HandleFunc("GET /api/v1/me/drafts", s.draftsGet)
 	m.HandleFunc("GET /api/v1/me/draft", s.draftGet)
 	m.HandleFunc("GET /api/v1/me/notifications", s.notificationsGet)
+	m.HandleFunc("GET /api/v1/me/notifications/summary", s.notificationSummary)
+	m.HandleFunc("GET /api/v1/me/notification-preferences", s.notificationPreferencesGet)
+	m.HandleFunc("GET /api/v1/me/content", s.ownContentGet)
+	m.HandleFunc("GET /api/v1/posts/{pid}/position", s.postPositionGet)
 	m.HandleFunc("GET /api/v1/posts/{pid}/history", s.historyGet)
 	m.HandleFunc("GET /api/v1/me/export", s.profileExport)
 	m.HandleFunc("GET /api/v1/smileys", s.smileysGet)
@@ -40,7 +45,8 @@ func (s *Server) routes() http.Handler {
 		"POST /api/v1/posts/{pid}/like": s.likeToggle, "POST /api/v1/threads/{tid}/favorite": s.favoriteToggle,
 		"POST /api/v1/me/draft": s.draftSave, "DELETE /api/v1/me/draft": s.draftDelete,
 		"POST /api/v1/me/notifications/read": s.notificationsRead, "POST /api/v1/threads/{tid}/read": s.readRecord,
-		"POST /api/v1/uploads": s.uploadImage, "POST /api/v1/posts/{pid}/reports": s.reportSubmit,
+		"PUT /api/v1/me/notification-preferences": s.notificationPreferencesSave,
+		"POST /api/v1/uploads":                    s.uploadImage, "POST /api/v1/posts/{pid}/reports": s.reportSubmit,
 	} {
 		m.HandleFunc(route, s.action(h))
 	}

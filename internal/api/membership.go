@@ -350,9 +350,14 @@ func (s *Server) memberThreadRows(r *http.Request, rows []*store.Thread) ([]map[
 	if err != nil {
 		return nil, err
 	}
+	titles, err := s.st.EquippedTitles(r.Context(), ids)
+	if err != nil {
+		return nil, err
+	}
 	return mapRows(rows, func(t *store.Thread) map[string]any {
 		v := threadDTO(t)
 		v["authorLevel"] = badges[t.AuthorID]
+		v["equippedTitle"] = titles[t.AuthorID]
 		return v
 	}), nil
 }
@@ -371,6 +376,11 @@ func (s *Server) memberUser(r *http.Request, u *store.User, private bool) (map[s
 		return nil, err
 	}
 	v["level"] = badges[u.ID]
+	titles, err := s.st.EquippedTitles(r.Context(), []int64{u.ID})
+	if err != nil {
+		return nil, err
+	}
+	v["equippedTitle"] = titles[u.ID]
 	return v, nil
 }
 func parseMemberID(s string) (int64, error) {

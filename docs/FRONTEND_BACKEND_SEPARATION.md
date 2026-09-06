@@ -27,6 +27,10 @@
 
 会员等级、成长规则、经验流水、等级权限 / 额度、版块读取限制、等级徽章数据、后台配置预览与人工调整 API 已实现。详细契约与 schema 6 迁移说明见 [MEMBERSHIP.md](MEMBERSHIP.md)。Nuxt 应直接使用 API 返回的 `level`、`authorLevel`、`capabilities`，不复制后端升级或权限规则。会员管理 UI 仍未开发。
 
+任务称号和作者采纳后端已实现，相关迁移为 schema 7。条件、发布补发、佩戴和 API 契约见 [TITLES.md](TITLES.md)。Nuxt 使用 `equippedTitle`、`acceptedPostId`、`accepted` 和采纳 capabilities；称号 UI 待实现。
+
+后续基础流程推进到 schema 8：通知分页/偏好及系统事件、replyTo/viewerHasLiked、楼层位置 API、草稿 subject、本人内容状态 API；接口和前端刷新规则见 [FORUM_WORKFLOWS.md](FORUM_WORKFLOWS.md)。收藏删楼未读和审核回复通知两项缺陷已补修，页面尚待接入。
+
 会员模块直接采用新系统：默认五级经验门槛为 0 / 100 / 500 / 1500 / 5000；不映射旧三级信任等级、不双写旧字段。迁移 006 删除 `users.trust_level`，现有账号首次接入从 LV0 开始。下文通用兼容策略不适用于这项已明确调整的会员设计。
 
 ## 1. 已确定的方向与范围

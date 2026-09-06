@@ -4,6 +4,7 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"time"
@@ -128,6 +129,9 @@ type Notification struct {
 	Excerpt   string
 	Read      bool
 	CreatedAt time.Time
+	Scope     string
+	Payload   json.RawMessage
+	EventKey  string
 }
 
 // AddNotifications 批量插入通知（去重与排除自己由调用方处理）。
@@ -141,10 +145,9 @@ func (s *Store) AddNotifications(ctx context.Context, rows []*Notification) erro
 	}
 	defer tx.Rollback(ctx)
 	for _, n := range rows {
-		if _, err := tx.Exec(ctx,
-			`INSERT INTO notifications (uid, from_uid, from_name, type, thread_id, post_id, excerpt)
-			 VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-			n.UID, n.FromUID, n.FromName, n.Type, n.ThreadID, n.PostID, n.Excerpt); err != nil {
+		if err := tx.QueryRow(ctx,
+			`SELECT forum_notify($1,$2,$3,$4,$5,$6,$7,nullif($8,''))`,
+			n.UID, n.FromUID, n.FromName, n.Type, n.ThreadID, n.PostID, n.Excerpt, n.EventKey).Scan(&n.ID); err != nil {
 			return err
 		}
 	}
@@ -153,37 +156,92 @@ func (s *Store) AddNotifications(ctx context.Context, rows []*Notification) erro
 
 // UnreadCount 未读通知数。
 func (s *Store) UnreadCount(ctx context.Context, uid int64) int64 {
-	var n int64
-	_ = s.pool.QueryRow(ctx,
-		`SELECT count(*) FROM notifications WHERE uid=$1 AND NOT read`, uid).Scan(&n)
+	n, _ := s.NotificationUnreadCount(ctx, uid)
 	return n
+}
+
+func notificationVisibility(ctx context.Context) string {
+	return ` AND (scope='account' OR EXISTS(SELECT 1 FROM threads t JOIN posts p ON p.thread_id=t.id
+ WHERE t.id=notifications.thread_id AND p.id=notifications.post_id AND NOT t.deleted AND NOT t.pending
+ AND NOT p.deleted AND NOT p.pending` + forumFilter(ctx, "t.forum_id") + `))`
+}
+
+func (s *Store) NotificationUnreadCount(ctx context.Context, uid int64) (int64, error) {
+	var n int64
+	err := s.pool.QueryRow(ctx, `SELECT count(*) FROM notifications WHERE uid=$1 AND NOT read`+notificationVisibility(ctx), uid).Scan(&n)
+	return n, err
 }
 
 // Notifications 通知列表（最新在前）。
 func (s *Store) Notifications(ctx context.Context, uid int64, limit int) ([]*Notification, error) {
+	rows, _, err := s.NotificationPage(ctx, uid, 1, limit, false)
+	return rows, err
+}
+
+func (s *Store) NotificationPage(ctx context.Context, uid int64, page, size int, unread bool) ([]*Notification, int, error) {
+	filter := ` WHERE uid=$1 AND (NOT $2::bool OR NOT read)` + notificationVisibility(ctx)
+	var total int
+	if err := s.pool.QueryRow(ctx, `SELECT count(*) FROM notifications`+filter, uid, unread).Scan(&total); err != nil {
+		return nil, 0, err
+	}
 	rows, err := s.pool.Query(ctx,
-		`SELECT id, uid, from_uid, from_name, type, thread_id, post_id, excerpt, read, created_at
-		 FROM notifications WHERE uid=$1 AND EXISTS(SELECT 1 FROM threads t WHERE t.id=notifications.thread_id AND NOT t.deleted AND NOT t.pending`+forumFilter(ctx, "t.forum_id")+`) ORDER BY id DESC LIMIT $2`, uid, limit)
+		`SELECT id, uid, from_uid, from_name, type, thread_id, post_id, excerpt, read, created_at,scope,payload
+		 FROM notifications`+filter+` ORDER BY id DESC LIMIT $3 OFFSET $4`, uid, unread, size, (page-1)*size)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 	var out []*Notification
 	for rows.Next() {
 		var n Notification
 		if err := rows.Scan(&n.ID, &n.UID, &n.FromUID, &n.FromName, &n.Type,
-			&n.ThreadID, &n.PostID, &n.Excerpt, &n.Read, &n.CreatedAt); err != nil {
-			return nil, err
+			&n.ThreadID, &n.PostID, &n.Excerpt, &n.Read, &n.CreatedAt, &n.Scope, &n.Payload); err != nil {
+			return nil, 0, err
 		}
 		out = append(out, &n)
 	}
-	return out, rows.Err()
+	return out, total, rows.Err()
 }
 
 // MarkNotificationsRead 标记全部已读。
-func (s *Store) MarkNotificationsRead(ctx context.Context, uid int64) {
-	_, err := s.pool.Exec(ctx, `UPDATE notifications SET read=true WHERE uid=$1 AND NOT read`, uid)
-	_ = err
+func (s *Store) MarkNotificationsRead(ctx context.Context, uid int64) error {
+	_, err := s.ReadNotifications(ctx, uid, nil, true)
+	return err
+}
+
+func (s *Store) ReadNotifications(ctx context.Context, uid int64, ids []int64, all bool) (int64, error) {
+	tag, err := s.pool.Exec(ctx, `UPDATE notifications SET read=true WHERE uid=$1 AND NOT read
+ AND ($2::bool OR id=ANY($3::bigint[]))`+notificationVisibility(ctx), uid, all, ids)
+	return tag.RowsAffected(), err
+}
+
+var NotificationPreferenceKeys = []string{"mentions", "replies", "acceptance", "membership", "titles", "moderation", "reports", "email"}
+
+func (s *Store) NotificationPreferences(ctx context.Context, uid int64) (map[string]bool, error) {
+	out := map[string]bool{}
+	for _, key := range NotificationPreferenceKeys {
+		out[key] = true
+	}
+	var raw []byte
+	err := s.pool.QueryRow(ctx, `SELECT body FROM notification_preferences WHERE uid=$1`, uid).Scan(&raw)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return out, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(raw, &out)
+	return out, err
+}
+
+func (s *Store) SaveNotificationPreferences(ctx context.Context, uid int64, prefs map[string]bool) error {
+	raw, err := json.Marshal(prefs)
+	if err != nil {
+		return err
+	}
+	_, err = s.pool.Exec(ctx, `INSERT INTO notification_preferences(uid,body) VALUES($1,$2)
+ ON CONFLICT(uid) DO UPDATE SET body=EXCLUDED.body`, uid, raw)
+	return err
 }
 
 // ---- 密码重置 ----

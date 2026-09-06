@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
 // ---- 点赞 ----
@@ -47,7 +48,12 @@ func (s *Server) likeToggle(w http.ResponseWriter, r *http.Request) {
 // ---- 服务端草稿 ----
 
 func validDraftContext(c string) bool {
-	return strings.HasPrefix(c, "new:") || strings.HasPrefix(c, "reply:") || strings.HasPrefix(c, "edit:")
+	kind, id, ok := strings.Cut(c, ":")
+	if !ok || (kind != "new" && kind != "reply" && kind != "edit") {
+		return false
+	}
+	n, err := strconv.ParseInt(id, 10, 64)
+	return err == nil && n > 0 && strconv.FormatInt(n, 10) == id
 }
 
 // POST /api/draft {"context":..., "content":...}
@@ -58,6 +64,7 @@ func (s *Server) draftSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	req := struct{ Context, Content string }{r.PostFormValue("context"), r.PostFormValue("content")}
+	subject := r.PostFormValue("subject")
 	if !validDraftContext(req.Context) {
 		s.fail(w, r, 400, "BAD_REQUEST", "草稿上下文无效")
 		return
@@ -73,7 +80,11 @@ func (s *Server) draftSave(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, http.StatusRequestEntityTooLarge, "", `{"error":"too large"}`)
 		return
 	}
-	if err := s.st.SaveDraft(r.Context(), u.ID, req.Context, req.Content); err != nil {
+	if utf8.RuneCountInString(subject) > 80 || (strings.HasPrefix(req.Context, "reply:") && subject != "") {
+		s.fail(w, r, 422, "VALIDATION_FAILED", "草稿标题最多 80 字，回复草稿不支持标题")
+		return
+	}
+	if err := s.st.SaveDraftWithSubject(r.Context(), u.ID, req.Context, subject, req.Content); err != nil {
 		s.fail(w, r, http.StatusInternalServerError, "", `{"error":"internal"}`)
 		return
 	}
@@ -92,10 +103,10 @@ func (s *Server) draftGet(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, http.StatusBadRequest, "", `{"error":"bad request"}`)
 		return
 	}
-	content, updated, err := s.st.Draft(r.Context(), u.ID, ctx)
+	draft, err := s.st.DraftDetails(r.Context(), u.ID, ctx)
 	if err != nil {
 		s.fail(w, r, http.StatusInternalServerError, "", `{"error":"internal"}`)
 		return
 	}
-	s.respond(w, 200, map[string]any{"content": content, "updatedAt": updated})
+	s.respond(w, 200, map[string]any{"context": ctx, "subject": draft.Subject, "content": draft.Content, "updatedAt": draft.UpdatedAt})
 }

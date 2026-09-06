@@ -143,6 +143,23 @@ func main() {
 			}
 		}
 	}()
+	go func() {
+		tick := time.NewTicker(time.Second)
+		defer tick.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-tick.C:
+				jobCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+				_, err := st.ProcessTitleWork(jobCtx, 50)
+				cancel()
+				if err != nil && ctx.Err() == nil {
+					logger.Error("处理称号任务失败", "err", err)
+				}
+			}
+		}
+	}()
 	// 会话过期清理
 	go func() {
 		t := time.NewTicker(time.Hour)

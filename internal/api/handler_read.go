@@ -152,6 +152,16 @@ func (s *Server) threadGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	m["authorLevel"] = badges[th.AuthorID]
+	titles, err := s.st.EquippedTitles(r.Context(), []int64{th.AuthorID})
+	if s.readError(w, r, err) {
+		return
+	}
+	accepted, err := s.st.AcceptedReply(r.Context(), th.ID)
+	if s.readError(w, r, err) {
+		return
+	}
+	m["equippedTitle"] = titles[th.AuthorID]
+	m["acceptedPostId"] = idString(accepted)
 	m["capabilities"] = map[string]bool{"canModerate": s.canModerateThread(r, th), "canReply": s.memberDecision(r, "post.reply", th.ForumID, nil, th).Allowed}
 	if User(r) != nil {
 		m["favorite"] = s.st.IsFavorite(r.Context(), User(r).ID, th.ID)
@@ -180,6 +190,10 @@ func (s *Server) postsGet(w http.ResponseWriter, r *http.Request) {
 	if s.readError(w, r, err) {
 		return
 	}
+	states, err := s.st.PostViewerStates(r.Context(), ids, uid)
+	if s.readError(w, r, err) {
+		return
+	}
 	authorIDs := []int64{}
 	for _, p := range rows {
 		authorIDs = append(authorIDs, p.AuthorID)
@@ -192,8 +206,25 @@ func (s *Server) postsGet(w http.ResponseWriter, r *http.Request) {
 		m := s.postResponse(r, p, th)
 		m["authorLevel"] = badges[p.AuthorID]
 		m["attachments"] = mapRows(atts[p.ID], uploadDTO)
+		m["viewerHasLiked"] = states[p.ID].Liked
+		m["replyTo"] = states[p.ID].ReplyTo
 		return m
 	})
+	titles, err := s.st.EquippedTitles(r.Context(), authorIDs)
+	if s.readError(w, r, err) {
+		return
+	}
+	accepted, err := s.st.AcceptedReply(r.Context(), th.ID)
+	if s.readError(w, r, err) {
+		return
+	}
+	for i, p := range rows {
+		out[i]["equippedTitle"] = titles[p.AuthorID]
+		out[i]["accepted"] = accepted == p.ID
+		caps := out[i]["capabilities"].(map[string]bool)
+		caps["canAccept"] = s.canAcceptReply(r, p, th) && accepted == 0
+		caps["canUnaccept"] = s.canAcceptReply(r, p, th) && accepted == p.ID
+	}
 	s.list(w, out, page, size, total)
 }
 func (s *Server) visiblePost(w http.ResponseWriter, r *http.Request, pid int64) (*store.Post, *store.Thread) {
@@ -226,7 +257,30 @@ func (s *Server) postGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	m["authorLevel"] = badges[p.AuthorID]
+	titles, err := s.st.EquippedTitles(r.Context(), []int64{p.AuthorID})
+	if s.readError(w, r, err) {
+		return
+	}
+	accepted, err := s.st.AcceptedReply(r.Context(), th.ID)
+	if s.readError(w, r, err) {
+		return
+	}
+	m["equippedTitle"] = titles[p.AuthorID]
+	m["accepted"] = accepted == p.ID
+	caps := m["capabilities"].(map[string]bool)
+	caps["canAccept"] = s.canAcceptReply(r, p, th) && accepted == 0
+	caps["canUnaccept"] = s.canAcceptReply(r, p, th) && accepted == p.ID
 	m["attachments"] = mapRows(atts[p.ID], uploadDTO)
+	uid := int64(0)
+	if User(r) != nil {
+		uid = User(r).ID
+	}
+	states, err := s.st.PostViewerStates(r.Context(), []int64{p.ID}, uid)
+	if s.readError(w, r, err) {
+		return
+	}
+	m["viewerHasLiked"] = states[p.ID].Liked
+	m["replyTo"] = states[p.ID].ReplyTo
 	s.respond(w, 200, m)
 }
 func (s *Server) searchGet(w http.ResponseWriter, r *http.Request) {
@@ -313,7 +367,7 @@ func (s *Server) draftsGet(w http.ResponseWriter, r *http.Request) {
 	}
 	out := []map[string]any{}
 	for _, d := range rows {
-		out = append(out, map[string]any{"context": d.Context, "content": d.Content, "updatedAt": d.UpdatedAt})
+		out = append(out, map[string]any{"context": d.Context, "subject": d.Subject, "content": d.Content, "updatedAt": d.UpdatedAt})
 	}
 	s.respond(w, 200, out)
 }
@@ -341,20 +395,44 @@ func (s *Server) notificationsGet(w http.ResponseWriter, r *http.Request) {
 	if !s.requireLogin(w, r) {
 		return
 	}
-	rows, err := s.st.Notifications(r.Context(), User(r).ID, 30)
+	unread := r.URL.Query().Get("unread")
+	if unread != "" && unread != "true" && unread != "false" {
+		s.fail(w, r, 422, "VALIDATION_FAILED", "unread 必须为 true 或 false")
+		return
+	}
+	page := pageOf(r)
+	rows, total, err := s.st.NotificationPage(r.Context(), User(r).ID, page, 30, unread == "true")
 	if s.readError(w, r, err) {
 		return
 	}
-	s.respond(w, 200, mapRows(rows, func(n *store.Notification) map[string]any {
-		return map[string]any{"id": idString(n.ID), "fromUserId": idString(n.FromUID), "fromName": n.FromName, "type": n.Type, "threadId": idString(n.ThreadID), "postId": idString(n.PostID), "excerpt": n.Excerpt, "read": n.Read, "createdAt": n.CreatedAt}
-	}))
+	s.list(w, mapRows(rows, func(n *store.Notification) map[string]any {
+		return map[string]any{"id": idString(n.ID), "fromUserId": idString(n.FromUID), "fromName": n.FromName, "type": n.Type, "threadId": idString(n.ThreadID), "postId": idString(n.PostID), "excerpt": n.Excerpt, "read": n.Read, "createdAt": n.CreatedAt, "scope": n.Scope, "payload": n.Payload}
+	}), page, 30, total)
 }
 func (s *Server) notificationsRead(w http.ResponseWriter, r *http.Request) {
 	if !s.requireLogin(w, r) {
 		return
 	}
-	s.st.MarkNotificationsRead(r.Context(), User(r).ID)
-	s.respond(w, 200, map[string]bool{"read": true})
+	all := r.PostFormValue("all") == "1" || r.PostFormValue("all") == "true"
+	raw := r.PostForm["ids"]
+	if (all && len(raw) > 0) || (!all && len(raw) == 0) || len(raw) > 100 {
+		s.fail(w, r, 422, "VALIDATION_FAILED", "提供 ids（最多 100 个）或 all=true")
+		return
+	}
+	ids := make([]int64, 0, len(raw))
+	for _, v := range raw {
+		id, err := strconv.ParseInt(v, 10, 64)
+		if err != nil || id <= 0 {
+			s.fail(w, r, 422, "VALIDATION_FAILED", "无效通知 ID")
+			return
+		}
+		ids = append(ids, id)
+	}
+	n, err := s.st.ReadNotifications(r.Context(), User(r).ID, ids, all)
+	if s.readError(w, r, err) {
+		return
+	}
+	s.respond(w, 200, map[string]any{"read": true, "updated": n})
 }
 func (s *Server) smileysGet(w http.ResponseWriter, r *http.Request) {
 	s.respond(w, 200, smiley.Groups())

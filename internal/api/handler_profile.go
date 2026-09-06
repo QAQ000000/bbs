@@ -329,7 +329,12 @@ func (s *Server) profileExport(w http.ResponseWriter, r *http.Request) {
 	if s.readError(w, r, err) {
 		return
 	}
+	titles, err := s.st.UserTitles(r.Context(), u.ID)
+	if s.readError(w, r, err) {
+		return
+	}
 	b, err := json.MarshalIndent(map[string]any{
+		"titles":     titles,
 		"membership": membership,
 		"account": map[string]any{
 			"username":       u.Username,

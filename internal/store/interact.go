@@ -84,26 +84,34 @@ type Liker struct {
 
 // SaveDraft 保存（或清空）某个上下文的草稿；content 为空则删除记录。
 func (s *Store) SaveDraft(ctx context.Context, uid int64, context, content string) error {
-	if content == "" {
+	return s.SaveDraftWithSubject(ctx, uid, context, "", content)
+}
+
+func (s *Store) SaveDraftWithSubject(ctx context.Context, uid int64, context, subject, content string) error {
+	if content == "" && subject == "" {
 		_, err := s.pool.Exec(ctx, `DELETE FROM drafts WHERE user_id=$1 AND context=$2`, uid, context)
 		return err
 	}
 	_, err := s.pool.Exec(ctx,
-		`INSERT INTO drafts (user_id, context, content, updated_at) VALUES ($1,$2,$3,now())
-		 ON CONFLICT (user_id, context) DO UPDATE SET content=EXCLUDED.content, updated_at=now()`,
-		uid, context, content)
+		`INSERT INTO drafts (user_id, context, content, subject, updated_at) VALUES ($1,$2,$3,$4,now())
+		 ON CONFLICT (user_id, context) DO UPDATE SET content=EXCLUDED.content, subject=EXCLUDED.subject, updated_at=now()`,
+		uid, context, content, subject)
 	return err
 }
 
 // Draft 读取草稿；不存在返回空串。
 func (s *Store) Draft(ctx context.Context, uid int64, context string) (string, time.Time, error) {
-	var content string
-	var updated time.Time
+	d, err := s.DraftDetails(ctx, uid, context)
+	return d.Content, d.UpdatedAt, err
+}
+
+func (s *Store) DraftDetails(ctx context.Context, uid int64, context string) (DraftRow, error) {
+	d := DraftRow{Context: context}
 	err := s.pool.QueryRow(ctx,
-		`SELECT content, updated_at FROM drafts WHERE user_id=$1 AND context=$2`, uid, context).
-		Scan(&content, &updated)
+		`SELECT subject, content, updated_at FROM drafts WHERE user_id=$1 AND context=$2`, uid, context).
+		Scan(&d.Subject, &d.Content, &d.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", time.Time{}, nil
+		return d, nil
 	}
-	return content, updated, err
+	return d, err
 }

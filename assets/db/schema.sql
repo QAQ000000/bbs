@@ -678,3 +678,230 @@ BEGIN
 END $$;
 DROP TRIGGER IF EXISTS member_user_progress ON users;
 CREATE TRIGGER member_user_progress AFTER UPDATE OF email_verified,post_count,days_visited,posts_read,blocked_until,banned_until ON users FOR EACH ROW EXECUTE FUNCTION member_user_progress();
+-- Task-based honorary titles, independent of membership permissions.
+CREATE TABLE IF NOT EXISTS titles (
+ id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+ version bigint NOT NULL DEFAULT 1,
+ body jsonb NOT NULL,
+ created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS user_titles (
+ user_id bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+ title_id bigint NOT NULL REFERENCES titles(id),
+ status text NOT NULL CHECK(status IN ('earned','revoked')),
+ source text NOT NULL CHECK(source IN ('automatic','manual')),
+ rule_version bigint NOT NULL,
+ earned_at timestamptz NOT NULL DEFAULT now(),
+ expires_at timestamptz,
+ PRIMARY KEY(user_id,title_id)
+);
+CREATE TABLE IF NOT EXISTS title_equipment (
+ user_id bigint PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+ title_id bigint NOT NULL,
+ FOREIGN KEY(user_id,title_id) REFERENCES user_titles(user_id,title_id) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS title_progress (
+ user_id bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+ title_id bigint NOT NULL REFERENCES titles(id),
+ rule_version bigint NOT NULL,
+ counts jsonb NOT NULL,
+ checked_at timestamptz NOT NULL DEFAULT now(),
+ PRIMARY KEY(user_id,title_id)
+);
+CREATE TABLE IF NOT EXISTS title_logs (
+ id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+ title_id bigint NOT NULL REFERENCES titles(id),
+ user_id bigint REFERENCES users(id) ON DELETE SET NULL,
+ actor_id bigint REFERENCES users(id) ON DELETE SET NULL,
+ action text NOT NULL,
+ detail jsonb NOT NULL,
+ request_key text,
+ created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS title_log_request ON title_logs(actor_id,request_key) WHERE request_key IS NOT NULL;
+CREATE INDEX IF NOT EXISTS title_log_title ON title_logs(title_id,id DESC);
+CREATE TABLE IF NOT EXISTS title_events (
+ id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+ user_id bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS title_events_user ON title_events(user_id);
+CREATE TABLE IF NOT EXISTS title_jobs (
+ id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+ title_id bigint NOT NULL REFERENCES titles(id),
+ rule_version bigint NOT NULL,
+ cursor_id bigint NOT NULL DEFAULT 0,
+ max_user_id bigint NOT NULL,
+ processed bigint NOT NULL DEFAULT 0,
+ awarded bigint NOT NULL DEFAULT 0,
+ status text NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','complete','superseded')),
+ created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS title_jobs_pending ON title_jobs(id) WHERE status='pending';
+CREATE TABLE IF NOT EXISTS title_schedule (
+ id boolean PRIMARY KEY DEFAULT true CHECK(id),
+ next_run timestamptz NOT NULL DEFAULT now()
+);
+INSERT INTO title_schedule(id) VALUES(true) ON CONFLICT DO NOTHING;
+CREATE TABLE IF NOT EXISTS accepted_replies (
+ thread_id bigint PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE,
+ post_id bigint NOT NULL UNIQUE REFERENCES posts(id) ON DELETE CASCADE,
+ accepted_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS acceptance_logs (
+ id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+ thread_id bigint NOT NULL,
+ post_id bigint,
+ actor_id bigint NOT NULL,
+ accepted boolean NOT NULL,
+ created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS title_posts_author ON posts(author_id,thread_id) WHERE NOT deleted AND NOT pending;
+
+-- Append-only invalidations never contend with a worker holding a user row.
+CREATE OR REPLACE FUNCTION title_enqueue(uid bigint) RETURNS void LANGUAGE sql AS $$
+ INSERT INTO title_events(user_id) SELECT id FROM users WHERE id=uid;
+$$;
+CREATE OR REPLACE FUNCTION title_post_event() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF TG_OP='UPDATE' AND ROW(NEW.pending,NEW.deleted,NEW.author_id,NEW.thread_id)
+    IS NOT DISTINCT FROM ROW(OLD.pending,OLD.deleted,OLD.author_id,OLD.thread_id) THEN RETURN NULL; END IF;
+ IF TG_OP<>'INSERT' THEN PERFORM title_enqueue(OLD.author_id); END IF;
+ IF TG_OP<>'DELETE' THEN PERFORM title_enqueue(NEW.author_id); END IF;
+ IF TG_OP='UPDATE' THEN
+  IF NEW.pending OR NEW.deleted THEN DELETE FROM accepted_replies WHERE post_id=NEW.id; END IF;
+ END IF;
+ RETURN NULL;
+END $$;
+DROP TRIGGER IF EXISTS title_post_event ON posts;
+CREATE TRIGGER title_post_event AFTER INSERT OR UPDATE OR DELETE ON posts FOR EACH ROW EXECUTE FUNCTION title_post_event();
+CREATE OR REPLACE FUNCTION title_thread_event() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE tid bigint;
+BEGIN
+ IF TG_OP='UPDATE' AND ROW(NEW.pending,NEW.deleted,NEW.digest,NEW.forum_id)
+    IS NOT DISTINCT FROM ROW(OLD.pending,OLD.deleted,OLD.digest,OLD.forum_id) THEN RETURN NULL; END IF;
+ IF TG_OP='DELETE' THEN tid:=OLD.id; ELSE tid:=NEW.id; END IF;
+ INSERT INTO title_events(user_id) SELECT DISTINCT author_id FROM posts WHERE thread_id=tid;
+ IF TG_OP='UPDATE' THEN
+  IF NEW.pending OR NEW.deleted THEN DELETE FROM accepted_replies WHERE thread_id=NEW.id; END IF;
+ END IF;
+ RETURN NULL;
+END $$;
+DROP TRIGGER IF EXISTS title_thread_event ON threads;
+CREATE TRIGGER title_thread_event AFTER INSERT OR UPDATE OR DELETE ON threads FOR EACH ROW EXECUTE FUNCTION title_thread_event();
+CREATE OR REPLACE FUNCTION title_like_event() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE pid bigint; kind smallint;
+BEGIN
+ IF TG_OP='DELETE' THEN pid:=OLD.pid; kind:=OLD.action; ELSE pid:=NEW.pid; kind:=NEW.action; END IF;
+ IF kind=1 THEN INSERT INTO title_events(user_id) SELECT author_id FROM posts WHERE id=pid; END IF;
+ RETURN NULL;
+END $$;
+DROP TRIGGER IF EXISTS title_like_event ON post_actions;
+CREATE TRIGGER title_like_event AFTER INSERT OR DELETE ON post_actions FOR EACH ROW EXECUTE FUNCTION title_like_event();
+CREATE OR REPLACE FUNCTION title_accept_event() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF TG_OP<>'INSERT' THEN INSERT INTO title_events(user_id) SELECT author_id FROM posts WHERE id=OLD.post_id; END IF;
+ IF TG_OP<>'DELETE' THEN INSERT INTO title_events(user_id) SELECT author_id FROM posts WHERE id=NEW.post_id; END IF;
+ RETURN NULL;
+END $$;
+DROP TRIGGER IF EXISTS title_accept_event ON accepted_replies;
+CREATE TRIGGER title_accept_event AFTER INSERT OR UPDATE OR DELETE ON accepted_replies FOR EACH ROW EXECUTE FUNCTION title_accept_event();
+CREATE OR REPLACE FUNCTION title_user_event() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN PERFORM title_enqueue(NEW.id); RETURN NULL; END $$;
+DROP TRIGGER IF EXISTS title_user_event ON users;
+CREATE TRIGGER title_user_event AFTER INSERT OR UPDATE OF days_visited,email_verified,banned_until,blocked_until ON users FOR EACH ROW EXECUTE FUNCTION title_user_event();
+CREATE OR REPLACE FUNCTION title_member_event() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN PERFORM title_enqueue(NEW.user_id); RETURN NULL; END $$;
+DROP TRIGGER IF EXISTS title_member_event ON member_states;
+CREATE TRIGGER title_member_event AFTER INSERT OR UPDATE OF experience,level_id ON member_states FOR EACH ROW EXECUTE FUNCTION title_member_event();
+-- Forum workflow metadata and durable, deduplicated in-app notifications.
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS reply_to_post_id bigint REFERENCES posts(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS posts_reply_to_idx ON posts(reply_to_post_id) WHERE reply_to_post_id IS NOT NULL;
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS moderation_status text NOT NULL DEFAULT '';
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS moderation_note text NOT NULL DEFAULT '';
+ALTER TABLE drafts ADD COLUMN IF NOT EXISTS subject text NOT NULL DEFAULT '';
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS event_key text;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS scope text NOT NULL DEFAULT 'content';
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS payload jsonb NOT NULL DEFAULT '{}';
+CREATE UNIQUE INDEX IF NOT EXISTS notifications_event_key ON notifications(uid,event_key) WHERE event_key IS NOT NULL;
+CREATE TABLE IF NOT EXISTS notification_preferences (
+ uid bigint PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+ body jsonb NOT NULL DEFAULT '{}'
+);
+CREATE OR REPLACE FUNCTION notification_group(kind text) RETURNS text LANGUAGE sql IMMUTABLE AS $$
+ SELECT CASE WHEN kind='mention' THEN 'mentions' WHEN kind IN ('reply','reply.direct') THEN 'replies'
+ WHEN kind='reply.accepted' THEN 'acceptance' WHEN kind LIKE 'title.%' THEN 'titles'
+ WHEN kind LIKE 'membership.%' THEN 'membership' WHEN kind LIKE 'moderation.%' THEN 'moderation'
+ WHEN kind LIKE 'report.%' THEN 'reports' ELSE 'replies' END;
+$$;
+CREATE OR REPLACE FUNCTION forum_notify(recipient bigint, sender bigint, sender_name text, kind text,
+ tid bigint, pid bigint, summary text, event text, visibility text DEFAULT 'content', data jsonb DEFAULT '{}')
+ RETURNS bigint LANGUAGE plpgsql AS $$
+DECLARE result bigint;
+BEGIN
+ IF NOT EXISTS(SELECT 1 FROM users WHERE id=recipient) THEN RETURN 0; END IF;
+ IF EXISTS(SELECT 1 FROM notification_preferences WHERE uid=recipient AND body->>notification_group(kind)='false') THEN RETURN 0; END IF;
+ INSERT INTO notifications(uid,from_uid,from_name,type,thread_id,post_id,excerpt,event_key,scope,payload)
+ VALUES(recipient,sender,sender_name,kind,tid,pid,summary,event,visibility,data)
+ ON CONFLICT(uid,event_key) WHERE event_key IS NOT NULL DO NOTHING RETURNING id INTO result;
+ RETURN coalesce(result,0);
+END $$;
+-- Audit records provide stable identities and share the originating transaction.
+CREATE OR REPLACE FUNCTION notify_title_change() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE label text;
+BEGIN
+ IF NEW.action NOT IN ('grant','revoke') OR NEW.user_id IS NULL THEN RETURN NULL; END IF;
+ SELECT body->>'name' INTO label FROM titles WHERE id=NEW.title_id;
+ PERFORM forum_notify(NEW.user_id,coalesce(NEW.actor_id,0),'系统',
+ CASE NEW.action WHEN 'grant' THEN 'title.granted' ELSE 'title.revoked' END,0,0,
+ CASE NEW.action WHEN 'grant' THEN '获得称号：' ELSE '称号已撤销：' END||coalesce(label,''),
+ 'title-log:'||NEW.id,'account',jsonb_build_object('titleId',NEW.title_id::text));
+ RETURN NULL;
+END $$;
+DROP TRIGGER IF EXISTS notify_title_change ON title_logs;
+CREATE TRIGGER notify_title_change AFTER INSERT ON title_logs FOR EACH ROW EXECUTE FUNCTION notify_title_change();
+CREATE OR REPLACE FUNCTION notify_member_change() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF NEW.action='level.upgrade' AND NEW.user_id IS NOT NULL THEN
+  PERFORM forum_notify(NEW.user_id,0,'系统','membership.upgraded',0,0,'会员等级已升级',
+   'member-change:'||NEW.id,'account',jsonb_build_object('levelId',NEW.detail->>'to'));
+ END IF;
+ RETURN NULL;
+END $$;
+DROP TRIGGER IF EXISTS notify_member_change ON member_changes;
+CREATE TRIGGER notify_member_change AFTER INSERT ON member_changes FOR EACH ROW EXECUTE FUNCTION notify_member_change();
+CREATE OR REPLACE FUNCTION notify_accepted_reply() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE recipient bigint;
+BEGIN
+ SELECT author_id INTO recipient FROM posts WHERE id=NEW.post_id;
+ IF recipient IS NOT NULL AND recipient<>NEW.actor_id AND NEW.accepted THEN
+  PERFORM forum_notify(recipient,NEW.actor_id,(SELECT username FROM users WHERE id=NEW.actor_id),
+   'reply.accepted',NEW.thread_id,NEW.post_id,'你的回复已被主题作者采纳',
+   'accepted:'||NEW.post_id,'content');
+ END IF;
+ RETURN NULL;
+END $$;
+DROP TRIGGER IF EXISTS notify_accepted_reply ON acceptance_logs;
+CREATE TRIGGER notify_accepted_reply AFTER INSERT ON acceptance_logs FOR EACH ROW EXECUTE FUNCTION notify_accepted_reply();
+CREATE OR REPLACE FUNCTION notify_moderation_result() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF NEW.moderation_status IN ('approved','rejected') AND OLD.moderation_status IS DISTINCT FROM NEW.moderation_status THEN
+  PERFORM forum_notify(NEW.author_id,0,'系统','moderation.'||NEW.moderation_status,NEW.thread_id,NEW.id,
+   CASE NEW.moderation_status WHEN 'approved' THEN '你的内容已通过审核' ELSE '你的内容未通过审核：'||NEW.moderation_note END,
+   'moderation:'||NEW.id||':'||NEW.version||':'||NEW.moderation_status,'account',
+   jsonb_build_object('status',NEW.moderation_status));
+ END IF;
+ RETURN NULL;
+END $$;
+DROP TRIGGER IF EXISTS notify_moderation_result ON posts;
+CREATE TRIGGER notify_moderation_result AFTER UPDATE OF moderation_status ON posts FOR EACH ROW EXECUTE FUNCTION notify_moderation_result();
+CREATE OR REPLACE FUNCTION notify_report_result() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF NEW.status<>OLD.status AND NEW.status IN ('resolved','dismissed') THEN
+  PERFORM forum_notify(NEW.reporter,coalesce(NEW.handled_by,0),'系统','report.'||NEW.status,0,0,
+   CASE NEW.status WHEN 'resolved' THEN '你的举报已处理' ELSE '你的举报已驳回' END,
+   'report:'||NEW.id||':'||NEW.status,'account',jsonb_build_object('reportId',NEW.id::text));
+ END IF;
+ RETURN NULL;
+END $$;
+DROP TRIGGER IF EXISTS notify_report_result ON reports;
+CREATE TRIGGER notify_report_result AFTER UPDATE OF status ON reports FOR EACH ROW EXECUTE FUNCTION notify_report_result();

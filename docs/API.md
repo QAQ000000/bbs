@@ -4,7 +4,9 @@
 
 本文件描述本轮已实现的接口。完整目标见 [前后端分离方案](FRONTEND_BACKEND_SEPARATION.md)。本轮先保留既有业务处理与部分动作式接口；OpenAPI、统一写入字段命名、幂等写入及完整前端仍待后续阶段完成。
 
-会员等级、成长规则、经验流水、徽章、版块访问限制及 12 个新增接口见 [会员 API 文档](MEMBERSHIP.md)。当前数据库 schema 为 6；该文档同时定义配置预览、人工调整幂等和等级额度语义。
+会员等级、成长规则、经验流水、徽章、版块访问限制及 12 个新增接口见 [会员 API 文档](MEMBERSHIP.md)。该文档定义配置预览、人工调整幂等和等级额度语义。
+
+任务称号、自动补发、佩戴、作者采纳及 13 个新增接口见 [称号 API 文档](TITLES.md)。当前数据库 schema 为 8，Nuxt 管理和展示页面仍待开发。通知、楼层回复及定位、草稿标题和本人内容状态见 [基础流程 API](FORUM_WORKFLOWS.md)。
 
 ## 请求与响应
 
@@ -54,10 +56,15 @@
 | `POST /posts/{pid}/like` | 切换点赞，返回 liked/count；本轮保留 toggle，客户端不得自动重试 |
 | `POST /threads/{tid}/favorite` | 切换收藏，返回 favorite/threadId；客户端不得自动重试 |
 | `GET /me/draft` | 查询参数 `context=new:版块ID / reply:主题ID / edit:楼层ID` |
-| `POST /me/draft` | `context`、`content`；CSRF 使用请求头 |
+| `POST /me/draft` | `context`、`subject`、`content`；CSRF 使用请求头；两者都空才删除 |
 | `DELETE /me/draft` | `context` |
 | `POST /threads/{tid}/read` | `postId` 指定实际展示的可见楼层；同用户/主题限一分钟一次，GET/SSR 预取不计入阅读 |
-| `POST /me/notifications/read` | 标记本人当前通知已读；GET 通知不再自动标记 |
+| `POST /me/notifications/read` | `ids` 数组（最多 100 个）或 `all=true`；空对象返回 422；GET 不标记 |
+| `GET /me/notifications` | page、unread=true/false；30 条每页，data 数组加 meta |
+| `GET /me/notifications/summary` | 当前可见未读数 data.unread |
+| `GET/PUT /me/notification-preferences` | 八项布尔偏好；PUT 为完整覆盖 |
+| `GET /me/content` | kind=threads/replies、status=all/published/pending/rejected/deleted、page |
+| `GET /posts/{pid}/position` | 当前可见楼层的 page、pageSize、floor，供通知和回复定位 |
 | `POST /posts/{pid}/reports` | `reason`，不能举报自己或不可见的内容 |
 | `POST /uploads` | multipart：`file`、`kind=image/file`；成功 201，返回 url/name/kind/mime |
 | `POST /me/avatar` | multipart：`avatar`，最大 2MB；`DELETE /me/avatar` 恢复默认头像 |
@@ -86,7 +93,7 @@
 - 版块保存：`id`、`category_id`、`name`、`description`、`moderators`；分类保存：`id`、`name`。
 - 主题动作：`op`、重复 `tid`，移动时另传 `move_to` 目标版块 ID。
 - 用户动作：`uid`，禁言/封禁另传 `days`、`reason`，改组传 `group`。
-- 审核：`tid` 或 `pid`、`op=approve/delete`；举报处理：`id`、`op=delete/dismiss`。
+- 审核：`tid` 或 `pid`、`op=approve/delete`、可选 `note`（最多 500 字）；首楼使用主题接口。举报处理：`id`、`op=delete/dismiss`。
 - 权限矩阵：完整字段集 `allow.角色编号.权限点`；缺失即关闭，管理员入口有防自锁保护。
 - 设置保存为完整表单，字段仍为 `site_name`、`register_enabled` 等 snake_case；切勿把它当作局部 PATCH。布尔值支持 JSON true/false 或表单 1/0。
 - 回收站：单主题使用 `tid`；批量清理使用 `kind`、`author`、`keyword`、`forum`、`days`，范围规则继续在 Go 校验。
@@ -113,6 +120,10 @@
 | GET | `/api/v1/me/drafts` |
 | GET | `/api/v1/me/draft` |
 | GET | `/api/v1/me/notifications` |
+| GET | `/api/v1/me/notifications/summary` |
+| GET | `/api/v1/me/notification-preferences` |
+| GET | `/api/v1/me/content` |
+| GET | `/api/v1/posts/{pid}/position` |
 | GET | `/api/v1/posts/{pid}/history` |
 | GET | `/api/v1/me/export` |
 | GET | `/api/v1/smileys` |
@@ -142,6 +153,7 @@
 | POST | `/api/v1/me/draft` |
 | DELETE | `/api/v1/me/draft` |
 | POST | `/api/v1/me/notifications/read` |
+| PUT | `/api/v1/me/notification-preferences` |
 | POST | `/api/v1/threads/{tid}/read` |
 | POST | `/api/v1/uploads` |
 | POST | `/api/v1/posts/{pid}/reports` |

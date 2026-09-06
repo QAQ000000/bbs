@@ -4,9 +4,13 @@ Go + PostgreSQL 论坛后端，正在迁移到 Nuxt SSR + Go API 的前后端分
 
 **当前源码已移除 Go 页面模板、CSS/JS、页面路由和 Markdown HTML 渲染。** 新二进制提供 JSON API、SSE 与受控媒体，不再直接显示论坛页面。Nuxt 前端尚未开发；本轮源码变更未部署到现有网站。旧版 Releases 可能仍为包含页面的版本，部署前须确认版本说明。
 
-开发入口：[会员等级与权限](docs/MEMBERSHIP.md) · [当前 API](docs/API.md) · [分离方案与实施记录](docs/FRONTEND_BACKEND_SEPARATION.md)。
+开发入口：[任务称号与采纳](docs/TITLES.md) · [会员等级与权限](docs/MEMBERSHIP.md) · [当前 API](docs/API.md) · [分离方案与实施记录](docs/FRONTEND_BACKEND_SEPARATION.md)。
 
 会员后端现已支持可配置等级与徽章、成长经验、自动升级、等级权限和额度、版块访问限制、后台配置预览与人工调整。管理页面仍待 Nuxt 实现。
+
+任务称号支持发帖、回复、精华、点赞和作者采纳等条件，含历史补发、限时有效、人工授予/撤销、佩戴及审计 API。称号不授予权限，也不要求先获得经验；当前 schema 为 8。
+
+通知分页与偏好、审核/采纳/称号/升级结果通知、草稿标题、本人内容状态、具体楼层回复及定位已接入 API。契约见 [论坛基础流程](docs/FORUM_WORKFLOWS.md)，后续待办见 [功能核查](docs/FORUM_FEATURE_AUDIT.md)。
 
 会员等级采用五级经验成长体系，默认门槛为 0 / 100 / 500 / 1500 / 5000。旧信任等级字段和映射已移除；现有账号首次接入从 LV0 开始，后台可修改等级及门槛。
 
