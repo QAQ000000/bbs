@@ -142,6 +142,22 @@ systemctl start gobbs
 
 ## 6. 升级流程
 
+推荐使用仓库构建的 `gobbsctl` 执行二进制替换。数据库缺少的结构由新
+`forumd` 启动时自动执行编号迁移，不需要手工补 SQL：
+
+```bash
+go build -trimpath -o /opt/gobbs/bin/forumd.new ./cmd/forumd
+go build -trimpath -o /opt/gobbs/bin/gobbsctl ./cmd/gobbsctl
+/opt/gobbs/bin/gobbsctl upgrade \
+  -binary /opt/gobbs/bin/forumd.new \
+  -service gobbs \
+  -url http://127.0.0.1:8090/api/status
+```
+
+工具会保留旧二进制、原子替换新文件、重启 systemd 服务，并等待数据库迁移及
+`/api/status` 通过；健康检查失败时自动恢复旧二进制并重启。旧二进制只代表
+程序回滚，已执行的数据库迁移不会自动回滚。
+
 ```bash
 cd /opt/gobbs-src && go build -o /opt/gobbs/bin/forumd.new ./cmd/forumd
 systemctl stop gobbs
