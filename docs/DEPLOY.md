@@ -1,12 +1,13 @@
 # 部署运维手册
 
-面向生产部署的完整流程。基础安装见 [README](../README.md#快速开始)。
+面向生产部署的完整流程。默认使用 [GitHub Releases](https://github.com/QAQ000000/bbs/releases) 中的二进制，不需要下载源码；只有开发或自行构建时才需要源码。
 
 ## 1. 目录规划（推荐）
 
 ```
 /opt/gobbs/
-├── bin/forumd          # 二进制
+├── bin/forumd          # 从 GitHub Release 下载的二进制
+├── bin/gobbsctl        # 发布升级工具
 ├── data/               # 运行时数据（uploads/、smiley/）—— 必须备份
 └── .env                # 环境变量（权限 600）
 ```
@@ -142,12 +143,11 @@ systemctl start gobbs
 
 ## 6. 升级流程
 
-推荐使用仓库构建的 `gobbsctl` 执行二进制替换。数据库缺少的结构由新
+从 GitHub Release 下载对应平台的压缩包并校验 `SHA256SUMS`，再使用 `gobbsctl` 执行二进制替换。数据库缺少的结构由新
 `forumd` 启动时自动执行编号迁移，不需要手工补 SQL：
 
 ```bash
-go build -trimpath -o /opt/gobbs/bin/forumd.new ./cmd/forumd
-go build -trimpath -o /opt/gobbs/bin/gobbsctl ./cmd/gobbsctl
+# 将 Release 中的新 forumd 放到临时路径，例如 /opt/gobbs/bin/forumd.new
 /opt/gobbs/bin/gobbsctl upgrade \
   -binary /opt/gobbs/bin/forumd.new \
   -service gobbs \
@@ -159,11 +159,7 @@ go build -trimpath -o /opt/gobbs/bin/gobbsctl ./cmd/gobbsctl
 程序回滚，已执行的数据库迁移不会自动回滚。
 
 ```bash
-cd /opt/gobbs-src && go build -o /opt/gobbs/bin/forumd.new ./cmd/forumd
-systemctl stop gobbs
-mv /opt/gobbs/bin/forumd.new /opt/gobbs/bin/forumd
-systemctl start gobbs
-journalctl -u gobbs -n 20        # 确认"论坛服务已启动"与迁移/索引日志
+开发或无法使用 gobbsctl 时，才从源码构建并按上述方式替换；生产环境优先使用 Release 二进制。
 ```
 
 - schema 迁移全部幂等，随启动自动执行；`gobbsctl` 可回滚二进制，数据库迁移不自动回滚

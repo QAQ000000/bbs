@@ -51,13 +51,13 @@
 
 ## 快速开始
 
-```bash
-# 0. 前置：Go 1.25+ 与 PostgreSQL 16+（推荐 18）
-# 1. 建库（在 PostgreSQL 上执行）
-CREATE DATABASE forum OWNER "youruser";
+生产环境请从 [GitHub Releases](https://github.com/QAQ000000/bbs/releases) 下载对应平台的二进制压缩包，并校验 `SHA256SUMS`。生产部署不需要下载源码。
 
-# 2. 编译
-go build -o bin/forumd ./cmd/forumd
+```bash
+# 0. 前置：PostgreSQL 16+（推荐 18）
+# 1. 下载并解压 Release 中的 forumd 和 gobbsctl
+# 2. 建库（在 PostgreSQL 上执行）
+CREATE DATABASE forum OWNER "youruser";
 
 # 3. 启动（首次加 -seed 灌入演示数据；schema 启动时自动迁移）
 FORUM_DSN="postgres://user:pass@127.0.0.1:5432/forum" \
@@ -137,7 +137,7 @@ WantedBy=multi-user.target
 ```
 
 **备份**：PostgreSQL `pg_dump forum` + `data/` 目录。
-**升级**：替换二进制重启即可（schema 自动增量迁移；分词器升级会自动补齐搜索索引）。
+**升级**：下载 GitHub Release 二进制，校验 `SHA256SUMS` 后使用 `gobbsctl upgrade`；生产环境无需源码。
 
 **反向代理（nginx）**：
 
@@ -149,6 +149,8 @@ location /api/live { proxy_pass http://127.0.0.1:8090; proxy_buffering off; }
 生产环境务必：改默认管理员密码、`FORUM_PROD=1`（HTTPS 下 Secure Cookie）。
 
 ## 开发
+
+只有需要修改代码、运行测试或自行构建时才需要下载源码。生产部署直接使用 GitHub Releases 中的二进制。
 
 ```
 cmd/forumd/        入口（-seed / -import-smileys / -version）
