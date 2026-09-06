@@ -9,6 +9,9 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"net/url"
+
+	"dzforum/internal/perm"
 
 	"strconv"
 	"strings"
@@ -18,10 +21,17 @@ import (
 // fullMatrixBody 全角色默认矩阵（后台保存按「缺失即 false」全量写入，
 // 恢复基线必须携带全部角色的全部权限点，否则管理员细粒度点会被清空）。
 func fullMatrixBody() string {
-	return "allow.0.content.edit.own=1&allow.0.content.delete.own=1&allow.0.upload.use=1" +
-		"&allow.2.content.moderate=1&allow.2.content.delete.any=1&allow.2.recycle.bin=1" +
-		"&allow.2.prune.run=1&allow.2.moderate.queue=1&allow.2.upload.use=1" +
-		"&allow.1.admin.panel=1&allow.1.forum.manage=1&allow.1.content.moderate=1&allow.1.content.edit.own=1&allow.1.content.edit.any=1&allow.1.content.delete.own=1&allow.1.content.delete.any=1&allow.1.user.ban=1&allow.1.user.delete=1&allow.1.user.group=1&allow.1.settings.edit=1&allow.1.censor.manage=1&allow.1.announce.manage=1&allow.1.logs.view=1&allow.1.recycle.bin=1&allow.1.prune.run=1&allow.1.moderate.queue=1&allow.1.upload.use=1"
+	body := url.Values{}
+	for role, points := range perm.Defaults() {
+		for _, point := range perm.AllPoints() {
+			value := "0"
+			if points[point] {
+				value = "1"
+			}
+			body.Set("allow."+strconv.Itoa(int(role))+"."+string(point), value)
+		}
+	}
+	return body.Encode()
 }
 
 // TestDigestSortPage 精华筛选 200 回归（count 查询缺 t 别名曾 500）。
@@ -38,6 +48,11 @@ func TestPermPointGuards(t *testing.T) {
 	}
 	if w := smokeGet(t, "/api/v1/admin/recyclebin", modCookie); w.Code != http.StatusOK {
 		t.Fatalf("recycle.bin 未关闭应仍可访问: %d", w.Code)
+	}
+	for _, path := range []string{"/api/v1/admin/membership", "/api/v1/admin/users"} {
+		if w := smokeGet(t, path, adminCookie); w.Code != http.StatusForbidden {
+			t.Fatalf("omitted permissions must be disabled: %s returned %d", path, w.Code)
+		}
 	}
 	// 恢复全角色默认矩阵
 	if w := smokePost(t, "/api/v1/admin/perms/save", adminCSRF, fullMatrixBody(), adminCookie); w.Code != http.StatusOK {

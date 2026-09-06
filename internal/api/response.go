@@ -158,6 +158,6 @@ func (s *Server) action(h http.HandlerFunc) http.HandlerFunc {
 			s.fail(w, r, 403, "CSRF_INVALID", "CSRF token 无效或已过期")
 			return
 		}
-		h(w, r)
+		s.memberAction(w, r, h)
 	}
 }

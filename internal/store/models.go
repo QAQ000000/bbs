@@ -16,7 +16,6 @@ type User struct {
 	PostCount          int64     `db:"post_count"`
 	Signature          string    `db:"signature"`
 	CreatedAt          time.Time `db:"created_at"`
-	TrustLevel         int       `db:"trust_level"`
 	PostsRead          int64     `db:"posts_read"`
 	DaysVisited        int       `db:"days_visited"`
 	EmailVerified      bool      `db:"email_verified"`

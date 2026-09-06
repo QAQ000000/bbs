@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	"golang.org/x/crypto/bcrypt"
@@ -24,19 +25,25 @@ var testPool *pgxpool.Pool
 func TestMain(m *testing.M) {
 	dsn := os.Getenv("FORUM_TEST_DSN")
 	if dsn == "" {
-		dsn = "postgres://123456:123456@127.0.0.1:5432/forum_test"
+		fmt.Println("SKIP: store integration tests require explicit FORUM_TEST_DSN")
+		os.Exit(0)
+	}
+	parsed, err := pgxpool.ParseConfig(dsn)
+	if err != nil || !strings.HasPrefix(parsed.ConnConfig.Database, "gobbs_test_") {
+		fmt.Println("FORUM_TEST_DSN must name a disposable gobbs_test_ database")
+		os.Exit(1)
 	}
 	ctx := context.Background()
 	pool, err := db.Open(ctx, dsn)
 	if err != nil {
 		fmt.Println("SKIP: 测试数据库不可达（", err, "）")
-		os.Exit(0)
+		os.Exit(1)
 	}
 	testPool = pool
 	// 全量重建 schema
 	if _, err := pool.Exec(ctx, `DROP SCHEMA public CASCADE; CREATE SCHEMA public;`); err != nil {
 		fmt.Println("SKIP: 无法重置测试库:", err)
-		os.Exit(0)
+		os.Exit(1)
 	}
 	if err := db.Migrate(ctx, pool); err != nil {
 		fmt.Println("FATAL: 迁移失败:", err)
@@ -223,23 +230,34 @@ func TestLikeToggleAndRead(t *testing.T) {
 	if err != nil || liked || count != 0 {
 		t.Fatalf("取消点赞: liked=%v count=%d err=%v", liked, count, err)
 	}
-	// 阅读打点 + 信任等级升级（0→1：3 天 + 20 帖）
+	// Reading metrics alone do not qualify for experience-based membership.
 	if _, err := testStore.pool.Exec(ctx,
 		`UPDATE users SET days_visited=3, posts_read=18 WHERE id=$1`, reader); err != nil {
 		t.Fatal(err)
 	}
-	testStore.RecordRead(ctx, reader, th.ID, 1) // +1 → 19
-	testStore.RecordRead(ctx, reader, th.ID, 1) // 重复读，不增加
-	testStore.RecordRead(ctx, reader, th.ID, 2) // +1 → 20 达标
-	testStore.MaybeUpgradeTrust(ctx, reader)    // 帖子页视角的升级检查
-	var tl int
-	var reads int64
-	if err := testStore.pool.QueryRow(ctx,
-		`SELECT trust_level, posts_read FROM users WHERE id=$1`, reader).Scan(&tl, &reads); err != nil {
+	reply, err := func() (*Post, error) {
+		_, p, e := testStore.CreateReply(ctx, th.ID, author, "作者", "reply", "", false, "")
+		return p, e
+	}()
+	if err != nil {
 		t.Fatal(err)
 	}
-	if reads != 20 || tl != 1 {
-		t.Fatalf("阅读后 read=%d tl=%d，期望 20/1", reads, tl)
+	for _, post := range []*Post{p, p, reply} {
+		if err := testStore.RecordMemberRead(ctx, reader, post.ID, th.ID, post.Floor); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := testStore.UpgradeMember(ctx, reader); err != nil {
+		t.Fatal(err)
+	}
+	var levelID int
+	var reads int64
+	if err := testStore.pool.QueryRow(ctx,
+		`SELECT ms.level_id, u.posts_read FROM member_states ms JOIN users u ON u.id=ms.user_id WHERE u.id=$1`, reader).Scan(&levelID, &reads); err != nil {
+		t.Fatal(err)
+	}
+	if reads != 20 || levelID != 0 {
+		t.Fatalf("reading=%d level=%d, expected 20/0 without experience", reads, levelID)
 	}
 }
 

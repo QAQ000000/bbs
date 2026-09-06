@@ -40,7 +40,11 @@ func (s *Server) sessionGet(w http.ResponseWriter, r *http.Request) {
 	} else {
 		token = s.anonCSRF(r, w)
 	}
-	s.respond(w, 200, map[string]any{"user": privateUser(User(r)), "csrfToken": token, "setupRequired": s.setupRequired()})
+	u, err := s.memberUser(r, User(r), true)
+	if s.readError(w, r, err) {
+		return
+	}
+	s.respond(w, 200, map[string]any{"user": u, "csrfToken": token, "setupRequired": s.setupRequired()})
 }
 func (s *Server) siteGet(w http.ResponseWriter, r *http.Request) {
 	v := s.sets(r)
@@ -67,18 +71,22 @@ func (s *Server) homeGet(w http.ResponseWriter, r *http.Request) {
 	if s.readError(w, r, err) {
 		return
 	}
-	s.respond(w, 200, map[string]any{"categories": categoriesDTO(cats), "stats": statsDTO(stats), "threads": mapRows(rows, threadDTO), "announcements": mapRows(ann, announcementDTO)})
+	threadRows, err := s.memberThreadRows(r, rows)
+	if s.readError(w, r, err) {
+		return
+	}
+	s.respond(w, 200, map[string]any{"categories": s.memberCategoriesResponse(r, cats), "stats": statsDTO(stats), "threads": threadRows, "announcements": mapRows(ann, announcementDTO)})
 }
 func (s *Server) forumsGet(w http.ResponseWriter, r *http.Request) {
 	v, err := s.st.CategoriesWithForums(r.Context())
 	if !s.readError(w, r, err) {
-		s.respond(w, 200, categoriesDTO(v))
+		s.respond(w, 200, s.memberCategoriesResponse(r, v))
 	}
 }
 func (s *Server) forumGet(w http.ResponseWriter, r *http.Request) {
 	v, err := s.st.Forum(r.Context(), pathID(r, "fid"))
 	if !s.readError(w, r, err) {
-		s.respond(w, 200, forumDTO(v))
+		s.respond(w, 200, s.memberForumResponse(r, v))
 	}
 }
 func (s *Server) threadsGet(w http.ResponseWriter, r *http.Request) {
@@ -99,13 +107,20 @@ func (s *Server) threadsGet(w http.ResponseWriter, r *http.Request) {
 	if s.readError(w, r, err) {
 		return
 	}
-	data := map[string]any{"threads": mapRows(rows, threadDTO), "stickies": []map[string]any{}}
+	threadRows, err := s.memberThreadRows(r, rows)
+	if s.readError(w, r, err) {
+		return
+	}
+	data := map[string]any{"threads": threadRows, "stickies": []map[string]any{}}
 	if fid > 0 {
 		sticky, e := s.st.Stickies(r.Context(), fid)
 		if s.readError(w, r, e) {
 			return
 		}
-		data["stickies"] = mapRows(sticky, threadDTO)
+		data["stickies"], e = s.memberThreadRows(r, sticky)
+		if s.readError(w, r, e) {
+			return
+		}
 	}
 	s.list(w, data, page, size, total)
 }
@@ -114,14 +129,14 @@ func (s *Server) visibleThread(w http.ResponseWriter, r *http.Request, tid int64
 	if s.readError(w, r, err) {
 		return nil
 	}
-	if th.Pending && !s.canViewThread(r, th) {
+	if !s.canViewThread(r, th) {
 		s.fail(w, r, 404, "NOT_FOUND", "内容不存在")
 		return nil
 	}
 	return th
 }
 func (s *Server) canViewThread(r *http.Request, th *store.Thread) bool {
-	return !th.Pending || User(r) != nil && (User(r).ID == th.AuthorID || s.canModerateThread(r, th))
+	return canReadForum(r, th.ForumID) && (!th.Pending || User(r) != nil && (User(r).ID == th.AuthorID || s.canModerateThread(r, th)))
 }
 func (s *Server) canViewPost(r *http.Request, p *store.Post, th *store.Thread) bool {
 	return s.canViewThread(r, th) && (!p.Pending || User(r) != nil && (User(r).ID == p.AuthorID || s.canModerateThread(r, th)))
@@ -132,7 +147,12 @@ func (s *Server) threadGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	m := threadDTO(th)
-	m["capabilities"] = map[string]bool{"canModerate": s.canModerateThread(r, th), "canReply": User(r) != nil && !th.Closed}
+	badges, err := s.st.MemberSummaries(r.Context(), []int64{th.AuthorID})
+	if s.readError(w, r, err) {
+		return
+	}
+	m["authorLevel"] = badges[th.AuthorID]
+	m["capabilities"] = map[string]bool{"canModerate": s.canModerateThread(r, th), "canReply": s.memberDecision(r, "post.reply", th.ForumID, nil, th).Allowed}
 	if User(r) != nil {
 		m["favorite"] = s.st.IsFavorite(r.Context(), User(r).ID, th.ID)
 	}
@@ -160,8 +180,17 @@ func (s *Server) postsGet(w http.ResponseWriter, r *http.Request) {
 	if s.readError(w, r, err) {
 		return
 	}
+	authorIDs := []int64{}
+	for _, p := range rows {
+		authorIDs = append(authorIDs, p.AuthorID)
+	}
+	badges, err := s.st.MemberSummaries(r.Context(), authorIDs)
+	if s.readError(w, r, err) {
+		return
+	}
 	out := mapRows(rows, func(p *store.Post) map[string]any {
 		m := s.postResponse(r, p, th)
+		m["authorLevel"] = badges[p.AuthorID]
 		m["attachments"] = mapRows(atts[p.ID], uploadDTO)
 		return m
 	})
@@ -192,6 +221,11 @@ func (s *Server) postGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	m := s.postResponse(r, p, th)
+	badges, err := s.st.MemberSummaries(r.Context(), []int64{p.AuthorID})
+	if s.readError(w, r, err) {
+		return
+	}
+	m["authorLevel"] = badges[p.AuthorID]
 	m["attachments"] = mapRows(atts[p.ID], uploadDTO)
 	s.respond(w, 200, m)
 }
@@ -209,7 +243,10 @@ func (s *Server) meGet(w http.ResponseWriter, r *http.Request) {
 	if !s.requireLogin(w, r) {
 		return
 	}
-	s.respond(w, 200, privateUser(User(r)))
+	v, err := s.memberUser(r, User(r), true)
+	if !s.readError(w, r, err) {
+		s.respond(w, 200, v)
+	}
 }
 func (s *Server) userGet(w http.ResponseWriter, r *http.Request) {
 	u, err := s.st.UserByID(r.Context(), pathID(r, "id"))
@@ -231,7 +268,15 @@ func (s *Server) userGet(w http.ResponseWriter, r *http.Request) {
 	if s.readError(w, r, err) {
 		return
 	}
-	s.list(w, map[string]any{"user": publicUser(u), "threads": mapRows(rows, threadDTO), "reputation": map[string]int64{"posts": posts, "likes": likes}}, page, 10, total)
+	user, err := s.memberUser(r, u, false)
+	if s.readError(w, r, err) {
+		return
+	}
+	threadRows, err := s.memberThreadRows(r, rows)
+	if s.readError(w, r, err) {
+		return
+	}
+	s.list(w, map[string]any{"user": user, "threads": threadRows, "reputation": map[string]int64{"posts": posts, "likes": likes}}, page, 10, total)
 }
 func (s *Server) favoritesGet(w http.ResponseWriter, r *http.Request) {
 	if !s.requireLogin(w, r) {
@@ -242,8 +287,17 @@ func (s *Server) favoritesGet(w http.ResponseWriter, r *http.Request) {
 	if s.readError(w, r, err) {
 		return
 	}
+	ids := []int64{}
+	for _, f := range rows {
+		ids = append(ids, f.AuthorID)
+	}
+	badges, err := s.st.MemberSummaries(r.Context(), ids)
+	if s.readError(w, r, err) {
+		return
+	}
 	s.list(w, mapRows(rows, func(f *store.FavoriteRow) map[string]any {
 		m := threadDTO(&f.Thread)
+		m["authorLevel"] = badges[f.AuthorID]
 		m["lastFloor"] = f.LastFloor
 		m["hasNew"] = f.HasNew
 		return m
@@ -336,9 +390,18 @@ func (s *Server) readRecord(w http.ResponseWriter, r *http.Request) {
 	uid := User(r).ID
 	if s.allowKey("read:"+idString(uid)+":"+idString(th.ID), 1, time.Minute) {
 		s.st.IncView(th.ID)
-		s.st.RecordRead(r.Context(), uid, th.ID, p.Floor)
-		s.st.TouchVisit(r.Context(), uid)
-		s.st.MaybeUpgradeTrust(r.Context(), uid)
+		if err := s.st.RecordMemberRead(r.Context(), uid, p.ID, th.ID, p.Floor); s.readError(w, r, err) {
+			return
+		}
+		if err := s.st.RecordMemberActivity(r.Context(), uid); s.readError(w, r, err) {
+			return
+		}
+		if _, err := s.st.ProcessMemberEvents(r.Context(), 100); s.readError(w, r, err) {
+			return
+		}
+		if err := s.st.UpgradeMember(r.Context(), uid); s.readError(w, r, err) {
+			return
+		}
 	}
 	s.respond(w, 200, map[string]bool{"recorded": true})
 }

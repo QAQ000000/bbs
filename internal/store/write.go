@@ -60,6 +60,7 @@ func (s *Store) CreateThread(ctx context.Context, forumID, authorID int64, autho
 	if err := tx.Commit(ctx); err != nil {
 		return nil, nil, err
 	}
+	markMemberCommit(ctx)
 	_ = s.IndexPost(ctx, pid, title, md) // 首楼：标题权重 A + 正文 B
 	th, err := s.Thread(ctx, tid)
 	if err != nil {
@@ -120,6 +121,7 @@ func (s *Store) CreateReply(ctx context.Context, threadID, authorID int64, autho
 	if err := tx.Commit(ctx); err != nil {
 		return nil, nil, err
 	}
+	markMemberCommit(ctx)
 	th.LastPostUID = authorID
 	th.LastPostName = authorName
 	p, err := s.Post(ctx, pid)

@@ -44,21 +44,6 @@ func TestRoleMatrix(t *testing.T) {
 	}
 }
 
-func TestTrust(t *testing.T) {
-	if !TrustAllowed(TrustMember, PostLinkDirect) || !TrustAllowed(TrustSenior, PostLinkDirect) {
-		t.Fatal("正式成员及以上应可直接发链接")
-	}
-	if TrustAllowed(TrustNewUser, PostLinkDirect) {
-		t.Fatal("新用户发链接应进审核队列")
-	}
-	if !TrustAllowed(TrustSenior, SkipModerate) {
-		t.Fatal("资深成员应免全站发帖审核")
-	}
-	if TrustAllowed(TrustMember, SkipModerate) || TrustAllowed(TrustNewUser, SkipModerate) {
-		t.Fatal("资深成员以下不免审核")
-	}
-}
-
 func TestRoleFromGroupID(t *testing.T) {
 	cases := map[int]Role{0: RoleMember, 1: RoleAdmin, 2: RoleModerator, 9: RoleMember}
 	for gid, want := range cases {

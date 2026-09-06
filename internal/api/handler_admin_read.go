@@ -41,9 +41,22 @@ func (s *Server) adminUsers(w http.ResponseWriter, r *http.Request) {
 	}
 	page := pageOf(r)
 	rows, total, err := s.st.SearchUsers(r.Context(), store.UserQuery{Keyword: r.URL.Query().Get("q"), Page: page, Size: 20})
-	if !s.readError(w, r, err) {
-		s.list(w, mapRows(rows, adminUserDTO), page, 20, total)
+	if s.readError(w, r, err) {
+		return
 	}
+	ids := make([]int64, 0, len(rows))
+	for _, u := range rows {
+		ids = append(ids, u.ID)
+	}
+	levels, err := s.st.MemberSummaries(r.Context(), ids)
+	if s.readError(w, r, err) {
+		return
+	}
+	s.list(w, mapRows(rows, func(u *store.AdminUser) map[string]any {
+		v := adminUserDTO(u)
+		v["level"] = levels[u.ID]
+		return v
+	}), page, 20, total)
 }
 func (s *Server) adminSettings(w http.ResponseWriter, r *http.Request) {
 	if !s.requireAdmin(w, r) {

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// store/search.go：tsvector 全文搜索（中文 bigram 分词）、阅读打点与信任等级升级。
+// store/search.go：tsvector 全文搜索（中文 bigram 分词）。
 package store
 
 import (
@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"regexp"
 	"strings"
-	"sync"
 	"time"
 	"unicode"
 )
@@ -222,7 +221,7 @@ func (s *Store) Search(ctx context.Context, q string, page, size int, opts Searc
 		 CROSS JOIN (SELECT to_tsquery('simple', $1) AS q) qq
 		 WHERE p.search_data @@ q AND NOT p.deleted AND NOT p.pending
 		   AND ($2::bigint = 0 OR t.forum_id = $2)
-		   AND ($3::text = '' OR u.username = $3)
+		   AND ($3::text = '' OR u.username = $3)`+forumFilter(ctx, "t.forum_id")+`
 		 ORDER BY score DESC LIMIT 400`, tq, opts.ForumID, opts.Author)
 	if err != nil {
 		return nil, 0, err
@@ -257,111 +256,4 @@ func (s *Store) Search(ctx context.Context, q string, page, size int, opts Searc
 		hi = total
 	}
 	return hits[lo:hi], total, nil
-}
-
-// ---- 阅读追踪与信任等级 ----
-
-// 信任等级升级门槛。
-const (
-	tl1DaysVisited = 3
-	tl1PostsRead   = 20
-	tl2DaysVisited = 14
-	tl2PostsRead   = 100
-	tl2PostCount   = 10
-)
-
-var (
-	visitMu     sync.Mutex
-	visitBumped = map[int64]string{} // uid -> 已打过点的日期（内存去重，省每请求一次 DB）
-)
-
-// TouchVisit 记录当日访问（每天每用户只落库一次；已升级判断由调用方按需触发）。
-func (s *Store) TouchVisit(ctx context.Context, uid int64) {
-	today := todayString()
-	visitMu.Lock()
-	if visitBumped[uid] == today {
-		visitMu.Unlock()
-		return
-	}
-	visitBumped[uid] = today
-	if len(visitBumped) > 10000 {
-		visitBumped = map[int64]string{}
-	}
-	visitMu.Unlock()
-
-	_, err := s.pool.Exec(ctx, `
-		UPDATE users SET
-			days_visited = days_visited + CASE WHEN last_visit_date = current_date THEN 0 ELSE 1 END,
-			last_visit_date = current_date
-		WHERE id=$1`, uid)
-	_ = err
-}
-
-// RecordRead 阅读打点：记录该用户读到主题的第几楼，返回新增阅读楼层数。
-func (s *Store) RecordRead(ctx context.Context, uid, tid int64, maxFloor int) int {
-	if maxFloor <= 0 {
-		return 0
-	}
-	// 先读旧进度再 upsert（INSERT 分支的 RETURNING 无法引用“旧值”）
-	var prev int
-	_ = s.pool.QueryRow(ctx,
-		`SELECT last_floor FROM thread_reads WHERE user_id=$1 AND thread_id=$2`, uid, tid).Scan(&prev)
-	if _, err := s.pool.Exec(ctx, `
-		INSERT INTO thread_reads (user_id, thread_id, last_floor, updated_at)
-		VALUES ($1,$2,$3,now())
-		ON CONFLICT (user_id, thread_id) DO UPDATE SET
-			last_floor = GREATEST(thread_reads.last_floor, EXCLUDED.last_floor),
-			updated_at = now()`, uid, tid, maxFloor); err != nil {
-		return 0
-	}
-	added := maxFloor - prev
-	if added < 0 {
-		added = 0
-	}
-	if added > 0 {
-		_, _ = s.pool.Exec(ctx,
-			`UPDATE users SET posts_read = posts_read + $2 WHERE id=$1`, uid, added)
-	}
-	return added
-}
-
-// MaybeUpgradeTrust 信任等级自动升级：
-// 0→1 访问 ≥3 天且读帖 ≥20；1→2 访问 ≥14 天、读帖 ≥100 且发帖 ≥10。
-func (s *Store) MaybeUpgradeTrust(ctx context.Context, uid int64) {
-	var cur int
-	var days, reads, posts int64
-	err := s.pool.QueryRow(ctx,
-		`SELECT trust_level, days_visited, posts_read, post_count FROM users WHERE id=$1`, uid).
-		Scan(&cur, &days, &reads, &posts)
-	if err != nil {
-		return
-	}
-	switch cur {
-	case 0:
-		if days >= tl1DaysVisited && reads >= tl1PostsRead {
-			_, _ = s.pool.Exec(ctx,
-				`UPDATE users SET trust_level=1 WHERE id=$1 AND trust_level=0`, uid)
-		}
-	case 1:
-		if days >= tl2DaysVisited && reads >= tl2PostsRead && posts >= tl2PostCount {
-			_, _ = s.pool.Exec(ctx,
-				`UPDATE users SET trust_level=2 WHERE id=$1 AND trust_level=1`, uid)
-		}
-	}
-}
-
-// TrustLevelName 等级名称。
-func TrustLevelName(t int) string {
-	switch t {
-	case 1:
-		return "正式成员"
-	case 2:
-		return "资深成员"
-	default:
-		return "新用户"
-	}
-}
-
-func todayString() string {
-	return time.Now().Format("2006-01-02")
 }

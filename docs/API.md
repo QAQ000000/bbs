@@ -4,6 +4,8 @@
 
 本文件描述本轮已实现的接口。完整目标见 [前后端分离方案](FRONTEND_BACKEND_SEPARATION.md)。本轮先保留既有业务处理与部分动作式接口；OpenAPI、统一写入字段命名、幂等写入及完整前端仍待后续阶段完成。
 
+会员等级、成长规则、经验流水、徽章、版块访问限制及 12 个新增接口见 [会员 API 文档](MEMBERSHIP.md)。当前数据库 schema 为 6；该文档同时定义配置预览、人工调整幂等和等级额度语义。
+
 ## 请求与响应
 
 - 普通接口返回 `application/json; charset=utf-8`，不返回页面或 Location 跳转。

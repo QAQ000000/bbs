@@ -163,7 +163,7 @@ func (s *Store) UnreadCount(ctx context.Context, uid int64) int64 {
 func (s *Store) Notifications(ctx context.Context, uid int64, limit int) ([]*Notification, error) {
 	rows, err := s.pool.Query(ctx,
 		`SELECT id, uid, from_uid, from_name, type, thread_id, post_id, excerpt, read, created_at
-		 FROM notifications WHERE uid=$1 ORDER BY id DESC LIMIT $2`, uid, limit)
+		 FROM notifications WHERE uid=$1 AND EXISTS(SELECT 1 FROM threads t WHERE t.id=notifications.thread_id AND NOT t.deleted AND NOT t.pending`+forumFilter(ctx, "t.forum_id")+`) ORDER BY id DESC LIMIT $2`, uid, limit)
 	if err != nil {
 		return nil, err
 	}

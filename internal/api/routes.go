@@ -6,6 +6,7 @@ import "net/http"
 // routes serves API and controlled media only. Nuxt owns all website URLs.
 func (s *Server) routes() http.Handler {
 	m := s.mux
+	s.membershipRoutes()
 	m.HandleFunc("GET /api/v1/session", s.sessionGet)
 	m.HandleFunc("GET /api/v1/site", s.siteGet)
 	m.HandleFunc("GET /api/v1/home", s.homeGet)
@@ -49,7 +50,7 @@ func (s *Server) routes() http.Handler {
 		"GET /api/v1/admin/logs": s.adminLogs, "GET /api/v1/admin/recyclebin": s.adminRecycle, "GET /api/v1/admin/censor": s.adminCensor,
 		"GET /api/v1/admin/announcements": s.adminAnnounce, "GET /api/v1/admin/moderate": s.adminModerate,
 	} {
-		m.HandleFunc(route, h)
+		m.HandleFunc(route, s.adminPointGuard(route, h))
 	}
 	for route, h := range map[string]http.HandlerFunc{
 		"POST /api/v1/admin/forums/save": s.adminForumSave, "POST /api/v1/admin/forums/delete": s.adminForumDelete, "POST /api/v1/admin/forums/move": s.adminForumMove,
@@ -63,7 +64,7 @@ func (s *Server) routes() http.Handler {
 		"POST /api/v1/admin/prune/execute": s.adminPruneExecute, "POST /api/v1/admin/announcements/add": s.adminAnnounceAdd,
 		"POST /api/v1/admin/announcements/toggle": s.adminAnnounceToggle, "POST /api/v1/admin/announcements/delete": s.adminAnnounceDelete,
 	} {
-		m.HandleFunc(route, s.action(h))
+		m.HandleFunc(route, s.adminPointGuard(route, s.action(h)))
 	}
 	// Existing media and monitoring URLs remain valid in stored posts and tooling.
 	m.HandleFunc("GET /uploads/", s.serveUploads)
@@ -74,6 +75,6 @@ func (s *Server) routes() http.Handler {
 	m.HandleFunc("GET /api/v1/health/ready", s.handleStatus)
 	m.HandleFunc("GET /api/v1/health/live", func(w http.ResponseWriter, r *http.Request) { s.respond(w, 200, map[string]bool{"ok": true}) })
 	m.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { s.fail(w, r, 404, "NOT_FOUND", "接口不存在") })
-	s.handler = chain(m, s.recoverMW, s.logMW, s.securityMW, s.gzipMW, s.authMW, s.apiStateMW)
+	s.handler = chain(m, s.recoverMW, s.logMW, s.securityMW, s.gzipMW, s.authMW, s.apiStateMW, s.membershipMW)
 	return s.handler
 }

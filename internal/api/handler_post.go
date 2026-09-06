@@ -49,8 +49,7 @@ func (s *Server) newThreadSubmit(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, http.StatusForbidden, "操作被拒绝", "表单已过期，请返回刷新后重试。")
 		return
 	}
-	if !s.allowKey("post:"+strconv.FormatInt(u.ID, 10), 10, time.Minute) ||
-		!s.allowKey("postd:"+strconv.FormatInt(u.ID, 10), 100, 24*time.Hour) {
+	if !s.allowKey("post:"+strconv.FormatInt(u.ID, 10), 10, time.Minute) {
 		s.fail(w, r, http.StatusTooManyRequests, "操作过于频繁", "发帖太快了，休息一下再试。")
 		return
 	}
@@ -84,7 +83,7 @@ func (s *Server) newThreadSubmit(w http.ResponseWriter, r *http.Request) {
 
 	ct := s.censorTexts(r, subject, content)
 	subject, content = ct[0], ct[1]
-	pending, reason := s.moderationDecision(r, u, subject+" "+content)
+	pending, reason := s.moderationDecision(r, u, fid, subject+" "+content)
 	html := "" // 兼容旧存储参数；正文由独立前端渲染。
 	th, p, err := s.st.CreateThread(r.Context(), fid, u.ID, u.Username, subject, content, html, pending, reason)
 	if err != nil {
@@ -114,8 +113,7 @@ func (s *Server) replySubmit(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, http.StatusForbidden, "操作被拒绝", "表单已过期，请返回刷新后重试。")
 		return
 	}
-	if !s.allowKey("post:"+strconv.FormatInt(u.ID, 10), 10, time.Minute) ||
-		!s.allowKey("postd:"+strconv.FormatInt(u.ID, 10), 100, 24*time.Hour) {
+	if !s.allowKey("post:"+strconv.FormatInt(u.ID, 10), 10, time.Minute) {
 		s.fail(w, r, http.StatusTooManyRequests, "操作过于频繁", "发帖太快了，休息一下再试。")
 		return
 	}
@@ -126,7 +124,8 @@ func (s *Server) replySubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tid := pathID(r, "tid")
-	if s.visibleThread(w, r, tid) == nil {
+	visible := s.visibleThread(w, r, tid)
+	if visible == nil {
 		return
 	}
 	content := r.PostFormValue("content")
@@ -135,7 +134,7 @@ func (s *Server) replySubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	content = s.censorTexts(r, content)[0]
-	pending, reason := s.moderationDecision(r, u, content)
+	pending, reason := s.moderationDecision(r, u, visible.ForumID, content)
 	html := "" // 兼容旧存储参数；正文由独立前端渲染。
 	th, p, err := s.st.CreateReply(r.Context(), tid, u.ID, u.Username, content, html, pending, reason)
 	if errors.Is(err, store.ErrNotFound) {
@@ -172,8 +171,7 @@ func (s *Server) editSubmit(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, http.StatusForbidden, "操作被拒绝", "表单已过期，请返回刷新后重试。")
 		return
 	}
-	if !s.allowKey("post:"+strconv.FormatInt(u.ID, 10), 10, time.Minute) ||
-		!s.allowKey("postd:"+strconv.FormatInt(u.ID, 10), 100, 24*time.Hour) {
+	if !s.allowKey("post:"+strconv.FormatInt(u.ID, 10), 10, time.Minute) {
 		s.fail(w, r, http.StatusTooManyRequests, "操作过于频繁", "发帖太快了，休息一下再试。")
 		return
 	}
@@ -219,7 +217,11 @@ func (s *Server) editSubmit(w http.ResponseWriter, r *http.Request) {
 	reenqueue := false
 	reason := ""
 	if !p.Pending {
-		reenqueue, reason = s.moderationDecision(r, u, subject+" "+content)
+		existingThread, err := s.st.Thread(r.Context(), p.ThreadID)
+		if s.readError(w, r, err) {
+			return
+		}
+		reenqueue, reason = s.moderationDecision(r, u, existingThread.ForumID, subject+" "+content)
 	}
 	ct := s.censorTexts(r, subject, content)
 	subject, content = ct[0], ct[1]
@@ -334,21 +336,21 @@ func (s *Server) emailGateEnabled() bool {
 // moderationDecision 决定该用户此内容是否进入审核队列及原因：
 // 站点审核开关（manual）；或新用户内容含链接（newuser_link）；或邮箱验证开启但
 // 用户邮箱未验证且内容含链接（email_unverified，SMTP 关闭时闸门自动失效）。
-func (s *Server) moderationDecision(r *http.Request, u *store.User, content string) (bool, string) {
-	if u == nil || hasPoint(u, perm.ContentModerate) {
+func (s *Server) moderationDecision(r *http.Request, u *store.User, fid int64, content string) (bool, string) {
+	if u == nil || hasPoint(u, perm.ContentModerate) && (hasPoint(u, perm.AdminPanel) || membershipOf(r).Staff[fid]) {
 		return false, ""
 	}
 	hasLink := strings.Contains(content, "http://") || strings.Contains(content, "https://")
 	if hasLink {
-		if !perm.TrustAllowed(perm.TrustLevel(u.TrustLevel), perm.PostLinkDirect) {
+		if !memberRuleAllowed(r, "post.link.direct", fid) {
 			return true, reasonNewUserLink
 		}
 		if s.emailGateEnabled() && u.Email != "" && !u.EmailVerified {
 			return true, reasonEmailUnverified
 		}
 	}
-	// 全站审核开关：资深成员（TL2）免审核，其余按开关入队
-	if s.sets(r).ModerateEnabled && !perm.TrustAllowed(perm.TrustLevel(u.TrustLevel), perm.SkipModerate) {
+	// Only the configured membership permission exempts routine moderation.
+	if s.sets(r).ModerateEnabled && !memberRuleAllowed(r, "post.skip.moderate", fid) {
 		return true, reasonManual
 	}
 	return false, ""

@@ -37,29 +37,21 @@ const (
 	RecycleBin       Point = "recycle.bin"        // 回收站管理
 	PruneRun         Point = "prune.run"          // 批量删帖
 	ModerateQueue    Point = "moderate.queue"     // 审核队列
-	UploadUse        Point = "upload.use"         // 使用本站上传
-)
-
-// TrustLevel 信任等级（对应 users.trust_level）。
-type TrustLevel int
-
-const (
-	TrustNewUser TrustLevel = 0 // 新用户
-	TrustMember  TrustLevel = 1 // 正式成员
-	TrustSenior  TrustLevel = 2 // 资深成员
-)
-
-// PostLinkDirect 直接发含链接内容而不进审核队列；
-// SkipModerate 资深成员（TL2）在全站发帖审核开启时免审核。
-const (
-	PostLinkDirect Point = "post.link.direct"
-	SkipModerate   Point = "post.skip.moderate"
+	PermissionsEdit  Point = "permissions.edit"
+	UsersView        Point = "users.view"
+	MemberView       Point = "membership.view"
+	MemberConfigure  Point = "membership.configure"
+	MemberAdjust     Point = "membership.adjust"
+	ExperienceAdjust Point = "experience.adjust"
+	MemberLogs       Point = "membership.logs"
+	UploadUse        Point = "upload.use" // 使用本站上传
 )
 
 // rolePerms 角色 → 权限点映射（唯一权威清单）。
 // 管理员拥有全部权限点；版主拥有内容治理面；会员拥有基础面。
 var rolePerms = map[Role]map[Point]bool{
 	RoleAdmin: {
+		PermissionsEdit: true, UsersView: true, MemberView: true, MemberConfigure: true, MemberAdjust: true, ExperienceAdjust: true, MemberLogs: true,
 		AdminPanel: true, ForumManage: true, ContentModerate: true,
 		ContentEditOwn: true, ContentEditAny: true, ContentDeleteOwn: true, ContentDeleteAny: true,
 		UserBan: true, UserDelete: true, UserSetGroup: true,
@@ -88,7 +80,7 @@ var matrix = rolePerms
 func Allowed(r Role, p Point) bool {
 	matrixMu.RLock()
 	defer matrixMu.RUnlock()
-	if r == RoleAdmin && p == AdminPanel {
+	if r == RoleAdmin && (p == AdminPanel || p == PermissionsEdit) {
 		return true // 硬保护
 	}
 	return matrix[r][p]
@@ -133,6 +125,7 @@ func Matrix() map[Role]map[Point]bool {
 // AllPoints 全部命名权限点（矩阵页按此顺序渲染）。
 func AllPoints() []Point {
 	return []Point{
+		PermissionsEdit, UsersView, MemberView, MemberConfigure, MemberAdjust, ExperienceAdjust, MemberLogs,
 		AdminPanel, ForumManage, ContentModerate,
 		ContentEditOwn, ContentEditAny, ContentDeleteOwn, ContentDeleteAny,
 		UserBan, UserDelete, UserSetGroup,
@@ -152,17 +145,6 @@ func Defaults() map[Role]map[Point]bool {
 		}
 	}
 	return out
-}
-
-// TrustAllowed 判定信任等级是否拥有信任轴权限点。
-func TrustAllowed(t TrustLevel, p Point) bool {
-	switch p {
-	case PostLinkDirect:
-		return t >= TrustMember
-	case SkipModerate:
-		return t >= TrustSenior
-	}
-	return false
 }
 
 // RoleFromGroupID users.group_id → Role（未知值按会员处理）。

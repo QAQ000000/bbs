@@ -500,7 +500,7 @@ func TestUploadsAuthorization(t *testing.T) {
 	v = checkJSON(t, apiRequest(t, "POST", "/api/v1/threads/"+idString(smokeTid2)+"/posts", userCSRF, `{"content":"[附件](`+uploaded.URL+`)"}`, userCookie), 201)
 	var reply struct{ PostID string }
 	json.Unmarshal(v["data"], &reply)
-	// Explicitly put this reply into moderation; trust levels may have grown.
+	// Explicitly put this reply into moderation independently of membership growth.
 	pendingPID, _ := strconv.ParseInt(reply.PostID, 10, 64)
 	if err := smokeSrv.st.SetPostPendingModeration(context.Background(), pendingPID, "manual"); err != nil {
 		t.Fatal(err)

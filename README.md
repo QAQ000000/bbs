@@ -4,7 +4,11 @@ Go + PostgreSQL 论坛后端，正在迁移到 Nuxt SSR + Go API 的前后端分
 
 **当前源码已移除 Go 页面模板、CSS/JS、页面路由和 Markdown HTML 渲染。** 新二进制提供 JSON API、SSE 与受控媒体，不再直接显示论坛页面。Nuxt 前端尚未开发；本轮源码变更未部署到现有网站。旧版 Releases 可能仍为包含页面的版本，部署前须确认版本说明。
 
-开发入口：[当前 API](docs/API.md) · [分离方案与实施记录](docs/FRONTEND_BACKEND_SEPARATION.md)。
+开发入口：[会员等级与权限](docs/MEMBERSHIP.md) · [当前 API](docs/API.md) · [分离方案与实施记录](docs/FRONTEND_BACKEND_SEPARATION.md)。
+
+会员后端现已支持可配置等级与徽章、成长经验、自动升级、等级权限和额度、版块访问限制、后台配置预览与人工调整。管理页面仍待 Nuxt 实现。
+
+会员等级采用五级经验成长体系，默认门槛为 0 / 100 / 500 / 1500 / 5000。旧信任等级字段和映射已移除；现有账号首次接入从 LV0 开始，后台可修改等级及门槛。
 
 ## 功能范围（前端迁移中）
 
@@ -184,7 +188,7 @@ scripts/           辅助脚本（素材导出、发布自检）
 - 检查：`go vet ./...`、`go build ./...`。
 - 后端 API 测试：`go test ./internal/api`；不设置 `FORUM_TEST_DSN` 时，仅运行无需数据库的测试，集成测试明确跳过。
 - 完整集成：为 API 和 store **分别**准备独立测试库，并分别设置 `FORUM_TEST_DSN` 执行 `go test ./internal/api` 与 `go test ./internal/store`。API 测试要求库名以 `gobbs_test_` 开头，上传文件使用临时目录。
-- 数据库测试会清空目标库 schema；禁止使用业务库，禁止两个包共用同一测试库并行执行。`store` 尚保留旧测试库默认值，执行前必须显式覆盖 DSN。
+- 数据库测试会清空目标库 schema；禁止使用业务库，禁止两个包共用同一测试库并行执行。`store` 已移除默认数据库连接，同样要求显式指定 `gobbs_test_` 测试库。
 - API 回归覆盖 JSON 数据、字段隐私、登录/CSRF、发帖/编辑/删除、权限、审核、附件及 SSE；原 HTML 展示断言已移除，后续由 Nuxt 测试接替。
 
 ## 已知边界与取舍

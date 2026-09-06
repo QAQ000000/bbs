@@ -43,7 +43,7 @@ func (s *Store) UnreadFavorites(ctx context.Context, uid int64) int64 {
 		SELECT count(*) FROM thread_favorites f
 		JOIN threads t ON t.id = f.thread_id AND NOT t.deleted AND NOT t.pending
 		LEFT JOIN thread_reads r ON r.user_id = f.user_id AND r.thread_id = f.thread_id
-		WHERE f.user_id=$1 AND t.post_count > coalesce(r.last_floor, 0)`, uid).Scan(&n)
+		WHERE f.user_id=$1 AND t.post_count > coalesce(r.last_floor, 0)`+forumFilter(ctx, "t.forum_id"), uid).Scan(&n)
 	return n
 }
 
@@ -60,7 +60,7 @@ func (s *Store) FavoritesOfUser(ctx context.Context, uid int64, page, size int) 
 	if err := s.pool.QueryRow(ctx, `
 		SELECT count(*) FROM thread_favorites f
 		JOIN threads t ON t.id = f.thread_id AND NOT t.deleted AND NOT t.pending
-		WHERE f.user_id=$1`, uid).Scan(&total); err != nil {
+		WHERE f.user_id=$1`+forumFilter(ctx, "t.forum_id"), uid).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 	rows, err := s.pool.Query(ctx, `
@@ -70,7 +70,7 @@ func (s *Store) FavoritesOfUser(ctx context.Context, uid int64, page, size int) 
 		JOIN users u ON u.id = t.author_id
 		LEFT JOIN users lu ON lu.id = t.last_post_uid
 		LEFT JOIN thread_reads r ON r.user_id = f.user_id AND r.thread_id = f.thread_id
-		WHERE f.user_id=$1
+		WHERE f.user_id=$1`+forumFilter(ctx, "t.forum_id")+`
 		ORDER BY f.created_at DESC LIMIT $2 OFFSET $3`, uid, size, (page-1)*size)
 	if err != nil {
 		return nil, 0, err
@@ -139,13 +139,13 @@ func (s *Store) PostEditCount(ctx context.Context, postID int64) int64 {
 func (s *Store) Reputation(ctx context.Context, uid int64) (int64, int64, error) {
 	var posts, likes int64
 	if err := s.pool.QueryRow(ctx,
-		`SELECT count(*) FROM posts WHERE author_id=$1 AND NOT deleted AND NOT pending`, uid).Scan(&posts); err != nil {
+		`SELECT count(*) FROM posts p JOIN threads t ON t.id=p.thread_id WHERE p.author_id=$1 AND NOT p.deleted AND NOT p.pending AND NOT t.deleted AND NOT t.pending`+forumFilter(ctx, "t.forum_id"), uid).Scan(&posts); err != nil {
 		return 0, 0, err
 	}
 	if err := s.pool.QueryRow(ctx, `
 		SELECT count(*) FROM post_actions pa
-		JOIN posts p ON p.id = pa.pid
-		WHERE p.author_id=$1`, uid).Scan(&likes); err != nil {
+		JOIN posts p ON p.id = pa.pid JOIN threads t ON t.id=p.thread_id
+		WHERE p.author_id=$1 AND NOT p.deleted AND NOT p.pending AND NOT t.deleted AND NOT t.pending`+forumFilter(ctx, "t.forum_id"), uid).Scan(&likes); err != nil {
 		return 0, 0, err
 	}
 	return posts, likes, nil

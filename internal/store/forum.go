@@ -39,7 +39,7 @@ func scanForum(row pgx.Row) (*Forum, error) {
 
 // CategoriesWithForums 首页数据：全部分类及其版块。
 func (s *Store) CategoriesWithForums(ctx context.Context) ([]*Category, error) {
-	rows, err := s.pool.Query(ctx, `SELECT `+forumCols+` FROM forums f ORDER BY f.category_id, f.displayorder, f.id`)
+	rows, err := s.pool.Query(ctx, `SELECT `+forumCols+` FROM forums f WHERE true`+forumFilter(ctx, "f.id")+` ORDER BY f.category_id, f.displayorder, f.id`)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +75,7 @@ func (s *Store) CategoriesWithForums(ctx context.Context) ([]*Category, error) {
 }
 
 func (s *Store) Forum(ctx context.Context, id int64) (*Forum, error) {
-	return scanForum(s.pool.QueryRow(ctx, `SELECT `+forumCols+` FROM forums f WHERE f.id=$1`, id))
+	return scanForum(s.pool.QueryRow(ctx, `SELECT `+forumCols+` FROM forums f WHERE f.id=$1`+forumFilter(ctx, "f.id"), id))
 }
 
 // ---- 主题列表 ----
@@ -91,7 +91,7 @@ const threadJoins = `FROM threads t
 func (s *Store) Thread(ctx context.Context, id int64) (*Thread, error) {
 	var t Thread
 	err := s.pool.QueryRow(ctx,
-		`SELECT `+threadCols+` `+threadJoins+` WHERE t.id=$1 AND NOT t.deleted`, id).
+		`SELECT `+threadCols+` `+threadJoins+` WHERE t.id=$1 AND NOT t.deleted`+forumFilter(ctx, "t.forum_id"), id).
 		Scan(&t.ID, &t.ForumID, &t.AuthorID, &t.AuthorName, &t.Title,
 			&t.Sticky, &t.Digest, &t.Closed, &t.PostCount, &t.ViewCount,
 			&t.CreatedAt, &t.LastPostAt, &t.LastPostUID, &t.LastPostName, &t.FirstPostID, &t.Pending, &t.PendingReason)
@@ -105,7 +105,7 @@ func (s *Store) Thread(ctx context.Context, id int64) (*Thread, error) {
 func (s *Store) Stickies(ctx context.Context, forumID int64) ([]*Thread, error) {
 	rows, err := s.pool.Query(ctx,
 		`SELECT `+threadCols+` `+threadJoins+`
-		 WHERE t.forum_id=$1 AND NOT t.deleted AND NOT t.pending AND t.sticky > 0
+		 WHERE t.forum_id=$1 AND NOT t.deleted AND NOT t.pending AND t.sticky > 0`+forumFilter(ctx, "t.forum_id")+`
 		 ORDER BY t.sticky DESC, t.last_post_at DESC`, forumID)
 	return collectThreads(rows, err)
 }
@@ -126,13 +126,13 @@ func (s *Store) Threads(ctx context.Context, forumID int64, page, size int, sort
 	}
 	var total int
 	if err := s.pool.QueryRow(ctx,
-		`SELECT count(*) FROM threads t WHERE t.forum_id=$1 AND NOT t.deleted AND NOT t.pending AND t.sticky=0`+extra,
+		`SELECT count(*) FROM threads t WHERE t.forum_id=$1 AND NOT t.deleted AND NOT t.pending AND t.sticky=0`+forumFilter(ctx, "t.forum_id")+extra,
 		forumID).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 	rows, err := s.pool.Query(ctx,
 		`SELECT `+threadCols+` `+threadJoins+`
-		 WHERE t.forum_id=$1 AND NOT t.deleted AND NOT t.pending AND t.sticky=0`+extra+`
+		 WHERE t.forum_id=$1 AND NOT t.deleted AND NOT t.pending AND t.sticky=0`+forumFilter(ctx, "t.forum_id")+extra+`
 		 ORDER BY `+order+` LIMIT $2 OFFSET $3`, forumID, size, (page-1)*size)
 	list, err := collectThreads(rows, err)
 	if err != nil {
@@ -145,12 +145,12 @@ func (s *Store) Threads(ctx context.Context, forumID int64, page, size int, sort
 func (s *Store) RecentThreadsOfUser(ctx context.Context, uid int64, limit, offset int) ([]*Thread, int, error) {
 	var total int
 	if err := s.pool.QueryRow(ctx,
-		`SELECT count(*) FROM threads WHERE author_id=$1 AND NOT deleted AND NOT pending`, uid).Scan(&total); err != nil {
+		`SELECT count(*) FROM threads WHERE author_id=$1 AND NOT deleted AND NOT pending`+forumFilter(ctx, "forum_id"), uid).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 	rows, err := s.pool.Query(ctx,
 		`SELECT `+threadCols+` `+threadJoins+`
-		 WHERE t.author_id=$1 AND NOT t.deleted AND NOT t.pending
+		 WHERE t.author_id=$1 AND NOT t.deleted AND NOT t.pending`+forumFilter(ctx, "t.forum_id")+`
 		 ORDER BY t.last_post_at DESC LIMIT $2 OFFSET $3`, uid, limit, offset)
 	list, err := collectThreads(rows, err)
 	if err != nil {
@@ -165,7 +165,7 @@ func (s *Store) RecentRepliesOfUser(ctx context.Context, uid int64, limit, offse
 	if err := s.pool.QueryRow(ctx, `
 		SELECT count(DISTINCT p.thread_id) FROM posts p
 		JOIN threads t ON t.id = p.thread_id AND NOT t.deleted AND NOT t.pending
-		WHERE p.author_id=$1 AND p.floor > 1 AND NOT p.deleted AND NOT p.pending`, uid).Scan(&total); err != nil {
+		WHERE p.author_id=$1 AND p.floor > 1 AND NOT p.deleted AND NOT p.pending`+forumFilter(ctx, "t.forum_id"), uid).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 	rows, err := s.pool.Query(ctx,
@@ -174,7 +174,7 @@ func (s *Store) RecentRepliesOfUser(ctx context.Context, uid int64, limit, offse
 			SELECT p.thread_id FROM posts p
 			WHERE p.author_id=$1 AND p.floor > 1 AND NOT p.deleted AND NOT p.pending
 		 )
-		   AND NOT t.deleted AND NOT t.pending
+		   AND NOT t.deleted AND NOT t.pending`+forumFilter(ctx, "t.forum_id")+`
 		 ORDER BY (SELECT max(p.created_at) FROM posts p
 		           WHERE p.thread_id = t.id AND p.author_id=$1 AND p.floor > 1) DESC
 		 LIMIT $2 OFFSET $3`, uid, limit, offset)
@@ -194,7 +194,7 @@ type SitemapThread struct {
 // SitemapThreads 公开主题（不含待审/已删）按最后活跃倒序，供 sitemap 使用。
 func (s *Store) SitemapThreads(ctx context.Context, limit int) ([]*SitemapThread, error) {
 	rows, err := s.pool.Query(ctx,
-		`SELECT id, last_post_at FROM threads WHERE NOT deleted AND NOT pending
+		`SELECT id, last_post_at FROM threads WHERE NOT deleted AND NOT pending`+forumFilter(ctx, "forum_id")+`
 		 ORDER BY last_post_at DESC LIMIT $1`, limit)
 	if err != nil {
 		return nil, err
@@ -216,12 +216,12 @@ func (s *Store) SitemapThreads(ctx context.Context, limit int) ([]*SitemapThread
 func (s *Store) LatestThreads(ctx context.Context, page, size int) ([]*Thread, int, error) {
 	var total int
 	if err := s.pool.QueryRow(ctx,
-		`SELECT count(*) FROM threads WHERE NOT deleted AND NOT pending`).Scan(&total); err != nil {
+		`SELECT count(*) FROM threads WHERE NOT deleted AND NOT pending`+forumFilter(ctx, "forum_id")).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 	rows, err := s.pool.Query(ctx,
 		`SELECT `+threadCols+` `+threadJoins+`
-		 WHERE NOT t.deleted AND NOT t.pending
+		 WHERE NOT t.deleted AND NOT t.pending`+forumFilter(ctx, "t.forum_id")+`
 		 ORDER BY t.last_post_at DESC LIMIT $1 OFFSET $2`, size, (page-1)*size)
 	list, err := collectThreads(rows, err)
 	if err != nil {

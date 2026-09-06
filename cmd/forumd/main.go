@@ -125,6 +125,24 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Durable growth events are retried after crashes; a bounded transaction drains each batch.
+	go func() {
+		tick := time.NewTicker(time.Second)
+		defer tick.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-tick.C:
+				jobCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+				_, err := st.ProcessMemberEvents(jobCtx, 100)
+				cancel()
+				if err != nil && ctx.Err() == nil {
+					logger.Error("处理会员成长事件失败", "err", err)
+				}
+			}
+		}
+	}()
 	// 会话过期清理
 	go func() {
 		t := time.NewTicker(time.Hour)

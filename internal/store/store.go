@@ -48,13 +48,13 @@ func New(pool *pgxpool.Pool) *Store {
 // ---- 用户 ----
 
 const userCols = `id, username, password_hash, email, group_id, post_count, signature, created_at,
-	trust_level, posts_read, days_visited, email_verified, must_change_password,
+	posts_read, days_visited, email_verified, must_change_password,
 	coalesce(blocked_until, 'epoch'::timestamptz)`
 
 func scanUser(row pgx.Row) (*User, error) {
 	var u User
 	err := row.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Email, &u.GroupID,
-		&u.PostCount, &u.Signature, &u.CreatedAt, &u.TrustLevel, &u.PostsRead, &u.DaysVisited,
+		&u.PostCount, &u.Signature, &u.CreatedAt, &u.PostsRead, &u.DaysVisited,
 		&u.EmailVerified, &u.MustChangePassword, &u.BlockedUntil)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
@@ -182,10 +182,10 @@ func (s *Store) SiteStats(ctx context.Context) (SiteStats, error) {
 	var st SiteStats
 	err := s.pool.QueryRow(ctx, `
 		SELECT
-		  (SELECT count(*) FROM posts WHERE created_at >= current_date),
-		  (SELECT count(*) FROM posts WHERE created_at >= current_date - 1 AND created_at < current_date),
-		  (SELECT count(*) FROM posts),
-		  (SELECT count(*) FROM threads WHERE NOT deleted),
+		  (SELECT count(*) FROM posts p JOIN threads t ON t.id=p.thread_id WHERE NOT p.deleted AND NOT p.pending AND NOT t.deleted AND NOT t.pending AND p.created_at >= current_date`+forumFilter(ctx, "t.forum_id")+`),
+		  (SELECT count(*) FROM posts p JOIN threads t ON t.id=p.thread_id WHERE NOT p.deleted AND NOT p.pending AND NOT t.deleted AND NOT t.pending AND p.created_at >= current_date - 1 AND p.created_at < current_date`+forumFilter(ctx, "t.forum_id")+`),
+		  (SELECT count(*) FROM posts p JOIN threads t ON t.id=p.thread_id WHERE NOT p.deleted AND NOT p.pending AND NOT t.deleted AND NOT t.pending`+forumFilter(ctx, "t.forum_id")+`),
+		  (SELECT count(*) FROM threads WHERE NOT deleted AND NOT pending`+forumFilter(ctx, "forum_id")+`),
 		  (SELECT count(*) FROM users)`).
 		Scan(&st.TodayPosts, &st.Yesterday, &st.TotalPosts, &st.TotalThreads, &st.Members)
 	return st, err

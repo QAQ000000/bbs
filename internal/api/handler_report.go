@@ -9,6 +9,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"dzforum/internal/perm"
 	"dzforum/internal/store"
 )
 
@@ -83,6 +84,10 @@ func (s *Server) adminReportHandle(w http.ResponseWriter, r *http.Request) {
 	u := User(r)
 	switch r.PostFormValue("op") {
 	case "delete":
+		if !hasPoint(u, perm.ContentDeleteAny) {
+			s.fail(w, r, 403, "FORBIDDEN", "缺少删除他人内容权限")
+			return
+		}
 		pid, err := s.st.SetReportStatus(r.Context(), rid, u.ID, store.ReportResolved)
 		if err != nil {
 			s.fail(w, r, http.StatusInternalServerError, "操作失败", err.Error())

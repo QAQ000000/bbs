@@ -2,6 +2,7 @@
 package api
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 
@@ -76,6 +77,20 @@ func (s *Server) uploadImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	kind := r.FormValue("kind")
+	action := "upload.image"
+	if kind == "file" {
+		action = "upload.file"
+	}
+	decision := s.memberDecision(r, action, 0, nil, nil)
+	if !decision.Allowed {
+		if decision.Limit >= 0 && decision.Used >= decision.Limit {
+			s.fail(w, r, 429, "MEMBER_QUOTA_EXCEEDED", decision.Reason)
+		} else {
+			s.fail(w, r, 403, "MEMBER_PERMISSION_DENIED", decision.Reason)
+		}
+		return
+	}
+	memberLimits := membershipOf(r).Member.Level.Limits
 	if !s.allowKey("up:"+strconv.FormatInt(u.ID, 10), 30, time.Hour) {
 		s.fail(w, r, http.StatusTooManyRequests, "", `{"error":"上传过于频繁"}`)
 		return
@@ -83,6 +98,13 @@ func (s *Server) uploadImage(w http.ResponseWriter, r *http.Request) {
 	limit, allowed, errMsg := int64(sets.MaxImageMB)<<20, allowedImageMime, "仅支持 JPG/PNG/GIF/WebP 图片"
 	if kind == "file" {
 		limit, allowed, errMsg = int64(sets.MaxFileMB)<<20, allowedFileMime, "仅支持 PDF/TXT/ZIP 附件"
+	}
+	memberLimit := memberLimits.ImageBytes
+	if kind == "file" {
+		memberLimit = memberLimits.FileBytes
+	}
+	if memberLimit >= 0 && memberLimit < limit {
+		limit = memberLimit
 	}
 	f, hdr, err := r.FormFile("file")
 	if err != nil {
@@ -119,6 +141,25 @@ func (s *Server) uploadImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	countDay, err := s.st.ReserveMemberQuota(r.Context(), u.ID, "upload", 1, memberLimits.UploadsPerDay)
+	if err != nil {
+		s.memberError(w, r, err)
+		return
+	}
+	bytesDay, err := s.st.ReserveMemberQuota(r.Context(), u.ID, "upload.bytes", hdr.Size, memberLimits.UploadBytesPerDay)
+	quotaSaved := false
+	defer func() {
+		if !quotaSaved {
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+			_ = s.st.RefundMemberQuota(ctx, u.ID, countDay, "upload", 1)
+			_ = s.st.RefundMemberQuota(ctx, u.ID, bytesDay, "upload.bytes", hdr.Size)
+		}
+	}()
+	if err != nil {
+		s.memberError(w, r, err)
+		return
+	}
 	now := time.Now()
 	sub := filepath.Join(s.cfg.UploadDir, now.Format("2006/01"))
 	if err := os.MkdirAll(sub, 0o755); err != nil {
@@ -156,6 +197,7 @@ func (s *Server) uploadImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	saved = true
+	quotaSaved = true
 	s.respond(w, 201, map[string]any{"url": webPath, "name": hdr.Filename, "kind": kind, "mime": mime})
 }
 
@@ -226,6 +268,17 @@ func (s *Server) serveUploads(w http.ResponseWriter, r *http.Request) {
 	} else if err != nil {
 		s.fail(w, r, http.StatusInternalServerError, "", "internal")
 		return
+	}
+	if up.PostID > 0 {
+		var fid int64
+		if err := s.st.UploadForum(r.Context(), up.PostID, &fid); err != nil || !canReadForum(r, fid) {
+			http.NotFound(w, r)
+			return
+		}
+		if !s.memberDecision(r, "attachment.download", fid, nil, nil).Allowed {
+			s.fail(w, r, 403, "MEMBER_PERMISSION_DENIED", "当前等级无权下载附件")
+			return
+		}
 	}
 	public := up.PostID > 0 && !up.PostPending && !up.PostDeleted && !up.ThreadPending && !up.ThreadDeleted
 	if !public {
@@ -377,6 +430,27 @@ func (s *Server) notifyReply(r *http.Request, from *store.User, th *store.Thread
 // deliverNotifications 落库 + 邮件 + SSE 实时提醒的共用投递通道。
 func (s *Server) deliverNotifications(r *http.Request, from *store.User,
 	targets []*store.User, rows []*store.Notification, excerpt string, mail func(*store.User, string)) {
+	if len(rows) == 0 {
+		return
+	}
+	filteredRows := []*store.Notification{}
+	filteredTargets := []*store.User{}
+	for i, target := range targets {
+		if target.IsBlocked() || i >= len(rows) {
+			continue
+		}
+		rr, err := s.loadMembership(requestWithUser(r, target))
+		if err != nil {
+			continue
+		}
+		th, err := s.st.Thread(rr.Context(), rows[i].ThreadID)
+		if err != nil || !s.canViewThread(rr, th) {
+			continue
+		}
+		filteredRows = append(filteredRows, rows[i])
+		filteredTargets = append(filteredTargets, target)
+	}
+	rows, targets = filteredRows, filteredTargets
 	if len(rows) == 0 {
 		return
 	}

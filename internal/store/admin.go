@@ -351,7 +351,7 @@ func (s *Store) SearchUsers(ctx context.Context, q UserQuery) ([]*AdminUser, int
 	}
 	qArgs := append(args, q.Size, (q.Page-1)*q.Size)
 	rows, err := s.pool.Query(ctx,
-		`SELECT id, username, email, group_id, post_count, created_at, coalesce(last_login_at, 'epoch'::timestamptz), banned_until, ban_reason, trust_level, coalesce(blocked_until, 'epoch'::timestamptz)
+		`SELECT id, username, email, group_id, post_count, created_at, coalesce(last_login_at, 'epoch'::timestamptz), banned_until, ban_reason, coalesce(blocked_until, 'epoch'::timestamptz)
 		 FROM users`+w+` ORDER BY id LIMIT $`+strconv.Itoa(len(args)+1)+` OFFSET $`+strconv.Itoa(len(args)+2), qArgs...)
 	if err != nil {
 		return nil, 0, err
@@ -363,7 +363,7 @@ func (s *Store) SearchUsers(ctx context.Context, q UserQuery) ([]*AdminUser, int
 		var bannedUntil *time.Time
 		var blockedUntil *time.Time
 		if err := rows.Scan(&u.ID, &u.Username, &u.Email, &u.GroupID, &u.PostCount,
-			&u.CreatedAt, &u.LastLoginAt, &bannedUntil, &u.BanReason, &u.TrustLevel, &blockedUntil); err != nil {
+			&u.CreatedAt, &u.LastLoginAt, &bannedUntil, &u.BanReason, &blockedUntil); err != nil {
 			return nil, 0, err
 		}
 		if bannedUntil != nil && bannedUntil.After(time.Now()) {
@@ -391,13 +391,9 @@ type AdminUser struct {
 	BannedUntil  time.Time
 	BanReason    string
 	IsBanned     bool
-	TrustLevel   int
 	BlockedUntil time.Time
 	IsBlocked    bool
 }
-
-// TrustLevelName 信任等级显示名。
-func (u *AdminUser) TrustLevelName() string { return TrustLevelName(u.TrustLevel) }
 
 // BanUser 禁言（days<=0 表示永久）。
 func (s *Store) BanUser(ctx context.Context, uid int64, days int, reason string) error {

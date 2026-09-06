@@ -13,7 +13,7 @@ func publicUser(u *store.User) map[string]any {
 	if u == nil {
 		return nil
 	}
-	return map[string]any{"id": idString(u.ID), "username": u.Username, "groupId": u.GroupID, "trustLevel": u.TrustLevel, "postCount": u.PostCount, "signature": u.Signature, "createdAt": u.CreatedAt, "avatarUrl": "/avatar/" + idString(u.ID)}
+	return map[string]any{"id": idString(u.ID), "username": u.Username, "groupId": u.GroupID, "postCount": u.PostCount, "signature": u.Signature, "createdAt": u.CreatedAt, "avatarUrl": "/avatar/" + idString(u.ID)}
 }
 func privateUser(u *store.User) map[string]any {
 	if u == nil {
@@ -44,11 +44,13 @@ func postDTO(p *store.Post) map[string]any {
 func (s *Server) postResponse(r *http.Request, p *store.Post, th *store.Thread) map[string]any {
 	m := postDTO(p)
 	u := User(r)
-	del := false
-	if u != nil {
-		del = hasPoint(u, perm.ContentDeleteOwn) && u.ID == p.AuthorID || hasPoint(u, perm.ContentDeleteAny) && (hasPoint(u, perm.AdminPanel) || inForumScope(s.staffForumScope(r), th.ForumID))
+	m["capabilities"] = map[string]bool{
+		"canEdit":     s.memberDecision(r, "post.edit", th.ForumID, p, th).Allowed,
+		"canDelete":   s.memberDecision(r, "post.delete", th.ForumID, p, th).Allowed,
+		"canLike":     s.memberDecision(r, "post.like", th.ForumID, p, th).Allowed,
+		"canReport":   s.memberDecision(r, "post.report", th.ForumID, p, th).Allowed,
+		"canModerate": s.canModerateThread(r, th),
 	}
-	m["capabilities"] = map[string]bool{"canEdit": canEditContent(u, p.AuthorID), "canDelete": del, "canLike": u != nil && u.ID != p.AuthorID, "canReport": u != nil && u.ID != p.AuthorID, "canModerate": s.canModerateThread(r, th)}
 	if hasPoint(u, perm.AdminPanel) && p.IP != "" {
 		m["maskedIp"] = maskIP(p.IP)
 	}
@@ -89,7 +91,7 @@ func (s *Server) list(w http.ResponseWriter, data any, page, size, total int) {
 }
 
 func adminUserDTO(v *store.AdminUser) map[string]any {
-	return map[string]any{"id": idString(v.ID), "username": v.Username, "email": v.Email, "groupId": v.GroupID, "postCount": v.PostCount, "createdAt": v.CreatedAt, "lastLoginAt": v.LastLoginAt, "bannedUntil": v.BannedUntil, "banReason": v.BanReason, "isBanned": v.IsBanned, "trustLevel": v.TrustLevel, "blockedUntil": v.BlockedUntil, "isBlocked": v.IsBlocked}
+	return map[string]any{"id": idString(v.ID), "username": v.Username, "email": v.Email, "groupId": v.GroupID, "postCount": v.PostCount, "createdAt": v.CreatedAt, "lastLoginAt": v.LastLoginAt, "bannedUntil": v.BannedUntil, "banReason": v.BanReason, "isBanned": v.IsBanned, "blockedUntil": v.BlockedUntil, "isBlocked": v.IsBlocked}
 }
 
 func adminLogDTO(v *store.AdminLogEntry) map[string]any {

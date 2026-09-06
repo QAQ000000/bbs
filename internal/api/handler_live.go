@@ -37,7 +37,7 @@ func (s *Server) handleLive(w http.ResponseWriter, r *http.Request) {
 			s.fail(w, r, http.StatusForbidden, "", "forbidden")
 			return
 		}
-		if t.Pending && !s.canViewThread(r, t) {
+		if !s.canViewThread(r, t) {
 			s.fail(w, r, http.StatusForbidden, "", "forbidden")
 			return
 		}
@@ -45,6 +45,11 @@ func (s *Server) handleLive(w http.ResponseWriter, r *http.Request) {
 	}
 	if fs := r.URL.Query().Get("forums"); fs != "" {
 		for _, f := range splitCSV(fs) {
+			fid, err := strconv.ParseInt(f, 10, 64)
+			if err != nil || !canReadForum(r, fid) {
+				s.fail(w, r, 403, "FORBIDDEN", "无权订阅版块")
+				return
+			}
 			topics = append(topics, "f:"+f)
 		}
 	}
@@ -185,6 +190,17 @@ func (s *Server) liveAuthorized(r *http.Request) bool {
 			return false
 		}
 		rr = rr.WithContext(context.WithValue(rr.Context(), ctxUser, fresh))
+	}
+	var membershipErr error
+	rr, membershipErr = s.loadMembership(rr)
+	if membershipErr != nil {
+		return false
+	}
+	for _, f := range splitCSV(r.URL.Query().Get("forums")) {
+		fid, e := strconv.ParseInt(f, 10, 64)
+		if e != nil || !canReadForum(rr, fid) {
+			return false
+		}
 	}
 	if s.sets(rr).SiteClosed {
 		return false

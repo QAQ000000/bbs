@@ -39,8 +39,8 @@ func (s *Server) profileSave(w http.ResponseWriter, r *http.Request) {
 	email := strings.TrimSpace(r.PostFormValue("email"))
 
 	fail := func(msg string) { s.fail(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", msg) }
-	if utf8.RuneCountInString(signature) > 200 {
-		fail("签名不能超过 200 字")
+	if utf8.RuneCountInString(signature) > 200 || !memberSignatureAllowed(r, signature) {
+		fail("签名超过站点或等级允许的长度")
 		return
 	}
 	if email != "" && !emailRe.MatchString(email) {
@@ -325,12 +325,16 @@ func (s *Server) profileExport(w http.ResponseWriter, r *http.Request) {
 	}
 	s.logOp(r, "profile.export",
 		"导出个人数据（threads="+strconv.Itoa(len(threads))+" posts="+strconv.Itoa(len(posts))+"）")
+	membership, err := s.st.Membership(r.Context(), u.ID)
+	if s.readError(w, r, err) {
+		return
+	}
 	b, err := json.MarshalIndent(map[string]any{
+		"membership": membership,
 		"account": map[string]any{
 			"username":       u.Username,
 			"email":          u.Email,
 			"signature":      u.Signature,
-			"trust_level":    u.TrustLevel,
 			"post_count":     u.PostCount,
 			"created_at":     u.CreatedAt,
 			"email_verified": u.EmailVerified,

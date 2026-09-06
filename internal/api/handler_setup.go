@@ -32,7 +32,7 @@ func (s *Server) adminPermsSave(w http.ResponseWriter, r *http.Request) {
 		m[role] = map[perm.Point]bool{}
 		for _, pt := range perm.AllPoints() {
 			// AdminPanel×管理员硬保护：无论如何强制开启，防止自锁
-			if role == perm.RoleAdmin && pt == perm.AdminPanel {
+			if role == perm.RoleAdmin && (pt == perm.AdminPanel || pt == perm.PermissionsEdit) {
 				m[role][pt] = true
 				continue
 			}

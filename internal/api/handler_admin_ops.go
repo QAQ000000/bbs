@@ -174,6 +174,10 @@ func (s *Server) adminThreadAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	op := r.PostFormValue("op")
+	if op == "delete" && !hasPoint(User(r), perm.ContentDeleteAny) {
+		s.fail(w, r, 403, "FORBIDDEN", "缺少删除他人内容权限")
+		return
+	}
 	var tids []int64
 	for _, v := range r.Form["tid"] {
 		if n, err := strconv.ParseInt(v, 10, 64); err == nil && n > 0 {
