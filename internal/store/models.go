@@ -112,6 +112,7 @@ type Post struct {
 
 // Session 服务端会话。
 type Session struct {
+	ID        int64
 	Token     string
 	UserID    int64
 	CSRF      string

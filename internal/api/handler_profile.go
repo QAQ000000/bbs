@@ -6,7 +6,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -138,11 +137,11 @@ func (s *Server) profileVerifyResend(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, http.StatusTooManyRequests, "操作过于频繁", "验证邮件发送过于频繁，请一小时后再试。")
 		return
 	}
-	if raw, err := s.st.CreateEmailVerify(r.Context(), u.ID, u.Email); err == nil {
-		link := s.cfg.SiteURL + "/verify?token=" + url.QueryEscape(raw)
-		s.mailer.NotifyEmailVerify(u.Email, link)
+	if err := s.st.QueueAuthEmail(r.Context(), u.ID, u.Email, "email_verify", s.mailTokens.Seal); err != nil {
+		s.fail(w, r, 503, "EMAIL_QUEUE_FAILED", "验证邮件暂时无法加入队列，请稍后重试")
+		return
 	}
-	result.Message = "验证邮件已发送，请查收（24 小时内有效）"
+	result.Message = "验证邮件已加入发送队列（24 小时内有效）"
 	s.respond(w, http.StatusOK, result)
 }
 
@@ -287,7 +286,7 @@ func (s *Server) profileSelfDelete(w http.ResponseWriter, r *http.Request) {
 	err := s.st.DeleteUser(r.Context(), u.ID)
 	switch {
 	case errors.Is(err, store.ErrUserHasContent):
-		s.fail(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "账号仍有发帖、私信会话或标签管理记录，无法自助删除；请联系站长处理。")
+		s.fail(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "账号仍有发帖、私信会话、标签管理或积分流水记录，无法自助删除；请联系站长处理。")
 		return
 
 	case err != nil:

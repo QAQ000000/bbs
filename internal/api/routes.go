@@ -7,6 +7,7 @@ import "net/http"
 func (s *Server) routes() http.Handler {
 	m := s.mux
 	s.membershipRoutes()
+	s.pointsRoutes()
 	s.titleRoutes()
 	m.HandleFunc("GET /api/v1/session", s.sessionGet)
 	m.HandleFunc("GET /api/v1/site", s.siteGet)
@@ -20,6 +21,8 @@ func (s *Server) routes() http.Handler {
 	m.HandleFunc("GET /api/v1/search", s.searchGet)
 	m.HandleFunc("GET /api/v1/users/{id}", s.userGet)
 	m.HandleFunc("GET /api/v1/me", s.meGet)
+	m.HandleFunc("GET /api/v1/me/sessions", s.sessionsGet)
+	m.HandleFunc("GET /api/v1/me/2fa", s.mfaGet)
 	m.HandleFunc("GET /api/v1/me/favorites", s.favoritesGet)
 	m.HandleFunc("GET /api/v1/me/drafts", s.draftsGet)
 	m.HandleFunc("GET /api/v1/me/draft", s.draftGet)
@@ -46,7 +49,16 @@ func (s *Server) routes() http.Handler {
 	m.HandleFunc("GET /api/v1/events", s.handleLive)
 	m.HandleFunc("GET /api/v1/posts/{pid}/likes", s.likesList)
 	for route, h := range map[string]http.HandlerFunc{
-		"POST /api/v1/auth/login": s.loginSubmit, "POST /api/v1/auth/register": s.registerSubmit, "POST /api/v1/auth/logout": s.logout,
+		"POST /api/v1/me/2fa/setup":              s.mfaSetup,
+		"POST /api/v1/me/2fa/enable":             s.mfaEnable,
+		"POST /api/v1/me/2fa/disable":            s.mfaDisable,
+		"POST /api/v1/me/2fa/recovery-codes":     s.mfaRecovery,
+		"POST /api/v1/auth/2fa":                  s.mfaLogin,
+		"PATCH /api/v1/me/sessions/{sessionId}":  s.sessionManage,
+		"DELETE /api/v1/me/sessions/{sessionId}": s.sessionManage,
+		"POST /api/v1/me/sessions/revoke-others": s.sessionManage,
+		"DELETE /api/v1/me/sessions":             s.sessionManage,
+		"POST /api/v1/auth/login":                s.loginSubmit, "POST /api/v1/auth/register": s.registerSubmit, "POST /api/v1/auth/logout": s.logout,
 		"POST /api/v1/auth/password/forgot": s.forgotSubmit, "POST /api/v1/auth/password/reset": s.resetSubmit, "POST /api/v1/auth/email/verify": s.verifyEmail,
 		"POST /api/v1/me/email/verify-resend": s.profileVerifyResend, "POST /api/v1/setup": s.setupSubmit,
 		"PATCH /api/v1/me": s.profileSave, "POST /api/v1/me/password": s.profilePassword, "POST /api/v1/me/avatar": s.profileAvatar,
@@ -79,14 +91,16 @@ func (s *Server) routes() http.Handler {
 		"GET /api/v1/admin/users": s.adminUsers, "GET /api/v1/admin/settings": s.adminSettings, "GET /api/v1/admin/perms": s.adminPerms,
 		"GET /api/v1/admin/logs": s.adminLogs, "GET /api/v1/admin/recyclebin": s.adminRecycle, "GET /api/v1/admin/censor": s.adminCensor,
 		"GET /api/v1/admin/announcements": s.adminAnnounce, "GET /api/v1/admin/moderate": s.adminModerate,
-		"GET /api/v1/admin/tags": s.tagsGet,
+		"GET /api/v1/admin/tags":       s.tagsGet,
+		"GET /api/v1/admin/email-jobs": s.adminEmailQueue,
 	} {
 		m.HandleFunc(route, s.adminPointGuard(route, h))
 	}
 	for route, h := range map[string]http.HandlerFunc{
 		"POST /api/v1/admin/forums/save": s.adminForumSave, "POST /api/v1/admin/forums/delete": s.adminForumDelete, "POST /api/v1/admin/forums/move": s.adminForumMove,
 		"POST /api/v1/admin/tags": s.tagSave, "PUT /api/v1/admin/tags/{tagId}": s.tagSave,
-		"POST /api/v1/admin/cats/save": s.adminCatSave, "POST /api/v1/admin/cats/delete": s.adminCatDelete, "POST /api/v1/admin/threads/action": s.adminThreadAction,
+		"POST /api/v1/admin/email-jobs/{jobId}/retry": s.adminEmailRetry,
+		"POST /api/v1/admin/cats/save":                s.adminCatSave, "POST /api/v1/admin/cats/delete": s.adminCatDelete, "POST /api/v1/admin/threads/action": s.adminThreadAction,
 		"POST /api/v1/admin/users/ban": s.adminUserBan, "POST /api/v1/admin/users/unban": s.adminUserUnban, "POST /api/v1/admin/users/group": s.adminUserGroup,
 		"POST /api/v1/admin/users/delete": s.adminUserDelete, "POST /api/v1/admin/users/block": s.adminUserBlock, "POST /api/v1/admin/users/unblock": s.adminUserUnblock,
 		"POST /api/v1/admin/settings": s.adminSettingsSave, "POST /api/v1/admin/perms/save": s.adminPermsSave,

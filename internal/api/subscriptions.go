@@ -6,7 +6,6 @@ import (
 	"dzforum/internal/store"
 	"errors"
 	"net/http"
-	"strconv"
 	"time"
 )
 
@@ -62,7 +61,7 @@ func (s *Server) ProcessSubscriptions(ctx context.Context) (int64, error) {
 		if err != nil {
 			return "", false, false, err
 		}
-		return "subscription", prefs["subscriptions"], prefs["email"], nil
+		return "subscription", prefs["subscriptions"], prefs["email"] && s.mailer.Enabled(), nil
 	})
 	if err != nil {
 		return 0, err
@@ -77,9 +76,6 @@ func (s *Server) ProcessSubscriptions(ctx context.Context) (int64, error) {
 			rr, err := s.loadMembership(requestWithUser(r, target))
 			if err != nil || !s.canViewThread(rr, thread) {
 				continue
-			}
-			if d.Email && s.mailer.Enabled() {
-				s.mailer.NotifyReply(target.Email, post.AuthorName, thread.Title, s.cfg.SiteURL+ThreadURL(thread.ID, 1)+"#post"+strconv.FormatInt(post.ID, 10), truncate(post.ContentMD, 60))
 			}
 			if d.InApp {
 				s.publish("u:"+idString(d.UID), eventBody{Type: "notify", NotifyCount: int(s.st.UnreadCount(rr.Context(), d.UID))})

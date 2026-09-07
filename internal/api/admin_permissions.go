@@ -15,6 +15,14 @@ func requestWithUser(r *http.Request, u *store.User) *http.Request {
 func (s *Server) adminPointGuard(route string, h http.HandlerFunc) http.HandlerFunc {
 	var point perm.Point
 	switch {
+	case route == "PUT /api/v1/admin/points/config":
+		point = perm.PointsConfigure
+	case strings.Contains(route, "/points/") && strings.HasSuffix(route, "/adjust"):
+		point = perm.PointsAdjust
+	case strings.Contains(route, "/points/"):
+		point = perm.PointsView
+	case strings.Contains(route, "/email-jobs"):
+		point = perm.EmailManage
 	case strings.Contains(route, "/tags"):
 		point = perm.TagsConfigure
 	case strings.Contains(route, "/titles/") && strings.HasPrefix(route, "PATCH "):

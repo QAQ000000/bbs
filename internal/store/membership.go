@@ -171,6 +171,8 @@ type growthEvent struct {
 	Active           bool
 	Rule             GrowthRule
 	Created          time.Time
+	PointsRule       *GrowthRule
+	PointsVersion    int64
 }
 
 // ProcessMemberEvents drains a bounded durable queue. One transaction owns the
@@ -192,7 +194,7 @@ func (s *Store) ProcessMemberEvents(ctx context.Context, limit int) (int, error)
 	if err != nil {
 		return 0, err
 	}
-	rows, err := tx.Query(ctx, `SELECT id,user_id,kind,source,active,rule,rule_version,created_at FROM member_events ORDER BY id LIMIT $1 FOR UPDATE`, limit)
+	rows, err := tx.Query(ctx, `SELECT id,user_id,kind,source,active,rule,rule_version,created_at,points_rule,coalesce(points_version,0) FROM member_events ORDER BY id LIMIT $1 FOR UPDATE`, limit)
 	if err != nil {
 		return 0, err
 	}
@@ -200,7 +202,8 @@ func (s *Store) ProcessMemberEvents(ctx context.Context, limit int) (int, error)
 	for rows.Next() {
 		var e growthEvent
 		var b []byte
-		if err = rows.Scan(&e.ID, &e.UID, &e.Kind, &e.Source, &e.Active, &b, &e.Version, &e.Created); err != nil {
+		var pointsRaw []byte
+		if err = rows.Scan(&e.ID, &e.UID, &e.Kind, &e.Source, &e.Active, &b, &e.Version, &e.Created, &pointsRaw, &e.PointsVersion); err != nil {
 			rows.Close()
 			return 0, err
 		}
@@ -209,6 +212,12 @@ func (s *Store) ProcessMemberEvents(ctx context.Context, limit int) (int, error)
 			return 0, err
 		}
 		events = append(events, e)
+		if len(pointsRaw) > 0 {
+			if err = json.Unmarshal(pointsRaw, &events[len(events)-1].PointsRule); err != nil {
+				rows.Close()
+				return 0, err
+			}
+		}
 	}
 	rows.Close()
 	if err = rows.Err(); err != nil {
@@ -216,6 +225,9 @@ func (s *Store) ProcessMemberEvents(ctx context.Context, limit int) (int, error)
 	}
 	for _, e := range events {
 		if err = applyGrowthEvent(ctx, tx, e); err != nil {
+			return 0, err
+		}
+		if err = applyPointsEvent(ctx, tx, e); err != nil {
 			return 0, err
 		}
 		if err = upgradeMember(ctx, tx, c, e.UID); err != nil {

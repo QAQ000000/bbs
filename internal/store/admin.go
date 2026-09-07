@@ -426,7 +426,8 @@ func (s *Store) SetUserGroup(ctx context.Context, uid int64, groupID int) error 
 func (s *Store) DeleteUser(ctx context.Context, uid int64) error {
 	var hasCommunityData bool
 	if err := s.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM conversation_members WHERE uid=$1)
-	 OR EXISTS(SELECT 1 FROM tags WHERE created_by=$1)`, uid).Scan(&hasCommunityData); err != nil {
+	 OR EXISTS(SELECT 1 FROM tags WHERE created_by=$1)
+	 OR EXISTS(SELECT 1 FROM points_ledger WHERE user_id=$1)`, uid).Scan(&hasCommunityData); err != nil {
 		return err
 	}
 	if hasCommunityData {
@@ -551,19 +552,28 @@ func (s *Store) PromoteToAdmin(ctx context.Context, uid int64) error {
 
 // BlockUser 封禁（禁止登录，区别于禁言）：days<=0 表示永久；同时踢掉全部会话。
 func (s *Store) BlockUser(ctx context.Context, uid int64, days int) error {
-	var err error
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
 	if days > 0 {
-		_, err = s.pool.Exec(ctx,
+		_, err = tx.Exec(ctx,
 			`UPDATE users SET blocked_until = now() + make_interval(days => $2) WHERE id=$1`, uid, days)
 	} else {
-		_, err = s.pool.Exec(ctx,
+		_, err = tx.Exec(ctx,
 			`UPDATE users SET blocked_until = now() + interval '100 years' WHERE id=$1`, uid)
 	}
 	if err != nil {
 		return err
 	}
-	s.DeleteUserSessions(ctx, uid)
-	return nil
+	if _, err = tx.Exec(ctx, `UPDATE sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL`, uid); err != nil {
+		return err
+	}
+	if err = invalidateMFAChallenges(ctx, tx, uid); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 // UnblockUser 解除封禁。
@@ -574,8 +584,7 @@ func (s *Store) UnblockUser(ctx context.Context, uid int64) error {
 
 // DeleteUserSessions 撤销用户全部会话（封禁时立即下线）。
 func (s *Store) DeleteUserSessions(ctx context.Context, uid int64) {
-	_, _ = s.pool.Exec(ctx, `DELETE FROM sessions WHERE user_id=$1`, uid)
-	s.sessions.invalidateUser(uid)
+	_, _ = s.pool.Exec(ctx, `UPDATE sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL`, uid)
 }
 
 // SchemaVersion 当前 schema_migrations 版本（健康检查用）。

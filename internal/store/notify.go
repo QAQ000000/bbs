@@ -132,6 +132,7 @@ type Notification struct {
 	Scope     string
 	Payload   json.RawMessage
 	EventKey  string
+	Email     bool // Enqueue within the notification transaction when SMTP is configured.
 }
 
 // AddNotifications 批量插入通知（去重与排除自己由调用方处理）。
@@ -149,6 +150,11 @@ func (s *Store) AddNotifications(ctx context.Context, rows []*Notification) erro
 			`SELECT forum_notify($1,$2,$3,$4,$5,$6,$7,nullif($8,''))`,
 			n.UID, n.FromUID, n.FromName, n.Type, n.ThreadID, n.PostID, n.Excerpt, n.EventKey).Scan(&n.ID); err != nil {
 			return err
+		}
+		if n.ID != 0 && n.Email {
+			if err := queuePostEmail(ctx, tx, n.UID, n.PostID, n.Type); err != nil {
+				return err
+			}
 		}
 	}
 	return tx.Commit(ctx)
@@ -286,6 +292,12 @@ func (s *Store) ResetPasswordByToken(ctx context.Context, raw, newPassword strin
 	}
 	defer tx.Rollback(ctx)
 	var uid int64
+	if err = tx.QueryRow(ctx, `SELECT u.id FROM users u JOIN password_resets pr ON pr.uid=u.id WHERE pr.token_hash=$1 AND NOT pr.used AND pr.expires_at>now() FOR UPDATE OF u`, hashToken(raw)).Scan(&uid); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return 0, ErrTokenInvalid
+		}
+		return 0, err
+	}
 	err = tx.QueryRow(ctx,
 		`UPDATE password_resets SET used=true
 		 WHERE token_hash=$1 AND NOT used AND expires_at > now()
@@ -304,13 +316,12 @@ func (s *Store) ResetPasswordByToken(ctx context.Context, raw, newPassword strin
 		`UPDATE users SET password_hash=$2, must_change_password=false WHERE id=$1`, uid, string(hash)); err != nil {
 		return 0, err
 	}
-	if _, err := tx.Exec(ctx, `DELETE FROM sessions WHERE user_id=$1`, uid); err != nil {
+	if _, err := tx.Exec(ctx, `UPDATE sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL`, uid); err != nil {
 		return 0, err
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return 0, err
 	}
-	s.sessions.invalidateUser(uid)
 	return uid, nil
 }
 
@@ -346,8 +357,13 @@ func (s *Store) UpdateProfile(ctx context.Context, uid int64, signature, email s
 // ChangePassword 修改密码：校验旧密码；成功后撤销当前会话之外的全部会话。
 // keepRawToken 为当前设备的原始会话 token（空则撤销全部会话）。
 func (s *Store) ChangePassword(ctx context.Context, uid int64, oldPassword, newPassword, keepRawToken string) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
 	var hash string
-	err := s.pool.QueryRow(ctx, `SELECT password_hash FROM users WHERE id=$1`, uid).Scan(&hash)
+	err = tx.QueryRow(ctx, `SELECT password_hash FROM users WHERE id=$1 FOR UPDATE`, uid).Scan(&hash)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ErrNotFound
 	}
@@ -357,29 +373,37 @@ func (s *Store) ChangePassword(ctx context.Context, uid int64, oldPassword, newP
 	if bcrypt.CompareHashAndPassword([]byte(hash), []byte(oldPassword)) != nil {
 		return ErrWrongPassword
 	}
+	if keepRawToken != "" {
+		var active bool
+		if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM sessions WHERE user_id=$1 AND token=$2 AND revoked_at IS NULL AND expires_at>now())`, uid, hashToken(keepRawToken)).Scan(&active); err != nil {
+			return err
+		}
+		if !active {
+			return ErrWrongPassword
+		}
+	}
 	newHash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
 		return err
 	}
-	if _, err := s.pool.Exec(ctx,
+	if _, err := tx.Exec(ctx,
 		`UPDATE users SET password_hash=$2, must_change_password=false WHERE id=$1`, uid, string(newHash)); err != nil {
 		return err
 	}
 	// 改密后撤销全部未用重置令牌：持旧链接者不能在用户改密后重新控制账号
-	if _, err := s.pool.Exec(ctx,
+	if _, err := tx.Exec(ctx,
 		`UPDATE password_resets SET used=true WHERE uid=$1 AND NOT used`, uid); err != nil {
 		return err
 	}
 	if keepRawToken != "" {
-		if _, err := s.pool.Exec(ctx,
-			`DELETE FROM sessions WHERE user_id=$1 AND token<>$2`, uid, hashToken(keepRawToken)); err != nil {
+		if _, err := tx.Exec(ctx,
+			`UPDATE sessions SET revoked_at=now() WHERE user_id=$1 AND token<>$2 AND revoked_at IS NULL`, uid, hashToken(keepRawToken)); err != nil {
 			return err
 		}
-	} else if _, err := s.pool.Exec(ctx, `DELETE FROM sessions WHERE user_id=$1`, uid); err != nil {
+	} else if _, err := tx.Exec(ctx, `UPDATE sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL`, uid); err != nil {
 		return err
 	}
-	s.sessions.invalidateUser(uid)
-	return nil
+	return tx.Commit(ctx)
 }
 
 // CreateEmailVerify 生成邮箱验证令牌（24h 有效；库中存哈希，同用户覆盖旧令牌）。

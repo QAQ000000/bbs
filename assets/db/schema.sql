@@ -1053,3 +1053,158 @@ CREATE OR REPLACE FUNCTION notification_group(kind text) RETURNS text LANGUAGE s
  WHEN kind LIKE 'membership.%' THEN 'membership' WHEN kind LIKE 'moderation.%' THEN 'moderation'
  WHEN kind LIKE 'report.%' THEN 'reports' ELSE 'replies' END;
 $$;
+
+-- Durable email outbox. Tokens are encrypted with an application-owned key.
+CREATE TABLE IF NOT EXISTS email_jobs (
+ id bigserial PRIMARY KEY,
+ uid bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+ kind text NOT NULL CHECK(kind IN ('password_reset','email_verify','mention','reply','reply.direct','subscription')),
+ template_version integer NOT NULL DEFAULT 1 CHECK(template_version=1),
+ recipient text NOT NULL,
+ post_id bigint REFERENCES posts(id) ON DELETE CASCADE,
+ token_hash text NOT NULL DEFAULT '',
+ sealed_token text NOT NULL DEFAULT '',
+ dedup_key text NOT NULL UNIQUE,
+ status text NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','sending','sent','dead','cancelled')),
+ priority integer NOT NULL DEFAULT 0,
+ attempts integer NOT NULL DEFAULT 0,
+ retries integer NOT NULL DEFAULT 0,
+ version bigint NOT NULL DEFAULT 1,
+ next_attempt_at timestamptz NOT NULL DEFAULT now(),
+ lease_until timestamptz,
+ expires_at timestamptz NOT NULL,
+ sent_at timestamptz,
+ last_error text NOT NULL DEFAULT '',
+ created_at timestamptz NOT NULL DEFAULT now(),
+ updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS email_jobs_pending_idx ON email_jobs(priority DESC,next_attempt_at,id) WHERE status='pending';
+CREATE INDEX IF NOT EXISTS email_jobs_lease_idx ON email_jobs(lease_until) WHERE status='sending';
+
+-- Device sessions: public identifiers are independent of authentication tokens.
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS id bigserial;
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS device_name text NOT NULL DEFAULT '';
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS user_agent text NOT NULL DEFAULT '';
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS masked_ip text NOT NULL DEFAULT '';
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS last_seen_at timestamptz;
+UPDATE sessions SET last_seen_at=created_at WHERE last_seen_at IS NULL;
+ALTER TABLE sessions ALTER COLUMN last_seen_at SET DEFAULT now();
+ALTER TABLE sessions ALTER COLUMN last_seen_at SET NOT NULL;
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS revoked_at timestamptz;
+CREATE UNIQUE INDEX IF NOT EXISTS sessions_id_idx ON sessions(id);
+CREATE INDEX IF NOT EXISTS sessions_user_id_idx ON sessions(user_id,id DESC);
+
+CREATE TABLE IF NOT EXISTS user_mfa (
+ user_id bigint PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+ secret_cipher text NOT NULL, enabled boolean NOT NULL DEFAULT false,
+ enabled_at timestamptz, last_step bigint NOT NULL DEFAULT -1,
+ recovery_hashes text[] NOT NULL DEFAULT '{}', created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS mfa_challenges (
+ id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+ password_hash text NOT NULL, expires_at timestamptz NOT NULL, used_at timestamptz,
+ created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS mfa_challenges_expiry_idx ON mfa_challenges(expires_at);
+
+-- Independent points accounts and append-only accounting entries.
+CREATE TABLE IF NOT EXISTS points_config (
+ id boolean PRIMARY KEY DEFAULT true CHECK(id), version bigint NOT NULL DEFAULT 1,
+ body jsonb NOT NULL
+);
+CREATE TABLE IF NOT EXISTS points_accounts (
+ user_id bigint PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+ balance bigint NOT NULL DEFAULT 0 CHECK(balance BETWEEN -9000000000000 AND 9000000000000),
+ frozen bigint NOT NULL DEFAULT 0 CHECK(frozen BETWEEN 0 AND 9000000000000),
+ version bigint NOT NULL DEFAULT 1
+);
+CREATE TABLE IF NOT EXISTS points_ledger (
+ id bigserial PRIMARY KEY,
+ user_id bigint NOT NULL REFERENCES users(id),
+ source text NOT NULL, kind text NOT NULL,
+ delta bigint NOT NULL, frozen_delta bigint NOT NULL DEFAULT 0,
+ balance_after bigint NOT NULL, frozen_after bigint NOT NULL,
+ rule_version bigint NOT NULL, reversible boolean NOT NULL DEFAULT false,
+ reason text NOT NULL, actor_id bigint NOT NULL DEFAULT 0,
+ event_at timestamptz NOT NULL, created_at timestamptz NOT NULL DEFAULT now(),
+ UNIQUE(user_id,source)
+);
+CREATE INDEX IF NOT EXISTS points_ledger_user_idx ON points_ledger(user_id,id DESC);
+CREATE INDEX IF NOT EXISTS points_ledger_daily_idx ON points_ledger(user_id,kind,event_at) WHERE delta>0;
+CREATE OR REPLACE FUNCTION points_ledger_immutable() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN RAISE EXCEPTION 'points ledger is append-only'; END $$;
+DROP TRIGGER IF EXISTS points_ledger_immutable ON points_ledger;
+CREATE TRIGGER points_ledger_immutable BEFORE UPDATE OR DELETE ON points_ledger FOR EACH ROW EXECUTE FUNCTION points_ledger_immutable();
+
+-- A one-time baseline prevents old content being toggled to collect a new reward.
+DO $$ BEGIN
+ IF NOT EXISTS(SELECT 1 FROM points_config WHERE id) THEN
+  INSERT INTO points_config(id,body) VALUES(true,'{
+   "rules":{
+    "active":{"enabled":false,"points":0,"dailyCap":0,"reverse":false},
+    "thread":{"enabled":true,"points":1,"dailyCap":10,"reverse":true},
+    "reply":{"enabled":true,"points":1,"dailyCap":20,"reverse":true},
+    "like":{"enabled":true,"points":1,"dailyCap":20,"reverse":true},
+    "digest":{"enabled":true,"points":5,"dailyCap":25,"reverse":true},
+    "accepted":{"enabled":true,"points":10,"dailyCap":50,"reverse":true}
+   },"acceptedExperience":{"enabled":true,"points":30,"dailyCap":150,"reverse":true}
+  }');
+  INSERT INTO points_ledger(user_id,source,kind,delta,balance_after,frozen_after,rule_version,reason,event_at)
+  SELECT user_id,source,'baseline',0,0,0,0,'pre-points baseline',now() FROM (
+   SELECT user_id,source FROM member_experience WHERE source NOT LIKE 'reverse:%'
+   UNION SELECT author_id,'post:'||id FROM posts WHERE NOT pending
+   UNION SELECT author_id,'digest:'||id FROM threads WHERE digest
+   UNION SELECT p.author_id,'like:'||p.id||':'||a.uid FROM post_actions a JOIN posts p ON p.id=a.pid WHERE a.action=1
+   UNION SELECT p.author_id,'accepted:'||p.id FROM accepted_replies a JOIN posts p ON p.id=a.post_id
+  ) x ON CONFLICT DO NOTHING;
+ END IF;
+END $$;
+
+ALTER TABLE member_events ADD COLUMN IF NOT EXISTS points_rule jsonb;
+ALTER TABLE member_events ADD COLUMN IF NOT EXISTS points_version bigint;
+CREATE OR REPLACE FUNCTION points_snapshot_event() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ SELECT body->'rules'->NEW.kind,version INTO NEW.points_rule,NEW.points_version FROM points_config WHERE id;
+ RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS points_snapshot_event ON member_events;
+CREATE TRIGGER points_snapshot_event BEFORE INSERT ON member_events FOR EACH ROW EXECUTE FUNCTION points_snapshot_event();
+
+-- Acceptance adds an experience event and uses the same points snapshot/worker.
+CREATE OR REPLACE FUNCTION points_accept_event() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE pid bigint; uid bigint; live boolean;
+BEGIN
+ IF TG_OP='DELETE' THEN pid:=OLD.post_id; ELSE pid:=NEW.post_id; END IF;
+ SELECT p.author_id,TG_OP<>'DELETE' AND NOT p.pending AND NOT p.deleted AND NOT t.pending AND NOT t.deleted AND p.author_id<>t.author_id
+ INTO uid,live FROM posts p JOIN threads t ON t.id=p.thread_id WHERE p.id=pid;
+ IF uid IS NOT NULL THEN
+  INSERT INTO member_events(user_id,kind,source,active,rule,rule_version)
+  SELECT uid,'accepted','accepted:'||pid,live,body->'acceptedExperience',version FROM points_config WHERE id;
+ END IF;
+ RETURN NULL;
+END $$;
+DROP TRIGGER IF EXISTS points_accept_event ON accepted_replies;
+CREATE TRIGGER points_accept_event AFTER INSERT OR DELETE ON accepted_replies FOR EACH ROW EXECUTE FUNCTION points_accept_event();
+
+-- Transactional MFA enrollment and browser-bound login challenges.
+ALTER TABLE user_mfa ADD COLUMN IF NOT EXISTS version text NOT NULL DEFAULT '';
+ALTER TABLE user_mfa ADD COLUMN IF NOT EXISTS setup_session bigint;
+ALTER TABLE user_mfa ADD COLUMN IF NOT EXISTS setup_password text;
+ALTER TABLE user_mfa ADD COLUMN IF NOT EXISTS setup_expires timestamptz;
+ALTER TABLE mfa_challenges ADD COLUMN IF NOT EXISTS token_hash text;
+ALTER TABLE mfa_challenges ADD COLUMN IF NOT EXISTS csrf_hash text NOT NULL DEFAULT '';
+ALTER TABLE mfa_challenges ADD COLUMN IF NOT EXISTS mfa_version text NOT NULL DEFAULT '';
+ALTER TABLE mfa_challenges ADD COLUMN IF NOT EXISTS attempts integer NOT NULL DEFAULT 0;
+CREATE UNIQUE INDEX IF NOT EXISTS mfa_challenges_token_idx ON mfa_challenges(token_hash);
+CREATE TABLE IF NOT EXISTS mfa_attempts (
+ user_id bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+ scope text NOT NULL,
+ window_at timestamptz NOT NULL DEFAULT now(),
+ attempts integer NOT NULL DEFAULT 1,
+ PRIMARY KEY(user_id,scope)
+);
+-- Legacy challenges cannot be completed; active secrets remain protected.
+UPDATE mfa_challenges SET used_at=now() WHERE token_hash IS NULL AND used_at IS NULL;
+UPDATE user_mfa SET recovery_hashes='{}' WHERE EXISTS (
+ SELECT 1 FROM unnest(recovery_hashes) h WHERE length(h)<>64
+);

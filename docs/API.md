@@ -6,7 +6,7 @@
 
 会员等级、成长规则、经验流水、徽章、版块访问限制及 12 个新增接口见 [会员 API 文档](MEMBERSHIP.md)。该文档定义配置预览、人工调整幂等和等级额度语义。
 
-任务称号、自动补发、佩戴、作者采纳及 13 个新增接口见 [称号 API 文档](TITLES.md)。当前数据库 schema 为 9，Nuxt 管理和展示页面仍待开发。通知、楼层回复及定位、草稿标题和本人内容状态见 [基础流程 API](FORUM_WORKFLOWS.md)。标签、关注/粉丝、订阅投递和私信接口见 [社区 API](COMMUNITY_API.md)，该文档补充下方基础路由清单。
+任务称号、自动补发、佩戴、作者采纳及 13 个新增接口见 [称号 API 文档](TITLES.md)。当前数据库 schema 为 14，Nuxt 管理和展示页面仍待开发。通知、楼层回复及定位、草稿标题和本人内容状态见 [基础流程 API](FORUM_WORKFLOWS.md)。标签、关注/粉丝、订阅投递和私信接口见 [社区 API](COMMUNITY_API.md)，该文档补充下方基础路由清单。
 
 ## 请求与响应
 
@@ -20,6 +20,10 @@
 
 ## 会话与 CSRF
 
+设备列表、重命名与会话撤销接口见 [设备会话管理](DEVICE_SESSIONS.md)（schema 11）。
+
+TOTP 绑定、验证登录、关闭和恢复码更新见 [二次验证](MFA.md)（schema 14）。已启用账户提交正确密码后返回 HTTP 401 `data.code=MFA_REQUIRED`，前端完成第二因素验证后才能取得登录 Cookie。
+
 1. `GET /api/v1/session` 获取 `data.user`、`data.csrfToken` 和 `data.setupRequired`。游客 `user=null`，同时设置匿名 CSRF Cookie。
 2. 浏览器同域请求携带 Cookie，所有写入发送 `X-CSRF-Token`。过渡期兼容表单 `_csrf` 字段；不能把 token 只放在 URL 查询参数中。
 3. 登录成功设置 HttpOnly `forum_session` Cookie，返回本人安全资料；随后重新获取 session，使用登录态 CSRF token。
@@ -29,6 +33,8 @@
 状态示例：未登录 401、权限/CSRF 不通过 403、不可见内容 404、编辑冲突/重复安装 409、校验失败 422、频率限制 429、关站 503。空库通过 session/setup 接口取得安装状态，业务 API 返回 `SETUP_REQUIRED`。
 
 ## 常用接口的字段
+
+独立积分账户、奖励配置、流水、调账及对账见 [积分账本](POINTS.md)（schema 13）。
 
 | 接口 | 输入 / 输出要点 |
 | --- | --- |

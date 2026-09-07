@@ -4,7 +4,6 @@ package api
 import (
 	"errors"
 	"net/http"
-	"net/url"
 	"regexp"
 
 	"strings"
@@ -55,7 +54,24 @@ func (s *Server) loginSubmit(w http.ResponseWriter, r *http.Request) {
 		fail("账号已被封禁，禁止登录；如有疑问请联系站长。")
 		return
 	}
-	token, _, err := s.st.CreateSession(r.Context(), u.ID)
+	token, _, err := s.st.CreateDeviceSession(r.Context(), u.ID, r.UserAgent(), maskIP(remoteIP(r)), u.PasswordHash)
+	if errors.Is(err, store.ErrMFARequired) {
+		if s.mfaCipher == nil {
+			s.mfaError(w, r, store.ErrMFAUnavailable)
+			return
+		}
+		challenge, ce := s.st.CreateMFAChallenge(r.Context(), u.ID, u.PasswordHash, mfaBinding(r))
+		if ce != nil {
+			s.mfaError(w, r, ce)
+			return
+		}
+		s.respond(w, http.StatusUnauthorized, map[string]any{"code": "MFA_REQUIRED", "challenge": challenge, "expiresIn": 300})
+		return
+	}
+	if errors.Is(err, store.ErrWrongPassword) || errors.Is(err, store.ErrNotFound) {
+		fail("账号状态已变化，请重新登录")
+		return
+	}
 	if err != nil {
 		s.fail(w, r, http.StatusInternalServerError, "登录失败", err.Error())
 		return
@@ -139,7 +155,11 @@ func (s *Server) registerSubmit(w http.ResponseWriter, r *http.Request) {
 		fail("验证码不正确，请输入图片中算式的结果")
 		return
 	}
-	u, err := s.st.CreateUser(r.Context(), username, password, email)
+	var seal func(string) (string, error)
+	if s.emailGateEnabled() && email != "" {
+		seal = s.mailTokens.Seal
+	}
+	u, err := s.st.CreateUserWithVerification(r.Context(), username, password, email, seal)
 	if err != nil {
 		if strings.Contains(err.Error(), "users_username_lower_idx") {
 			fail("用户名已被占用")
@@ -148,14 +168,7 @@ func (s *Server) registerSubmit(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	// 邮箱验证开关开启且邮件可用：注册即发验证邮件（24h 有效）
-	if s.emailGateEnabled() && email != "" {
-		if raw, err := s.st.CreateEmailVerify(r.Context(), u.ID, email); err == nil {
-			link := s.cfg.SiteURL + "/verify?token=" + url.QueryEscape(raw)
-			s.mailer.NotifyEmailVerify(email, link)
-		}
-	}
-	token, _, err := s.st.CreateSession(r.Context(), u.ID)
+	token, _, err := s.st.CreateDeviceSession(r.Context(), u.ID, r.UserAgent(), maskIP(remoteIP(r)))
 	if err != nil {
 		s.fail(w, r, http.StatusInternalServerError, "注册失败", err.Error())
 		return
@@ -193,10 +206,17 @@ func (s *Server) verifyEmail(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 	result := actionResult{}
+	if !s.checkCSRF(r) {
+		s.fail(w, r, 403, "FORBIDDEN", "表单已过期，请刷新重试")
+		return
+	}
 
 	// Cookie 里是原始 token，DeleteSession 内部做哈希；不能传 sess.Token（已是哈希，会二次哈希删不掉）
 	if c, err := r.Cookie(cookieSession); err == nil && c.Value != "" {
-		s.st.DeleteSession(r.Context(), c.Value)
+		if err := s.st.DeleteSession(r.Context(), c.Value); err != nil {
+			s.fail(w, r, 503, "SESSION_UPDATE_FAILED", "退出失败，请稍后重试")
+			return
+		}
 	}
 	s.setSessionCookie(w, "", -1)
 	result.Message = "已退出登录"

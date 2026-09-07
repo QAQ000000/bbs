@@ -26,7 +26,12 @@ FORUM_SMTP_PORT=587
 FORUM_SMTP_USER=noreply@example.com
 FORUM_SMTP_PASS=xxx
 FORUM_SMTP_FROM=noreply@example.com
+FORUM_MAIL_KEY=替换为64位十六进制随机密钥
 ```
+
+启用 SMTP 时使用 `openssl rand -hex 32` 生成 `FORUM_MAIL_KEY` 并填入上述配置，重启和多实例保持一致。该密钥加密持久邮件队列中的认证令牌，必须与数据库备份分开保管。恢复和接口说明见 [邮件队列](EMAIL_QUEUE.md)。
+
+启用 TOTP 2FA 时另行执行 `openssl rand -hex 32` 生成 `FORUM_MFA_KEY`，加入同一受限环境文件；不要复用邮件密钥。必须保留原密钥用于重启、多实例和数据库恢复。缺失或错误密钥会拒绝已启用 2FA 账户的验证，不能通过重设密钥恢复访问。schema 14 保留旧 TOTP 保护、作废旧登录挑战及旧格式恢复码；升级后已启用用户需用 TOTP 生成新恢复码。完整接口和迁移边界见 [二次验证](MFA.md)。
 
 ## 2. systemd
 

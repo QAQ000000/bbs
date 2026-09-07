@@ -162,6 +162,9 @@ func main() {
 	}()
 	// 会话过期清理
 	go srv.RunSubscriptions(ctx)
+	emailDone := make(chan struct{})
+	go func() { defer close(emailDone); srv.RunEmails(ctx) }()
+	defer func() { stop(); <-emailDone }()
 	go func() {
 		t := time.NewTicker(time.Hour)
 		defer t.Stop()
@@ -170,7 +173,12 @@ func main() {
 			case <-ctx.Done():
 				return
 			case <-t.C:
-				st.PurgeSessions(context.Background())
+				cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 30*time.Second)
+				st.PurgeSessions(cleanupCtx)
+				if err := st.PurgeMFA(cleanupCtx); err != nil {
+					slog.Error("MFA cleanup failed", "err", err)
+				}
+				cleanupCancel()
 			}
 		}
 	}()

@@ -266,6 +266,11 @@ func (s *Store) ProcessSubscriptionBatch(ctx context.Context, limit int, authori
 				d.Email = false
 			}
 		}
+		if d.Email {
+			if err = queuePostEmail(ctx, tx, d.UID, batch.PostID, d.Kind); err != nil {
+				return batch, err
+			}
+		}
 		batch.Deliveries = append(batch.Deliveries, d)
 	}
 	if _, err = tx.Exec(ctx, `UPDATE subscription_events SET cursor_uid=$2,completed=$3 WHERE post_id=$1`, batch.PostID, cursor, !public || len(candidates) < limit); err != nil {

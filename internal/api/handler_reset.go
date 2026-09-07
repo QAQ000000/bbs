@@ -3,7 +3,6 @@ package api
 import (
 	"errors"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -11,7 +10,7 @@ import (
 )
 
 // ---- 忘记密码 / 重置（P1 闭环）----
-// 防枚举：无论邮箱是否存在，响应一致；令牌只经邮件传递且库中仅存哈希。
+// 防枚举：无论邮箱是否存在，响应一致；令牌只经邮件传递，队列保存密文。
 
 func (s *Server) forgotSubmit(w http.ResponseWriter, r *http.Request) {
 	if !s.allow(r, "forgot", 5, time.Hour) {
@@ -32,9 +31,8 @@ func (s *Server) forgotSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 	uid, err := s.st.UIDByEmail(r.Context(), email)
 	if err == nil && s.mailer.Enabled() {
-		if raw, err := s.st.CreatePasswordReset(r.Context(), uid); err == nil {
-			link := s.cfg.SiteURL + "/reset?token=" + url.QueryEscape(raw)
-			s.mailer.NotifyPasswordReset(email, link)
+		if err := s.st.QueueAuthEmail(r.Context(), uid, email, "password_reset", s.mailTokens.Seal); err != nil {
+			s.log.Error("password reset email enqueue failed", "uid", uid)
 		}
 	}
 	generic()

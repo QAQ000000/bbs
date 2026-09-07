@@ -30,6 +30,8 @@ type Config struct {
 	SMTPUser     string
 	SMTPPassword string
 	SMTPFrom     string // 发件人地址
+	MailKey      string // 32-byte hex key for durable authentication email tokens
+	MFAKey       string // 32-byte hex key for TOTP secrets
 }
 
 func getenv(key, def string) string {
@@ -67,6 +69,8 @@ func FromEnv() Config {
 		SMTPUser:     getenv("FORUM_SMTP_USER", ""),
 		SMTPPassword: getenv("FORUM_SMTP_PASS", ""),
 		SMTPFrom:     getenv("FORUM_SMTP_FROM", "noreply@gobbs.local"),
+		MailKey:      getenv("FORUM_MAIL_KEY", ""),
+		MFAKey:       getenv("FORUM_MFA_KEY", ""),
 
 		CookieTTL:      30 * 24 * time.Hour,
 		ThreadsPerPage: getint("FORUM_THREADS_PER_PAGE", 20),

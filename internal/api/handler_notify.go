@@ -388,11 +388,7 @@ func (s *Server) notifyMentions(r *http.Request, from *store.User, content strin
 			Excerpt:  excerpt,
 		})
 	}
-	s.deliverNotifications(r, from, users, rows, excerpt, func(target *store.User, link string) {
-		if s.mailer.Enabled() {
-			s.mailer.NotifyMention(target.Email, from.Username, th.Title, link, excerpt)
-		}
-	})
+	s.deliverNotifications(r, from, users, rows)
 	out := map[int64]bool{}
 	for _, target := range users {
 		out[target.ID] = true
@@ -434,18 +430,13 @@ func (s *Server) notifyReply(r *http.Request, from *store.User, th *store.Thread
 			PostID:   p.ID,
 			Excerpt:  excerpt,
 		}
-		s.deliverNotifications(r, from, []*store.User{author}, []*store.Notification{row}, excerpt,
-			func(target *store.User, link string) {
-				if s.mailer.Enabled() {
-					s.mailer.NotifyReply(target.Email, from.Username, th.Title, link, excerpt)
-				}
-			})
+		s.deliverNotifications(r, from, []*store.User{author}, []*store.Notification{row})
 	}
 }
 
 // deliverNotifications 落库 + 邮件 + SSE 实时提醒的共用投递通道。
 func (s *Server) deliverNotifications(r *http.Request, from *store.User,
-	targets []*store.User, rows []*store.Notification, excerpt string, mail func(*store.User, string)) {
+	targets []*store.User, rows []*store.Notification) {
 	if len(rows) == 0 {
 		return
 	}
@@ -464,6 +455,7 @@ func (s *Server) deliverNotifications(r *http.Request, from *store.User,
 			continue
 		}
 		rows[i].EventKey = "post:" + strconv.FormatInt(rows[i].PostID, 10)
+		rows[i].Email = s.mailer.Enabled()
 		filteredRows = append(filteredRows, rows[i])
 		filteredTargets = append(filteredTargets, target)
 	}
@@ -471,19 +463,12 @@ func (s *Server) deliverNotifications(r *http.Request, from *store.User,
 	if len(rows) == 0 {
 		return
 	}
-	link := func(target *store.User) string {
-		return s.cfg.SiteURL + ThreadURL(rows[0].ThreadID, 1) + "#post" + strconv.FormatInt(rows[0].PostID, 10)
-	}
 	if err := s.st.AddNotifications(r.Context(), rows); err != nil {
 		return
 	}
 	for i, target := range targets {
 		if rows[i].ID == 0 {
 			continue
-		}
-		prefs, err := s.st.NotificationPreferences(r.Context(), target.ID)
-		if err == nil && prefs["email"] {
-			mail(target, link(target))
 		}
 		rr, err := s.loadMembership(requestWithUser(r, target))
 		if err != nil {

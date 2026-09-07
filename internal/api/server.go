@@ -12,6 +12,7 @@ import (
 	"dzforum/internal/limiter"
 	"dzforum/internal/live"
 	"dzforum/internal/mail"
+	"dzforum/internal/mfa"
 	"dzforum/internal/store"
 )
 
@@ -24,16 +25,18 @@ const (
 
 // Server 聚合全部依赖。
 type Server struct {
-	cfg     config.Config
-	st      *store.Store
-	hub     *live.Hub
-	log     *slog.Logger
-	mux     *http.ServeMux
-	handler http.Handler // 装配中间件后的根处理器
-	start   time.Time
-	mailer  *mail.Mailer
-	limiter *limiter.Limiter
-	prod    bool
+	cfg        config.Config
+	st         *store.Store
+	hub        *live.Hub
+	log        *slog.Logger
+	mux        *http.ServeMux
+	handler    http.Handler // 装配中间件后的根处理器
+	start      time.Time
+	mailer     *mail.Mailer
+	mailTokens *mail.TokenCipher
+	mfaCipher  *mfa.Cipher
+	limiter    *limiter.Limiter
+	prod       bool
 
 	uploadMu     sync.Mutex // 上传目录占用缓存（5 分钟）
 	uploadSize   int64
@@ -53,6 +56,20 @@ func New(cfg config.Config, st *store.Store, hub *live.Hub, logger *slog.Logger)
 			SiteName: cfg.SiteName, SiteURL: cfg.SiteURL,
 		}, logger),
 		prod: cfg.ProdMode}
+	if s.mailer.Enabled() {
+		var err error
+		s.mailTokens, err = mail.NewTokenCipher(cfg.MailKey)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if cfg.MFAKey != "" {
+		var err error
+		s.mfaCipher, err = mfa.NewCipher(cfg.MFAKey)
+		if err != nil {
+			return nil, err
+		}
+	}
 	s.routes()
 	return s, nil
 }

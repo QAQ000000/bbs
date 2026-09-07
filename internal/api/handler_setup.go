@@ -126,7 +126,7 @@ func (s *Server) setupSubmit(w http.ResponseWriter, r *http.Request) {
 	s.setupMu.Unlock()
 	s.logOp(r, "setup", "站点初始化：管理员 "+username+"，站点名 "+siteName)
 
-	token, _, err := s.st.CreateSession(r.Context(), u.ID)
+	token, _, err := s.st.CreateDeviceSession(r.Context(), u.ID, r.UserAgent(), maskIP(remoteIP(r)))
 	if err != nil {
 		s.fail(w, r, http.StatusInternalServerError, "安装失败", err.Error())
 		return

@@ -30,9 +30,8 @@ var ErrEmailTaken = errors.New("该邮箱已被其他账号使用")
 
 // Store 封装全部数据库访问。
 type Store struct {
-	pool     *pgxpool.Pool
-	sessions *sessionCache
-	avatars  *nameCache
+	pool    *pgxpool.Pool
+	avatars *nameCache
 
 	viewCounterOnce sync.Once
 	views           *viewCounter
@@ -40,7 +39,6 @@ type Store struct {
 
 func New(pool *pgxpool.Pool) *Store {
 	s := &Store{pool: pool}
-	s.sessions = newSessionCache(s)
 	s.avatars = newNameCache(s)
 	return s
 }
@@ -64,16 +62,39 @@ func scanUser(row pgx.Row) (*User, error) {
 
 // CreateUser 创建用户；用户名或邮箱冲突由唯一索引兜底。
 func (s *Store) CreateUser(ctx context.Context, username, password, email string) (*User, error) {
+	return s.CreateUserWithVerification(ctx, username, password, email, nil)
+}
+
+// CreateUserWithVerification atomically creates the account and optional verification email.
+func (s *Store) CreateUserWithVerification(ctx context.Context, username, password, email string, seal func(string) (string, error)) (*User, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
 	}
-	row := s.pool.QueryRow(ctx,
+	queryRow := s.pool.QueryRow
+	var tx pgx.Tx
+	if seal != nil && email != "" {
+		tx, err = s.pool.Begin(ctx)
+		if err != nil {
+			return nil, err
+		}
+		defer tx.Rollback(ctx)
+		queryRow = tx.QueryRow
+	}
+	row := queryRow(ctx,
 		`INSERT INTO users (username, password_hash, email) VALUES ($1,$2,$3)
 		 RETURNING `+userCols, username, string(hash), email)
 	u, err := scanUser(row)
 	if err != nil {
 		return nil, err
+	}
+	if tx != nil {
+		if err = queueAuthEmail(ctx, tx, u.ID, email, "email_verify", seal); err != nil {
+			return nil, err
+		}
+		if err = tx.Commit(ctx); err != nil {
+			return nil, err
+		}
 	}
 	s.avatars.invalidate(u.ID)
 	return u, nil
@@ -138,12 +159,7 @@ func newToken(n int) string {
 // CreateSession 建立会话，返回原始 token（仅出现在 Cookie 中）与 csrf token。
 // 库中只保存 token 的 SHA-256：库泄露不直接等同会话接管。
 func (s *Store) CreateSession(ctx context.Context, uid int64) (token, csrf string, err error) {
-	token = newToken(32)
-	csrf = newToken(24)
-	_, err = s.pool.Exec(ctx,
-		`INSERT INTO sessions (token, user_id, csrf, expires_at) VALUES ($1,$2,$3,now()+$4::interval)`,
-		hashToken(token), uid, csrf, sessionTTL.String())
-	return
+	return s.CreateDeviceSession(ctx, uid, "", "")
 }
 
 func hashToken(token string) string {
@@ -154,26 +170,41 @@ func hashToken(token string) string {
 func (s *Store) Session(ctx context.Context, token string) (*Session, error) {
 	var sess Session
 	err := s.pool.QueryRow(ctx,
-		`SELECT token, user_id, csrf, expires_at FROM sessions WHERE token=$1 AND expires_at > now()`,
-		hashToken(token)).Scan(&sess.Token, &sess.UserID, &sess.CSRF, &sess.ExpiresAt)
+		`SELECT id, token, user_id, csrf, expires_at FROM sessions WHERE token=$1 AND expires_at > now() AND revoked_at IS NULL`,
+		hashToken(token)).Scan(&sess.ID, &sess.Token, &sess.UserID, &sess.CSRF, &sess.ExpiresAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	}
 	return &sess, err
 }
 
-// SessionCached 走 30 秒缓存的会话查询，省掉每请求一次 DB 往返。
+// SessionCached retains the old call signature; revocation is always checked in PostgreSQL.
 func (s *Store) SessionCached(ctx context.Context, token string) (*Session, error) {
-	return s.sessions.get(ctx, token)
+	return s.Session(ctx, token)
 }
 
-func (s *Store) DeleteSession(ctx context.Context, token string) {
-	s.sessions.invalidate(token)
-	_, _ = s.pool.Exec(ctx, `DELETE FROM sessions WHERE token=$1`, hashToken(token))
+func (s *Store) DeleteSession(ctx context.Context, token string) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	var uid int64
+	err = tx.QueryRow(ctx, `SELECT u.id FROM users u JOIN sessions s ON s.user_id=u.id WHERE s.token=$1 FOR UPDATE OF u`, hashToken(token)).Scan(&uid)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if _, err = tx.Exec(ctx, `UPDATE sessions SET revoked_at=now() WHERE token=$1 AND revoked_at IS NULL`, hashToken(token)); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 func (s *Store) PurgeSessions(ctx context.Context) {
-	_, _ = s.pool.Exec(ctx, `DELETE FROM sessions WHERE expires_at < now()`)
+	_, _ = s.pool.Exec(ctx, `DELETE FROM sessions WHERE expires_at < now()-interval '30 days' OR revoked_at<now()-interval '30 days'`)
 }
 
 // ---- 站点统计 ----
