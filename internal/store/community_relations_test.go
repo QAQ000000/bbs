@@ -4,7 +4,6 @@ package store
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -215,33 +214,21 @@ func TestSubscriptionsDefaultsAndDurableBatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	failOnce := true
-	calls := 0
-	policy := func(uid, pid int64) (string, bool, bool, error) {
-		if pid == p.ID {
-			calls++
-			if failOnce {
-				return "", false, false, fmt.Errorf("temporary lookup failure")
-			}
-		}
-		return "subscription", true, true, nil
+	if _, err = testPool.Exec(ctx, `CREATE FUNCTION fail_subscription_delivery() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'delivery failure'; END $$;
+	 CREATE TRIGGER fail_subscription_delivery BEFORE INSERT ON subscription_deliveries FOR EACH ROW EXECUTE FUNCTION fail_subscription_delivery()`); err != nil {
+		t.Fatal(err)
 	}
-	// Earlier tests may have left events; drain without relying on execution order.
-	for i := 0; i < 2000; i++ {
-		batch, err := testStore.ProcessSubscriptionBatch(ctx, 1, policy)
-		if err != nil {
-			if calls == 0 {
-				t.Fatal(err)
-			}
-			break
-		}
-		if batch.PostID == 0 {
-			t.Fatal("event missing")
-		}
+	t.Cleanup(func() {
+		_, _ = testPool.Exec(ctx, `DROP TRIGGER IF EXISTS fail_subscription_delivery ON subscription_deliveries; DROP FUNCTION IF EXISTS fail_subscription_delivery()`)
+	})
+	if _, err = testStore.ProcessSubscriptionBatch(ctx, 1, p.ID, true); err == nil {
+		t.Fatal("delivery failure ignored")
 	}
-	failOnce = false
+	if _, err = testPool.Exec(ctx, `DROP TRIGGER fail_subscription_delivery ON subscription_deliveries; DROP FUNCTION fail_subscription_delivery()`); err != nil {
+		t.Fatal(err)
+	}
 	for i := 0; i < 2000; i++ {
-		batch, err := testStore.ProcessSubscriptionBatch(ctx, 1, policy)
+		batch, err := testStore.ProcessSubscriptionBatch(ctx, 1, 0, true)
 		if err != nil {
 			t.Fatal(err)
 		}

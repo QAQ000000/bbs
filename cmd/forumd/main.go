@@ -58,7 +58,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	pool, err := db.Open(ctx, cfg.DSN)
+	pool, err := db.OpenWithPoolSize(ctx, cfg.DSN, cfg.DBMaxConnections, cfg.DBMinConnections)
 	if err != nil {
 		logger.Error("数据库连接失败", "err", err)
 		os.Exit(1)
@@ -69,6 +69,9 @@ func main() {
 		logger.Error("数据库迁移失败", "err", err)
 		os.Exit(1)
 	}
+	monitorDone := make(chan struct{})
+	go func() { defer close(monitorDone); db.Monitor(ctx, pool, logger) }()
+	defer func() { stop(); <-monitorDone }()
 
 	st := store.New(pool)
 	st.StartViewCounter(ctx)

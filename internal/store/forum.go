@@ -18,7 +18,7 @@ import (
 const forumCols = `f.id, f.category_id, f.name, f.description,
 	 f.thread_count, f.post_count,
 	 (SELECT count(*) FROM posts p JOIN threads t ON t.id=p.thread_id
-	   WHERE t.forum_id=f.id AND NOT p.deleted AND NOT p.pending
+	   WHERE t.forum_id=f.id AND NOT p.deleted AND NOT p.pending AND NOT t.deleted AND NOT t.pending
 	     AND p.created_at >= current_date) AS today_count,
 	 coalesce(f.last_post_at, 'epoch'::timestamptz), f.last_post_at IS NOT NULL,
 	 coalesce(f.last_post_uid,0), coalesce(f.last_post_author,''),
@@ -39,12 +39,6 @@ func scanForum(row pgx.Row) (*Forum, error) {
 
 // CategoriesWithForums 首页数据：全部分类及其版块。
 func (s *Store) CategoriesWithForums(ctx context.Context) ([]*Category, error) {
-	rows, err := s.pool.Query(ctx, `SELECT `+forumCols+` FROM forums f WHERE true`+forumFilter(ctx, "f.id")+` ORDER BY f.category_id, f.displayorder, f.id`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
 	catRows, err := s.pool.Query(ctx, `SELECT id, name FROM categories ORDER BY displayorder, id`)
 	if err != nil {
 		return nil, err
@@ -61,6 +55,26 @@ func (s *Store) CategoriesWithForums(ctx context.Context) ([]*Category, error) {
 		byID[c.ID] = &c
 		cats = append(cats, &c)
 	}
+	if err := catRows.Err(); err != nil {
+		return nil, err
+	}
+	catRows.Close()
+
+	// Aggregate today's visible posts once for the entire forum list.
+	rows, err := s.pool.Query(ctx, `WITH today AS (
+	 SELECT t.forum_id,count(*) AS n FROM posts p JOIN threads t ON t.id=p.thread_id
+	 WHERE NOT p.deleted AND NOT p.pending AND NOT t.deleted AND NOT t.pending
+	 AND p.created_at>=current_date`+forumFilter(ctx, "t.forum_id")+` GROUP BY t.forum_id
+	) SELECT f.id,f.category_id,f.name,f.description,f.thread_count,f.post_count,coalesce(d.n,0),
+	 coalesce(f.last_post_at,'epoch'::timestamptz),f.last_post_at IS NOT NULL,
+	 coalesce(f.last_post_uid,0),coalesce(f.last_post_author,''),coalesce(f.last_thread_id,0),
+	 coalesce(f.last_thread_title,''),coalesce(f.moderators,'')
+	 FROM forums f LEFT JOIN today d ON d.forum_id=f.id WHERE true`+forumFilter(ctx, "f.id")+`
+	 ORDER BY f.category_id,f.displayorder,f.id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
 	for rows.Next() {
 		f, err := scanForum(rows)
@@ -219,15 +233,21 @@ func (s *Store) LatestThreads(ctx context.Context, page, size int) ([]*Thread, i
 		`SELECT count(*) FROM threads WHERE NOT deleted AND NOT pending`+forumFilter(ctx, "forum_id")).Scan(&total); err != nil {
 		return nil, 0, err
 	}
+	list, err := s.latestThreads(ctx, size, (page-1)*size)
+	return list, total, err
+}
+
+// LatestThreadPreview avoids computing a total that the home response never uses.
+func (s *Store) LatestThreadPreview(ctx context.Context, size int) ([]*Thread, error) {
+	return s.latestThreads(ctx, size, 0)
+}
+
+func (s *Store) latestThreads(ctx context.Context, size, offset int) ([]*Thread, error) {
 	rows, err := s.pool.Query(ctx,
 		`SELECT `+threadCols+` `+threadJoins+`
 		 WHERE NOT t.deleted AND NOT t.pending`+forumFilter(ctx, "t.forum_id")+`
-		 ORDER BY t.last_post_at DESC LIMIT $1 OFFSET $2`, size, (page-1)*size)
-	list, err := collectThreads(rows, err)
-	if err != nil {
-		return nil, 0, err
-	}
-	return list, total, nil
+		 ORDER BY t.last_post_at DESC,t.id DESC LIMIT $1 OFFSET $2`, size, offset)
+	return collectThreads(rows, err)
 }
 
 func collectThreads(rows pgx.Rows, err error) ([]*Thread, error) {

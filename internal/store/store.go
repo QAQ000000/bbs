@@ -213,11 +213,13 @@ func (s *Store) SiteStats(ctx context.Context) (SiteStats, error) {
 	var st SiteStats
 	err := s.pool.QueryRow(ctx, `
 		SELECT
-		  (SELECT count(*) FROM posts p JOIN threads t ON t.id=p.thread_id WHERE NOT p.deleted AND NOT p.pending AND NOT t.deleted AND NOT t.pending AND p.created_at >= current_date`+forumFilter(ctx, "t.forum_id")+`),
-		  (SELECT count(*) FROM posts p JOIN threads t ON t.id=p.thread_id WHERE NOT p.deleted AND NOT p.pending AND NOT t.deleted AND NOT t.pending AND p.created_at >= current_date - 1 AND p.created_at < current_date`+forumFilter(ctx, "t.forum_id")+`),
-		  (SELECT count(*) FROM posts p JOIN threads t ON t.id=p.thread_id WHERE NOT p.deleted AND NOT p.pending AND NOT t.deleted AND NOT t.pending`+forumFilter(ctx, "t.forum_id")+`),
+		  count(*) FILTER (WHERE p.created_at >= current_date),
+		  count(*) FILTER (WHERE p.created_at >= current_date - 1 AND p.created_at < current_date),
+		  count(*),
 		  (SELECT count(*) FROM threads WHERE NOT deleted AND NOT pending`+forumFilter(ctx, "forum_id")+`),
-		  (SELECT count(*) FROM users)`).
+		  (SELECT count(*) FROM users)
+		 FROM posts p JOIN threads t ON t.id=p.thread_id
+		 WHERE NOT p.deleted AND NOT p.pending AND NOT t.deleted AND NOT t.pending`+forumFilter(ctx, "t.forum_id")).
 		Scan(&st.TodayPosts, &st.Yesterday, &st.TotalPosts, &st.TotalThreads, &st.Members)
 	return st, err
 }

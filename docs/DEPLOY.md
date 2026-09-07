@@ -81,6 +81,10 @@ CREATE DATABASE forum OWNER gobbs;
 
 schema 由程序启动时自动增量迁移（幂等），无需手工执行 SQL。
 
+schema 16 增加读取索引。当前迁移使用普通 `CREATE INDEX`，存量大表建索引期间会阻塞相应表的写入，应在维护窗口升级；尚不支持无停机在线建索引迁移。
+
+数据库连接池默认每进程最多 20、最少 2 个连接，可在环境文件配置 `FORUM_DB_MAX_CONNS` 和 `FORUM_DB_MIN_CONNS`（最大值 1–1000，最小值 0–最大值）。普通 API 的 `FORUM_API_TIMEOUT_SECONDS` 默认 15 秒；上传和导出查询的 `FORUM_UPLOAD_TIMEOUT_SECONDS` 默认 60 秒。修改上述运行参数后重启服务。多个实例的连接数要合计预留，后台任务也使用同一连接池。详见 [数据库性能与监控](DATABASE_PERFORMANCE.md)。
+
 ## 4. nginx 反向代理
 
 ```nginx

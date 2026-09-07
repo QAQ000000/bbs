@@ -3,82 +3,58 @@ package api
 
 import (
 	"context"
-	"dzforum/internal/store"
 	"errors"
 	"net/http"
 	"time"
+
+	"dzforum/internal/store"
 )
 
-// One durable event and at most 50 recipients per call; membership is reloaded
-// for each recipient rather than inheriting the publisher's privileges.
 func (s *Server) ProcessSubscriptions(ctx context.Context) (int64, error) {
-	var post *store.Post
-	var thread *store.Thread
-	batch, err := s.st.ProcessSubscriptionBatch(ctx, 50, func(uid, pid int64) (string, bool, bool, error) {
-		if post == nil {
-			var err error
-			post, err = s.st.Post(ctx, pid)
-			if errors.Is(err, store.ErrNotFound) {
-				return "", false, false, nil
-			}
-			if err != nil {
-				return "", false, false, err
-			}
-			thread, err = s.st.Thread(ctx, post.ThreadID)
-			if errors.Is(err, store.ErrNotFound) {
-				return "", false, false, nil
-			}
-			if err != nil {
-				return "", false, false, err
-			}
-			r, _ := http.NewRequestWithContext(ctx, http.MethodGet, "/", nil)
-			from := &store.User{ID: post.AuthorID, Username: post.AuthorName}
-			mentions := s.notifyMentions(r, from, post.ContentMD, thread, post)
-			s.notifyReply(r, from, thread, post, mentions)
-		}
-		if post == nil || thread == nil || post.Pending || thread.Pending {
-			return "", false, false, nil
-		}
-		target, err := s.st.UserByID(ctx, uid)
-		if errors.Is(err, store.ErrNotFound) {
-			return "", false, false, nil
-		}
-		if err != nil {
-			return "", false, false, err
-		}
-		if target.IsBlocked() {
-			return "", false, false, nil
-		}
-		r, _ := http.NewRequestWithContext(ctx, http.MethodGet, "/", nil)
-		rr, err := s.loadMembership(requestWithUser(r, target))
-		if err != nil {
-			return "", false, false, err
-		}
-		if !s.canViewThread(rr, thread) {
-			return "", false, false, nil
-		}
-		prefs, err := s.st.NotificationPreferences(ctx, uid)
-		if err != nil {
-			return "", false, false, err
-		}
-		return "subscription", prefs["subscriptions"], prefs["email"] && s.mailer.Enabled(), nil
-	})
+	pid, err := s.st.NextSubscriptionPost(ctx)
+	if err != nil || pid == 0 {
+		return 0, err
+	}
+	post, err := s.st.Post(ctx, pid)
+	if errors.Is(err, store.ErrNotFound) {
+		return pid, nil
+	}
 	if err != nil {
 		return 0, err
 	}
-	if post != nil && thread != nil {
-		for _, d := range batch.Deliveries {
-			target, err := s.st.UserByID(ctx, d.UID)
-			if err != nil || target.IsBlocked() {
-				continue
-			}
-			r, _ := http.NewRequestWithContext(ctx, http.MethodGet, "/", nil)
-			rr, err := s.loadMembership(requestWithUser(r, target))
-			if err != nil || !s.canViewThread(rr, thread) {
-				continue
-			}
-			if d.InApp {
-				s.publish("u:"+idString(d.UID), eventBody{Type: "notify", NotifyCount: int(s.st.UnreadCount(rr.Context(), d.UID))})
+	thread, err := s.st.Thread(ctx, post.ThreadID)
+	if errors.Is(err, store.ErrNotFound) {
+		return pid, nil
+	}
+	if err != nil {
+		return 0, err
+	}
+	if post.Pending || thread.Pending {
+		return pid, nil
+	}
+	// Preserve mention/direct-reply precedence without holding a subscription transaction.
+	r, _ := http.NewRequestWithContext(ctx, http.MethodGet, "/", nil)
+	from := &store.User{ID: post.AuthorID, Username: post.AuthorName}
+	mentions := s.notifyMentions(r, from, post.ContentMD, thread, post)
+	s.notifyReply(r, from, thread, post, mentions)
+	batch, err := s.st.ProcessSubscriptionBatch(ctx, 50, pid, s.mailer.Enabled())
+	if err != nil {
+		return 0, err
+	}
+	ids := []int64{}
+	for _, d := range batch.Deliveries {
+		if d.InApp {
+			ids = append(ids, d.UID)
+		}
+	}
+	counts, err := s.st.NotificationCounts(ctx, ids)
+	if err != nil {
+		return batch.PostID, err
+	}
+	for _, d := range batch.Deliveries {
+		if d.InApp {
+			if count, ok := counts[d.UID]; ok {
+				s.publish("u:"+idString(d.UID), eventBody{Type: "notify", NotifyCount: int(count)})
 			}
 		}
 	}
@@ -94,7 +70,14 @@ func (s *Server) RunSubscriptions(ctx context.Context) {
 			return
 		case <-tick.C:
 			jobCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-			_, err := s.ProcessSubscriptions(jobCtx)
+			var err error
+			for batch := 0; batch < 20 && jobCtx.Err() == nil; batch++ {
+				var pid int64
+				pid, err = s.ProcessSubscriptions(jobCtx)
+				if err != nil || pid == 0 {
+					break
+				}
+			}
 			cancel()
 			if err != nil && ctx.Err() == nil {
 				s.log.Error("subscription delivery failed", "err", err)

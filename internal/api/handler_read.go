@@ -63,7 +63,7 @@ func (s *Server) homeGet(w http.ResponseWriter, r *http.Request) {
 	if s.readError(w, r, err) {
 		return
 	}
-	rows, _, err := s.st.LatestThreads(r.Context(), 1, 10)
+	rows, err := s.st.LatestThreadPreview(r.Context(), 10)
 	if s.readError(w, r, err) {
 		return
 	}
@@ -90,6 +90,10 @@ func (s *Server) forumGet(w http.ResponseWriter, r *http.Request) {
 	}
 }
 func (s *Server) threadsGet(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Query().Get("pagination") == "cursor" || r.URL.Query().Has("cursor") {
+		s.threadFeed(w, r)
+		return
+	}
 	page := pageOf(r)
 	size := s.sets(r).ThreadsPerPage
 	fid := queryID(r, "forumId")

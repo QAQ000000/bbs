@@ -10,8 +10,12 @@ import (
 
 // Config 是论坛服务的全部运行配置。
 type Config struct {
-	Addr string // HTTP 监听地址
-	DSN  string // PostgreSQL 连接串
+	Addr                 string // HTTP 监听地址
+	DSN                  string // PostgreSQL 连接串
+	APIRequestTimeout    time.Duration
+	UploadRequestTimeout time.Duration
+	DBMaxConnections     int
+	DBMinConnections     int
 
 	SiteName  string
 	SiteLogo  string
@@ -53,8 +57,12 @@ func getint(key string, def int) int {
 // FromEnv 从环境变量构建配置。
 func FromEnv() Config {
 	return Config{
-		Addr: getenv("FORUM_ADDR", "127.0.0.1:8080"),
-		DSN:  getenv("FORUM_DSN", "postgres://123456:123456@127.0.0.1:5432/forum"),
+		Addr:                 getenv("FORUM_ADDR", "127.0.0.1:8080"),
+		DSN:                  getenv("FORUM_DSN", "postgres://123456:123456@127.0.0.1:5432/forum"),
+		APIRequestTimeout:    time.Duration(getint("FORUM_API_TIMEOUT_SECONDS", 15)) * time.Second,
+		UploadRequestTimeout: time.Duration(getint("FORUM_UPLOAD_TIMEOUT_SECONDS", 60)) * time.Second,
+		DBMaxConnections:     getint("FORUM_DB_MAX_CONNS", 20),
+		DBMinConnections:     getint("FORUM_DB_MIN_CONNS", 2),
 
 		SiteName: getenv("FORUM_SITE_NAME", "GoBBS 社区"),
 		SiteLogo: getenv("FORUM_SITE_LOGO", "Go!BBS"),

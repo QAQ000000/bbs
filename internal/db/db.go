@@ -16,14 +16,22 @@ import (
 
 // Open 建立连接池。
 func Open(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
+	return OpenWithPoolSize(ctx, dsn, 20, 2)
+}
+
+func OpenWithPoolSize(ctx context.Context, dsn string, maxConns, minConns int) (*pgxpool.Pool, error) {
+	if maxConns < 1 || maxConns > 1000 || minConns < 0 || minConns > maxConns {
+		return nil, fmt.Errorf("invalid database pool size: require 1 <= max <= 1000 and 0 <= min <= max")
+	}
 	cfg, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
 		return nil, fmt.Errorf("解析 DSN: %w", err)
 	}
-	cfg.MaxConns = 20
-	cfg.MinConns = 2
+	cfg.MaxConns = int32(maxConns)
+	cfg.MinConns = int32(minConns)
 	cfg.MaxConnIdleTime = 5 * time.Minute
 	cfg.HealthCheckPeriod = time.Minute
+	cfg.ConnConfig.Tracer = &performanceTracer{logger: slog.Default()}
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		return nil, err

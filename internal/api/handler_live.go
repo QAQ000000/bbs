@@ -100,12 +100,12 @@ func (s *Server) handleLive(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprint(w, ": ping\n\n")
 			flusher.Flush()
 		case payload, ok := <-sub.C():
+			if !ok {
+				return
+			}
 			if !s.liveAuthorized(r) {
 				_, _ = fmt.Fprint(w, "data: {\"type\":\"subscription.reset\"}\n\n")
 				flusher.Flush()
-				return
-			}
-			if !ok {
 				return
 			}
 			_ = rc.SetWriteDeadline(time.Now().Add(35 * time.Second))
@@ -175,45 +175,37 @@ func (s *Server) broadcastThread(kind string, th *store.Thread) {
 func (s *Server) liveAuthorized(r *http.Request) bool {
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
-	rr := r.WithContext(context.WithValue(ctx, ctxUser, (*store.User)(nil)))
+	uid, token := int64(0), ""
 	if u := User(r); u != nil {
+		uid = u.ID
 		c, e := r.Cookie(cookieSession)
 		if e != nil {
 			return false
 		}
-		sess, e := s.st.Session(ctx, c.Value)
-		if e != nil {
-			return false
-		}
-		fresh, e := s.st.UserByID(ctx, sess.UserID)
-		if e != nil || fresh.IsBlocked() {
-			return false
-		}
-		rr = rr.WithContext(context.WithValue(rr.Context(), ctxUser, fresh))
+		token = c.Value
 	}
-	var membershipErr error
-	rr, membershipErr = s.loadSettings(rr)
-	if membershipErr != nil {
+	tid := queryID(r, "thread")
+	a, err := s.st.LiveReadAudience(ctx, token, uid, tid)
+	if err != nil || !a.SessionValid || a.Settings.SiteClosed {
 		return false
 	}
-	rr, membershipErr = s.loadMembership(rr)
-	if membershipErr != nil {
-		return false
+	if uid > 0 {
+		u, ok := a.Users[uid]
+		if !ok || u.Blocked || u.LevelID == nil {
+			return false
+		}
+		if _, ok := a.Config.Level(*u.LevelID); !ok {
+			return false
+		}
 	}
 	for _, f := range splitCSV(r.URL.Query().Get("forums")) {
 		fid, e := strconv.ParseInt(f, 10, 64)
-		if e != nil || !canReadForum(rr, fid) {
+		if e != nil || !a.CanReadForum(uid, fid) {
 			return false
 		}
 	}
-	if s.sets(rr).SiteClosed {
+	if tid > 0 && !a.CanReadThread(uid) {
 		return false
-	}
-	if tid, err := strconv.ParseInt(r.URL.Query().Get("thread"), 10, 64); err == nil && tid > 0 {
-		th, err := s.st.Thread(ctx, tid)
-		if err != nil || !s.canViewThread(rr, th) {
-			return false
-		}
 	}
 	return true
 }

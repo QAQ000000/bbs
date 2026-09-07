@@ -70,7 +70,7 @@ func TestWorkflowIntegrityMigrationAndRestart(t *testing.T) {
 	if err = Migrate(ctx, pool); err != nil {
 		t.Fatal(err)
 	}
-	if err = pool.QueryRow(ctx, `SELECT completed AND cursor_uid=7 AND (SELECT max(version) FROM schema_migrations)=15 AND (SELECT token_hash='confirmation' FROM email_changes WHERE uid=1) AND (SELECT count(*) FROM email_jobs)=2 FROM subscription_events WHERE post_id=1`).Scan(&valid); err != nil || !valid {
+	if err = pool.QueryRow(ctx, `SELECT completed AND cursor_uid=7 AND (SELECT max(version) FROM schema_migrations)=16 AND (SELECT token_hash='confirmation' FROM email_changes WHERE uid=1) AND (SELECT count(*) FROM email_jobs)=2 FROM subscription_events WHERE post_id=1`).Scan(&valid); err != nil || !valid {
 		t.Fatal("restart changed completed/pending state", valid, err)
 	}
 }

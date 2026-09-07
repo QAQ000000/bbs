@@ -38,27 +38,24 @@ func recomputeForumStats(ctx context.Context, db statsDB, forumID int64) error {
 	// 标量子查询可引用 UPDATE 目标行（UPDATE...FROM 里 LATERAL 不能引用目标表）。
 	// 主题与楼层状态同时约束：待审/已删主题下的公开回复同样不进公开口径，
 	// 否则首楼被重新送审后，last_* 仍会引用隐藏主题的标题与作者。
-	latest := func(col string) string {
-		return `(SELECT ` + col + ` FROM posts p
-			JOIN threads t ON t.id = p.thread_id
-			JOIN users u ON u.id = p.author_id
-			WHERE t.forum_id = f.id AND NOT p.deleted AND NOT p.pending
-			  AND NOT t.deleted AND NOT t.pending
-			ORDER BY p.created_at DESC
-			LIMIT 1)`
-	}
 	_, err := db.Exec(ctx, `
+		WITH latest AS MATERIALIZED (
+		 SELECT p.created_at,p.author_id,u.username,t.id,t.title FROM posts p
+		 JOIN threads t ON t.id=p.thread_id JOIN users u ON u.id=p.author_id
+		 WHERE t.forum_id=$1 AND NOT p.deleted AND NOT p.pending AND NOT t.deleted AND NOT t.pending
+		 ORDER BY p.created_at DESC,p.id DESC LIMIT 1
+		)
 		UPDATE forums f SET
 			thread_count = (SELECT count(*) FROM threads t
 				WHERE t.forum_id=f.id AND NOT t.deleted AND NOT t.pending),
 			post_count = (SELECT count(*) FROM posts p JOIN threads t ON t.id=p.thread_id
 				WHERE t.forum_id=f.id AND NOT p.deleted AND NOT p.pending
 				  AND NOT t.deleted AND NOT t.pending),
-			last_post_at = `+latest("p.created_at")+`,
-			last_post_uid = `+latest("p.author_id")+`,
-			last_post_author = `+latest("u.username")+`,
-			last_thread_id = `+latest("t.id")+`,
-			last_thread_title = `+latest("t.title")+`
+			last_post_at = (SELECT created_at FROM latest),
+			last_post_uid = (SELECT author_id FROM latest),
+			last_post_author = (SELECT username FROM latest),
+			last_thread_id = (SELECT id FROM latest),
+			last_thread_title = (SELECT title FROM latest)
 		WHERE f.id = $1`, forumID)
 	return err
 }
@@ -96,12 +93,9 @@ func (s *Store) RecomputeThreadLastPost(ctx context.Context, threadID int64) err
 func recomputeThreadLastPost(ctx context.Context, db statsDB, threadID int64) error {
 	_, err := db.Exec(ctx, `
 		UPDATE threads t SET
-			last_post_at = (SELECT p.created_at FROM posts p
+			(last_post_at,last_post_uid) = (SELECT p.created_at,p.author_id FROM posts p
 				WHERE p.thread_id = t.id AND NOT p.deleted AND NOT p.pending
-				ORDER BY p.created_at DESC LIMIT 1),
-			last_post_uid = (SELECT p.author_id FROM posts p
-				WHERE p.thread_id = t.id AND NOT p.deleted AND NOT p.pending
-				ORDER BY p.created_at DESC LIMIT 1)
+				ORDER BY p.created_at DESC,p.id DESC LIMIT 1)
 		WHERE t.id = $1`, threadID)
 	return err
 }

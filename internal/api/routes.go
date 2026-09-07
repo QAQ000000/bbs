@@ -127,6 +127,6 @@ func (s *Server) routes() http.Handler {
 	m.HandleFunc("GET /api/v1/health/ready", s.handleStatus)
 	m.HandleFunc("GET /api/v1/health/live", func(w http.ResponseWriter, r *http.Request) { s.respond(w, 200, map[string]bool{"ok": true}) })
 	m.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { s.fail(w, r, 404, "NOT_FOUND", "接口不存在") })
-	s.handler = chain(m, s.recoverMW, s.logMW, s.securityMW, s.gzipMW, s.authMW, s.apiStateMW, s.membershipMW)
+	s.handler = chain(m, s.recoverMW, s.logMW, s.securityMW, s.gzipMW, s.timeoutMW, s.authMW, s.apiStateMW, s.membershipMW)
 	return s.handler
 }

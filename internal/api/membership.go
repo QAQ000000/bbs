@@ -36,7 +36,7 @@ func (s *Server) loadMembership(r *http.Request) (*http.Request, error) {
 			return r, err
 		}
 	}
-	c, err := s.st.MembershipConfig(r.Context())
+	c, err := s.st.FreshMembershipConfig(r.Context())
 	if err != nil {
 		return r, err
 	}
@@ -67,30 +67,17 @@ func (s *Server) loadMembership(r *http.Request) (*http.Request, error) {
 	}
 	visible := []int64{}
 	for _, id := range ids {
-		allow := c.GuestPermissions["forum.read"]
-		rank := 0
+		var level *store.MemberLevel
 		if m.Member != nil {
-			rank = m.Member.Level.Rank
-			allow = m.Member.Level.Permissions["forum.read"]
+			level = &m.Member.Level
 		}
-		if f, ok := c.Forum(id); ok {
-			l, _ := c.Level(f.MinimumLevel)
-			allow = allow && rank >= l.Rank && (!f.MembersOnly || m.Member != nil)
-			for _, a := range f.Denied {
-				if a == "forum.read" {
-					allow = false
-				}
-			}
-		}
-		if hasPoint(User(r), perm.AdminPanel) || m.Staff[id] {
-			allow = true
-		}
+		allow := store.ForumReadAllowed(c, level, hasPoint(User(r), perm.AdminPanel), m.Staff[id], id)
 		m.Forums[id] = allow
 		if allow {
 			visible = append(visible, id)
 		}
 	}
-	ctx := context.WithValue(r.Context(), membershipKey{}, m)
+	ctx := context.WithValue(store.WithMembershipSnapshot(r.Context(), c), membershipKey{}, m)
 	// Governance APIs already apply their own operation and moderation scopes.
 	if !strings.HasPrefix(r.URL.Path, "/api/v1/admin/") {
 		ctx = store.WithVisibleForums(ctx, visible)

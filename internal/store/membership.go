@@ -51,6 +51,22 @@ func membershipConfig(ctx context.Context, q interface {
 	return c, err
 }
 func (s *Store) MembershipConfig(ctx context.Context) (MembershipConfig, error) {
+	if c, ok := ctx.Value(membershipSnapshotKey{}).(MembershipConfig); ok {
+		return c, nil
+	}
+	return membershipConfig(ctx, s.pool, false)
+}
+
+type membershipSnapshotKey struct{}
+
+// WithMembershipSnapshot reuses an immutable configuration within one request.
+// Transactional configuration reads always go directly to PostgreSQL.
+func WithMembershipSnapshot(ctx context.Context, c MembershipConfig) context.Context {
+	return context.WithValue(ctx, membershipSnapshotKey{}, c)
+}
+
+// FreshMembershipConfig deliberately bypasses a request snapshot, including on SSE revalidation.
+func (s *Store) FreshMembershipConfig(ctx context.Context) (MembershipConfig, error) {
 	return membershipConfig(ctx, s.pool, false)
 }
 

@@ -13,7 +13,7 @@ import (
 
 // bumpForumSQL 维护版块反范式统计：总帖数、今日帖数（跨天自动归零）、最后发表。
 // $1 版块, $2 用户, $3 用户名, $4 主题id, $5 主题标题, $6 是否同时 +主题数
-const bumpForumSQL = `UPDATE forums SET
+const bumpForumSQL = `WITH stats AS (UPDATE forums SET
 	post_count = post_count + 1,
 	last_post_at = now(),
 	last_post_uid = $2,
@@ -21,7 +21,8 @@ const bumpForumSQL = `UPDATE forums SET
 	last_thread_id = $4,
 	last_thread_title = $5,
 	thread_count = thread_count + CASE WHEN $6 THEN 1 ELSE 0 END
-	WHERE id = $1`
+	WHERE id = $1 RETURNING id)
+	UPDATE users SET post_count=post_count+1 WHERE id=$2 AND EXISTS(SELECT 1 FROM stats)`
 
 // CreateThread 发新主题：建主题 + 首楼 + 统计，返回主题与首楼。
 // pending=true 时主题进入审核队列（公开列表不可见，作者与管理人员可见）。
@@ -57,9 +58,6 @@ func (s *Store) CreateTaggedThread(ctx context.Context, forumID, authorID int64,
 	}
 	if !pending {
 		if _, err := tx.Exec(ctx, bumpForumSQL, forumID, authorID, authorName, tid, title, true); err != nil {
-			return nil, nil, err
-		}
-		if _, err := tx.Exec(ctx, `UPDATE users SET post_count=post_count+1 WHERE id=$1`, authorID); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -132,9 +130,6 @@ func (s *Store) CreateReplyTo(ctx context.Context, threadID, authorID int64, aut
 	}
 	if !pending {
 		if _, err := tx.Exec(ctx, bumpForumSQL, th.ForumID, authorID, authorName, threadID, th.Title, false); err != nil {
-			return nil, nil, err
-		}
-		if _, err := tx.Exec(ctx, `UPDATE users SET post_count=post_count+1 WHERE id=$1`, authorID); err != nil {
 			return nil, nil, err
 		}
 	}

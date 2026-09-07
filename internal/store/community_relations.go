@@ -179,9 +179,21 @@ type SubscriptionBatch struct {
 	Deliveries []SubscriptionDelivery
 }
 
-// Authorization is provided by the API's existing membership resolver. A failed
-// check rolls back the cursor so a transient DB error cannot silently drop recipients.
-func (s *Store) ProcessSubscriptionBatch(ctx context.Context, limit int, authorize func(int64, int64) (string, bool, bool, error)) (SubscriptionBatch, error) {
+func (s *Store) NextSubscriptionPost(ctx context.Context) (int64, error) {
+	var id int64
+	err := s.pool.QueryRow(ctx, `SELECT e.post_id FROM subscription_events e
+	 JOIN posts p ON p.id=e.post_id JOIN threads t ON t.id=p.thread_id
+	 WHERE NOT e.completed AND NOT p.pending AND NOT p.deleted AND NOT t.pending AND NOT t.deleted
+	 ORDER BY e.post_id LIMIT 1 FOR UPDATE OF t SKIP LOCKED`).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, nil
+	}
+	return id, err
+}
+
+// All authorization reads and writes use the same connection and a bounded audience.
+// postID=0 selects the next available event; a specific ID supports mention/reply precedence.
+func (s *Store) ProcessSubscriptionBatch(ctx context.Context, limit int, postID int64, emailEnabled bool) (SubscriptionBatch, error) {
 	var batch SubscriptionBatch
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -196,7 +208,8 @@ func (s *Store) ProcessSubscriptionBatch(ctx context.Context, limit int, authori
 	err = tx.QueryRow(ctx, `SELECT e.post_id,t.id FROM subscription_events e
  JOIN posts p ON p.id=e.post_id JOIN threads t ON t.id=p.thread_id
  WHERE NOT e.completed AND NOT p.pending AND NOT p.deleted AND NOT t.pending AND NOT t.deleted
- ORDER BY e.post_id LIMIT 1 FOR UPDATE OF t SKIP LOCKED`).Scan(&eventID, &threadID)
+ AND ($1::bigint=0 OR e.post_id=$1)
+ ORDER BY e.post_id LIMIT 1 FOR UPDATE OF t SKIP LOCKED`, postID).Scan(&eventID, &threadID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return batch, nil
 	}
@@ -228,7 +241,7 @@ func (s *Store) ProcessSubscriptionBatch(ctx context.Context, limit int, authori
  UNION ALL SELECT uid,notify_in_app,notify_email FROM forum_subscriptions WHERE forum_id=$2 AND $3::int=1 AND enabled AND created_at<=$4 AND (muted_until IS NULL OR muted_until<=now())
  UNION ALL SELECT s.uid,s.notify_in_app,s.notify_email FROM tag_subscriptions s JOIN tags g ON g.id=s.tag_id AND g.status='active'
  JOIN thread_tags tt ON tt.tag_id=s.tag_id AND tt.thread_id=$1 WHERE $3::int=1 AND tt.created_at<=$4 AND s.enabled AND s.created_at<=$4 AND (s.muted_until IS NULL OR s.muted_until<=now())
- ) x WHERE uid>$5 AND uid<>$6 GROUP BY uid ORDER BY uid LIMIT $7`, tid, fid, floor, at, cursor, author, limit)
+ ) x WHERE uid>$5 AND uid<>$6 GROUP BY uid ORDER BY uid LIMIT $7`, tid, fid, floor, at, cursor, author, limit+1)
 		if err != nil {
 			return batch, err
 		}
@@ -246,47 +259,102 @@ func (s *Store) ProcessSubscriptionBatch(ctx context.Context, limit int, authori
 			return batch, err
 		}
 	}
+	more := len(candidates) > limit
+	if more {
+		candidates = candidates[:limit]
+	}
+	if len(candidates) == 0 {
+		if _, err = tx.Exec(ctx, `UPDATE subscription_events SET completed=$2 WHERE post_id=$1`, batch.PostID, public); err != nil {
+			return batch, err
+		}
+		return batch, tx.Commit(ctx)
+	}
+	ids := make([]int64, 0, len(candidates))
+	for _, d := range candidates {
+		ids = append(ids, d.UID)
+	}
+	audience, err := readAudience(ctx, tx, ids, "", 0, tid)
+	if err != nil {
+		return batch, err
+	}
+	eligible := map[int64]SubscriptionDelivery{}
+	ids = ids[:0]
 	for _, d := range candidates {
 		cursor = d.UID
-		kind, allowed, mail, err := authorize(d.UID, batch.PostID)
-		if err != nil {
-			return batch, err
-		}
-		if !allowed {
+		if !audience.CanReadForum(d.UID, fid) || !audience.Preference(d.UID, "subscriptions") {
 			continue
 		}
-		d.Kind = kind
-		d.Email = d.Email && mail
-		var claimed bool
-		err = tx.QueryRow(ctx, `WITH ins AS (INSERT INTO subscription_deliveries(uid,post_id)
-   SELECT $1::bigint,$2::bigint WHERE NOT EXISTS(SELECT 1 FROM notifications WHERE uid=$1 AND event_key='post:'||$2::bigint::text)
-   ON CONFLICT DO NOTHING RETURNING uid) SELECT EXISTS(SELECT 1 FROM ins)`, d.UID, batch.PostID).Scan(&claimed)
-		if err != nil {
+		d.Kind = "subscription"
+		d.Email = d.Email && emailEnabled && audience.Preference(d.UID, "email")
+		eligible[d.UID] = d
+		ids = append(ids, d.UID)
+	}
+	claimed := []int64{}
+	rows, err := tx.Query(ctx, `INSERT INTO subscription_deliveries(uid,post_id)
+	 SELECT x.uid,$2 FROM unnest($1::bigint[]) x(uid)
+	 WHERE NOT EXISTS(SELECT 1 FROM notifications n WHERE n.uid=x.uid AND n.event_key='post:'||$2::bigint::text)
+	 ON CONFLICT DO NOTHING RETURNING uid`, ids, batch.PostID)
+	if err != nil {
+		return batch, err
+	}
+	for rows.Next() {
+		var uid int64
+		if err = rows.Scan(&uid); err != nil {
+			rows.Close()
 			return batch, err
 		}
-		if !claimed {
-			continue
+		claimed = append(claimed, uid)
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return batch, err
+	}
+	inApp := []int64{}
+	for _, uid := range claimed {
+		if eligible[uid].InApp {
+			inApp = append(inApp, uid)
 		}
-		if d.InApp {
-			var nid int64
-			err = tx.QueryRow(ctx, `SELECT forum_notify($1,p.author_id,u.username,$3,p.thread_id,p.id,left(p.content_md,60),'post:'||p.id)
-   FROM posts p JOIN users u ON u.id=p.author_id WHERE p.id=$2`, d.UID, batch.PostID, d.Kind).Scan(&nid)
-			if err != nil {
-				return batch, err
-			}
-			d.InApp = nid != 0
-			if nid == 0 {
-				d.Email = false
-			}
+	}
+	rows, err = tx.Query(ctx, `SELECT x.uid,forum_notify(x.uid,p.author_id,u.username,'subscription',p.thread_id,p.id,left(p.content_md,60),'post:'||p.id)
+	 FROM unnest($1::bigint[]) x(uid) JOIN posts p ON p.id=$2 JOIN users u ON u.id=p.author_id`, inApp, batch.PostID)
+	if err != nil {
+		return batch, err
+	}
+	for rows.Next() {
+		var uid, nid int64
+		if err = rows.Scan(&uid, &nid); err != nil {
+			rows.Close()
+			return batch, err
 		}
+		d := eligible[uid]
+		d.InApp = nid != 0
+		if nid == 0 {
+			d.Email = false
+		}
+		eligible[uid] = d
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return batch, err
+	}
+	mailIDs := []int64{}
+	for _, uid := range claimed {
+		d := eligible[uid]
 		if d.Email {
-			if err = queuePostEmail(ctx, tx, d.UID, batch.PostID, d.Kind); err != nil {
-				return batch, err
-			}
+			mailIDs = append(mailIDs, uid)
 		}
 		batch.Deliveries = append(batch.Deliveries, d)
 	}
-	if _, err = tx.Exec(ctx, `UPDATE subscription_events SET cursor_uid=$2,completed=$3 WHERE post_id=$1`, batch.PostID, cursor, public && len(candidates) < limit); err != nil {
+	if _, err = tx.Exec(ctx, `INSERT INTO email_jobs(uid,kind,recipient,post_id,dedup_key,expires_at)
+	 SELECT u.id,'subscription',u.email,$2,'post:'||$2::bigint::text||':user:'||u.id,now()+interval '7 days'
+	 FROM users u LEFT JOIN notification_preferences np ON np.uid=u.id
+	 WHERE u.id=ANY($1) AND u.email<>'' AND coalesce((np.body->>'email')::boolean,true)
+	 ON CONFLICT(dedup_key) DO NOTHING`, mailIDs, batch.PostID); err != nil {
+		return batch, err
+	}
+	if _, err = tx.Exec(ctx, `UPDATE subscription_events SET cursor_uid=$2,completed=$3 WHERE post_id=$1`, batch.PostID, cursor, public && !more); err != nil {
 		return batch, err
 	}
 	return batch, tx.Commit(ctx)

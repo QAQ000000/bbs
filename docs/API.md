@@ -6,7 +6,7 @@
 
 会员等级、成长规则、经验流水、徽章、版块访问限制及 12 个新增接口见 [会员 API 文档](MEMBERSHIP.md)。该文档定义配置预览、人工调整幂等和等级额度语义。
 
-任务称号、自动补发、佩戴、作者采纳及 13 个新增接口见 [称号 API 文档](TITLES.md)。当前数据库 schema 为 15，Nuxt 管理和展示页面仍待开发。通知、楼层回复及定位、草稿标题和本人内容状态见 [基础流程 API](FORUM_WORKFLOWS.md)。标签、关注/粉丝、订阅投递和私信接口见 [社区 API](COMMUNITY_API.md)，该文档补充下方基础路由清单。邮箱换绑及旧恢复链接撤销见 [安全邮箱换绑](EMAIL_CHANGE.md)。
+任务称号、自动补发、佩戴、作者采纳及 13 个新增接口见 [称号 API 文档](TITLES.md)。当前数据库 schema 为 16，Nuxt 管理和展示页面仍待开发。通知、楼层回复及定位、草稿标题和本人内容状态见 [基础流程 API](FORUM_WORKFLOWS.md)。标签、关注/粉丝、订阅投递和私信接口见 [社区 API](COMMUNITY_API.md)，该文档补充下方基础路由清单。邮箱换绑及旧恢复链接撤销见 [安全邮箱换绑](EMAIL_CHANGE.md)。数据库读取优化、主题游标分页、超时和连接池诊断见 [数据库性能](DATABASE_PERFORMANCE.md)。
 
 ## 请求与响应
 
@@ -17,6 +17,8 @@
 - API 数据响应使用 `Cache-Control: no-store`；受控附件也不使用共享缓存。公开头像/表情有独立媒体缓存策略。
 - 第一版业务写入接受 JSON 或 URL 编码表单，上传接受 multipart。JSON 使用下面列出的**现有业务字段名**，并非全部已统一为 camelCase；数组表示同名重复字段，布尔值按 1/0 传给旧校验流程。
 - 列表从 `page=1` 开始，版块主题/帖子楼层沿用站点每页设置；当前未开放任意 pageSize 参数。越界返回空数据及总数。
+- `GET /threads` 可选 `pagination=cursor`，下一页携带 `cursor=meta.nextCursor`；只支持默认最后回复排序，不与 `page` 或 `sort` 混用。此模式的 meta 为 `{pagination, pageSize, hasMore, nextCursor}`，不计算 total；权限每次重新校验。
+- 普通 API 默认 15 秒超时，上传默认 60 秒，超时响应为 HTTP 503 `REQUEST_TIMEOUT`。SSE 和媒体保留流式策略，个人导出单独限制查询上下文。超时不保证此前写入未提交，客户端不得自动重试非幂等动作。
 
 ## 会话与 CSRF
 
@@ -86,6 +88,8 @@ TOTP 绑定、验证登录、关闭和恢复码更新见 [二次验证](MFA.md)�
 
 `GET /api/v1/events?thread=主题ID`、`?forums=版块ID,版块ID` 或 `?user=本人ID`，参数可组合。返回 `text/event-stream`，25 秒心跳；订阅建立及长连接期间均检查会话/资源可见性。
 
+每次事件或心跳发送前，通过一次 SQL 重新读取会话、封禁、会员等级、版主管辖、版块权限与主题状态；不使用跨请求权限缓存。会话撤销、关闭站点或失去访问权限后发送 `subscription.reset` 并断开，数据库读取失败也按失效处理。
+
 ```json
 {"type":"post.edit","postId":"456","threadId":"123","forumId":"1","version":3}
 ```
@@ -105,6 +109,7 @@ TOTP 绑定、验证登录、关闭和恢复码更新见 [二次验证](MFA.md)�
 - 权限矩阵：完整字段集 `allow.角色编号.权限点`；缺失即关闭，管理员入口有防自锁保护。
 - 站点设置新增带版本号的 JSON PUT 完整更新、PATCH 局部更新，以及 schema/status 元数据与生效诊断接口；GET 返回 18 项 camelCase 设置和 `version`。原 POST 保留完整 snake_case 字段，但现在也必须提交 `version`，缺字段不再被解释为关闭开关。详见 [站点配置 API](SETTINGS.md)。
 - 回收站：单主题使用 `tid`；批量清理使用 `kind`、`author`、`keyword`、`forum`、`days`，范围规则继续在 Go 校验。
+- `GET /api/v1/admin` 另含 `data.databasePool`，提供本实例的连接使用量、获取耗时及等待/取消累计次数；沿用后台仪表盘权限，不公开到健康接口。
 
 ## 已注册路由清单
 

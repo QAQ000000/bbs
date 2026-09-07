@@ -1223,3 +1223,13 @@ CREATE TABLE IF NOT EXISTS email_changes (
 ALTER TABLE email_jobs DROP CONSTRAINT IF EXISTS email_jobs_kind_check;
 ALTER TABLE email_jobs ADD CONSTRAINT email_jobs_kind_check CHECK(kind IN
  ('password_reset','email_verify','email_change','email_changed','mention','reply','reply.direct','subscription'));
+
+-- Read performance (schema 16).
+CREATE INDEX IF NOT EXISTS threads_public_latest_idx
+ ON threads(last_post_at DESC,id DESC) WHERE NOT deleted AND NOT pending;
+CREATE INDEX IF NOT EXISTS threads_public_new_idx
+ ON threads(forum_id,created_at DESC,id DESC) WHERE NOT deleted AND NOT pending AND sticky=0;
+CREATE INDEX IF NOT EXISTS threads_public_author_idx
+ ON threads(author_id,last_post_at DESC,id DESC) WHERE NOT deleted AND NOT pending;
+CREATE INDEX IF NOT EXISTS posts_public_created_idx
+ ON posts(created_at,thread_id) WHERE NOT deleted AND NOT pending;
