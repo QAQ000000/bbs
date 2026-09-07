@@ -136,7 +136,10 @@ func TestWorkflowEventNotifications(t *testing.T) {
 	if err = testPool.QueryRow(ctx, `SELECT id FROM reports WHERE post_id=$1 AND reporter=$2`, p.ID, owner).Scan(&rid); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = testStore.SetReportStatus(ctx, rid, owner, ReportDismissed); err != nil {
+	if _, err = testPool.Exec(ctx, `UPDATE users SET group_id=1 WHERE id=$1`, owner); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, _, _, err = testStore.HandleReport(ctx, rid, owner, "dismiss", ""); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = testPool.Exec(ctx, `INSERT INTO member_changes(user_id,action,detail) VALUES($1,'level.upgrade','{"to":4}')`, other); err != nil {

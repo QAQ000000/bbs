@@ -1208,3 +1208,18 @@ UPDATE mfa_challenges SET used_at=now() WHERE token_hash IS NULL AND used_at IS 
 UPDATE user_mfa SET recovery_hashes='{}' WHERE EXISTS (
  SELECT 1 FROM unnest(recovery_hashes) h WHERE length(h)<>64
 );
+
+-- Verified recovery address changes (schema 15).
+CREATE TABLE IF NOT EXISTS email_changes (
+ uid bigint PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+ new_email text NOT NULL,
+ old_email text NOT NULL,
+ password_hash text NOT NULL,
+ session_id bigint NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+ mfa_version text NOT NULL DEFAULT '',
+ token_hash text NOT NULL UNIQUE,
+ expires_at timestamptz NOT NULL
+);
+ALTER TABLE email_jobs DROP CONSTRAINT IF EXISTS email_jobs_kind_check;
+ALTER TABLE email_jobs ADD CONSTRAINT email_jobs_kind_check CHECK(kind IN
+ ('password_reset','email_verify','email_change','email_changed','mention','reply','reply.direct','subscription'));

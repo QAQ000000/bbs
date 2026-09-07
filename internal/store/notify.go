@@ -325,33 +325,10 @@ func (s *Store) ResetPasswordByToken(ctx context.Context, raw, newPassword strin
 	return uid, nil
 }
 
-// UpdateProfile 更新签名与邮箱（邮箱唯一性由 users_email_unique_idx 兜底）。
-// 邮箱变更即清除 email_verified 并作废旧验证令牌：验证状态跟随具体邮箱，
-// 换绑后不能沿用旧邮箱的验证结论。返回邮箱是否发生变更。
-func (s *Store) UpdateProfile(ctx context.Context, uid int64, signature, email string) (bool, error) {
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return false, err
-	}
-	defer tx.Rollback(ctx)
-	var oldEmail string
-	if err := tx.QueryRow(ctx,
-		`SELECT email FROM users WHERE id=$1 FOR UPDATE`, uid).Scan(&oldEmail); err != nil {
-		return false, err
-	}
-	changed := oldEmail != email
-	if _, err := tx.Exec(ctx, `
-		UPDATE users SET signature=$2, email=$3,
-		       email_verified = CASE WHEN email=$3 THEN email_verified ELSE false END
-		WHERE id=$1`, uid, signature, email); err != nil {
-		return false, err
-	}
-	if changed {
-		if _, err := tx.Exec(ctx, `DELETE FROM email_verifications WHERE uid=$1`, uid); err != nil {
-			return false, err
-		}
-	}
-	return changed, tx.Commit(ctx)
+// SaveSignature does not mutate account recovery credentials.
+func (s *Store) SaveSignature(ctx context.Context, uid int64, signature string) error {
+	_, err := s.pool.Exec(ctx, `UPDATE users SET signature=$2 WHERE id=$1`, uid, signature)
+	return err
 }
 
 // ChangePassword 修改密码：校验旧密码；成功后撤销当前会话之外的全部会话。

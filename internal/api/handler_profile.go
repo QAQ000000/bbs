@@ -17,9 +17,9 @@ import (
 	"dzforum/internal/store"
 )
 
-// ---- 个人设置（ROADMAP 阶段一）：签名/邮箱资料 + 改密（撤销其他会话）----
+// ---- 个人设置：签名、验证后换绑邮箱、改密 ----
 
-// profileSave POST /profile/save：签名 + 邮箱。
+// profileSave PATCH /api/v1/me preserves omitted fields; email changes use a separate proof flow.
 func (s *Server) profileSave(w http.ResponseWriter, r *http.Request) {
 	result := actionResult{}
 	if !s.requireLogin(w, r) {
@@ -42,28 +42,75 @@ func (s *Server) profileSave(w http.ResponseWriter, r *http.Request) {
 		fail("签名超过站点或等级允许的长度")
 		return
 	}
-	if email != "" && !emailRe.MatchString(email) {
-		fail("邮箱格式不正确")
+	if _, supplied := r.PostForm["email"]; supplied && !strings.EqualFold(email, u.Email) {
+		s.fail(w, r, 422, "EMAIL_CHANGE_REQUIRED", "更换邮箱请使用邮箱换绑接口并完成身份验证")
 		return
 	}
-	if email != "" {
-		if other, err := s.st.UIDByEmail(r.Context(), email); err == nil && other != u.ID {
-			fail("该邮箱已被其他账号使用")
+	if _, supplied := r.PostForm["signature"]; supplied {
+		if err := s.st.SaveSignature(r.Context(), u.ID, signature); err != nil {
+			s.fail(w, r, 500, "INTERNAL_ERROR", "资料保存失败")
 			return
 		}
 	}
-	emailChanged, err := s.st.UpdateProfile(r.Context(), u.ID, signature, email)
-	if err != nil {
-		s.fail(w, r, http.StatusInternalServerError, "保存失败", err.Error())
+	result.Message = "资料已保存"
+	s.respond(w, http.StatusOK, result)
+}
+
+func (s *Server) profileEmailChange(w http.ResponseWriter, r *http.Request) {
+	if !s.requireLogin(w, r) {
 		return
 	}
-	if emailChanged {
-		// 换绑邮箱即作废旧验证结论与旧验证链接，需对新邮箱重新验证
-		result.Message = "资料已保存；邮箱已变更，请重新验证新邮箱"
-	} else {
-		result.Message = "资料已保存"
+	if !s.checkCSRF(r) {
+		s.forbidden(w, r)
+		return
 	}
-	s.respond(w, http.StatusOK, result)
+	if !s.mailer.Enabled() || s.mailTokens == nil {
+		s.fail(w, r, 503, "EMAIL_UNAVAILABLE", "邮件服务未配置，暂时无法更换邮箱")
+		return
+	}
+	email := strings.ToLower(strings.TrimSpace(r.PostFormValue("email")))
+	if len(email) > 254 || !emailRe.MatchString(email) {
+		s.fail(w, r, 422, "VALIDATION_FAILED", "邮箱格式不正确")
+		return
+	}
+	err := s.st.RequestEmailChange(r.Context(), User(r).ID, Session(r).ID, email, r.PostFormValue("password"), strings.TrimSpace(r.PostFormValue("code")), strings.TrimSpace(r.PostFormValue("recovery")), maskIP(remoteIP(r)), s.mfaCipher, s.mailTokens.Seal)
+	if err != nil {
+		s.emailChangeError(w, r, err)
+		return
+	}
+	s.respond(w, 202, map[string]any{"message": "确认邮件已加入队列，请在当前登录设备验证新邮箱", "expiresIn": 1800})
+}
+
+func (s *Server) profileEmailConfirm(w http.ResponseWriter, r *http.Request) {
+	if !s.requireLogin(w, r) {
+		return
+	}
+	if !s.checkCSRF(r) {
+		s.forbidden(w, r)
+		return
+	}
+	if !s.allow(r, "email-confirm", 10, time.Minute) {
+		s.fail(w, r, 429, "RATE_LIMITED", "请稍后重试")
+		return
+	}
+	if err := s.st.ConfirmEmailChange(r.Context(), User(r).ID, Session(r).ID, r.PostFormValue("token"), maskIP(remoteIP(r))); err != nil {
+		s.emailChangeError(w, r, err)
+		return
+	}
+	s.respond(w, 200, map[string]any{"message": "邮箱已变更并验证，其他设备已退出登录"})
+}
+
+func (s *Server) emailChangeError(w http.ResponseWriter, r *http.Request, err error) {
+	switch {
+	case errors.Is(err, store.ErrEmailUnavailable):
+		s.fail(w, r, 409, "EMAIL_UNAVAILABLE", "该邮箱不可用于本次换绑")
+	case errors.Is(err, store.ErrNotFound):
+		s.fail(w, r, 422, "EMAIL_CHANGE_INVALID", "确认链接已失效或不是发起换绑的设备")
+	case errors.Is(err, store.ErrMFAInvalid), errors.Is(err, store.ErrMFALimited), errors.Is(err, store.ErrMFAUnavailable):
+		s.mfaError(w, r, err)
+	default:
+		s.fail(w, r, 503, "EMAIL_CHANGE_FAILED", "邮箱换绑暂不可用，请稍后重试")
+	}
 }
 
 // profilePassword POST /profile/password：旧密码验证 + 撤销其他会话。
@@ -129,7 +176,7 @@ func (s *Server) profileVerifyResend(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, http.StatusForbidden, "操作被拒绝", "表单已过期，请刷新重试。")
 		return
 	}
-	if !s.emailGateEnabled() || u.Email == "" || u.EmailVerified {
+	if !s.emailGateEnabled(r) || u.Email == "" || u.EmailVerified {
 		s.respond(w, http.StatusOK, result)
 		return
 	}

@@ -63,7 +63,7 @@ func TestMFAMigrationPreservesProtectionAndRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	var version int
-	if err = pool.QueryRow(ctx, `SELECT (SELECT max(version) FROM schema_migrations),enabled AND secret_cipher='encrypted-secret' AND last_step=43 AND version='v2' AND cardinality(recovery_hashes)=1 AND (SELECT attempts=7 FROM mfa_attempts WHERE user_id=1 AND scope='verify') AND (SELECT used_at IS NULL AND attempts=3 FROM mfa_challenges WHERE token_hash='challenge-hash') FROM user_mfa WHERE user_id=1`).Scan(&version, &protected); err != nil || version != 14 || !protected {
+	if err = pool.QueryRow(ctx, `SELECT (SELECT max(version) FROM schema_migrations),enabled AND secret_cipher='encrypted-secret' AND last_step=43 AND version='v2' AND cardinality(recovery_hashes)=1 AND (SELECT attempts=7 FROM mfa_attempts WHERE user_id=1 AND scope='verify') AND (SELECT used_at IS NULL AND attempts=3 FROM mfa_challenges WHERE token_hash='challenge-hash') FROM user_mfa WHERE user_id=1`).Scan(&version, &protected); err != nil || version != 15 || !protected {
 		t.Fatal(version, protected, err)
 	}
 }

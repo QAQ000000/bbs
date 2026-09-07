@@ -169,16 +169,27 @@ func TestResetTokenAtomic(t *testing.T) {
 func TestEmailVerifyBoundToEmail(t *testing.T) {
 	ctx := context.Background()
 	uid1, _ := setupUsers(t)
-	if _, err := testStore.UpdateProfile(ctx, uid1, "", "a@test.local"); err != nil {
+	if _, err := testPool.Exec(ctx, `UPDATE users SET email='a@test.local' WHERE id=$1`, uid1); err != nil {
 		t.Fatal(err)
 	}
 	raw, err := testStore.CreateEmailVerify(ctx, uid1, "a@test.local")
 	if err != nil {
 		t.Fatal(err)
 	}
-	changed, err := testStore.UpdateProfile(ctx, uid1, "", "b@test.local")
-	if err != nil || !changed {
-		t.Fatalf("换绑邮箱应返回变更: %v %v", changed, err)
+	_, _, err = testStore.CreateDeviceSession(ctx, uid1, "test", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var sid int64
+	if err = testPool.QueryRow(ctx, `SELECT id FROM sessions WHERE user_id=$1 ORDER BY id DESC LIMIT 1`, uid1).Scan(&sid); err != nil {
+		t.Fatal(err)
+	}
+	var confirm string
+	if err = testStore.RequestEmailChange(ctx, uid1, sid, "b@test.local", "pass123456", "", "", "", nil, func(raw string) (string, error) { confirm = raw; return "sealed", nil }); err != nil {
+		t.Fatal(err)
+	}
+	if err = testStore.ConfirmEmailChange(ctx, uid1, sid, confirm, ""); err != nil {
+		t.Fatal(err)
 	}
 	// 换绑即作废旧令牌（清除验证令牌行）
 	if _, _, err := testStore.ConsumeEmailVerify(ctx, raw); !errors.Is(err, ErrNotFound) {
@@ -188,8 +199,8 @@ func TestEmailVerifyBoundToEmail(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if u.EmailVerified {
-		t.Fatal("换绑后验证状态应为 false")
+	if !u.EmailVerified {
+		t.Fatal("确认换绑后新邮箱应已验证")
 	}
 	// 用新邮箱重新申请后可验证
 	raw2, err := testStore.CreateEmailVerify(ctx, uid1, "b@test.local")

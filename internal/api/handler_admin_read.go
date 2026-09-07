@@ -62,8 +62,10 @@ func (s *Server) adminSettings(w http.ResponseWriter, r *http.Request) {
 	if !s.requireAdmin(w, r) {
 		return
 	}
-	v := s.sets(r)
-	s.respond(w, 200, settingsDTO(&v))
+	v, err := s.st.Settings(r.Context())
+	if !s.settingsError(w, r, err, true) {
+		s.respond(w, 200, v)
+	}
 }
 func (s *Server) adminLogs(w http.ResponseWriter, r *http.Request) {
 	if !s.requireAdmin(w, r) {

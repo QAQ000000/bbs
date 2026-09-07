@@ -468,71 +468,7 @@ func (s *Server) adminUserDelete(w http.ResponseWriter, r *http.Request) {
 // ---- 站点设置保存 ----
 
 func (s *Server) adminSettingsSave(w http.ResponseWriter, r *http.Request) {
-	result := actionResult{}
-
-	if !s.requireAdmin(w, r) {
-		return
-	}
-	if !s.checkCSRF(r) {
-		s.forbidden(w, r)
-		return
-	}
-	closed := "0"
-	if r.PostFormValue("site_closed") == "1" {
-		closed = "1"
-	}
-	reg := "1"
-	if r.PostFormValue("register_enabled") != "1" {
-		reg = "0"
-	}
-	moderate := "1"
-	if r.PostFormValue("moderate_enabled") != "1" {
-		moderate = "0"
-	}
-	upload := "1"
-	if r.PostFormValue("upload_enabled") != "1" {
-		upload = "0"
-	}
-	captcha := "0"
-	if r.PostFormValue("captcha_enabled") == "1" {
-		captcha = "1"
-	}
-	emailVerify := "0"
-	if r.PostFormValue("email_verify_enabled") == "1" {
-		emailVerify = "1"
-	}
-	consent := "0"
-	if r.PostFormValue("require_consent") == "1" {
-		consent = "1"
-	}
-	kv := map[string]string{
-		"site_name":            strings.TrimSpace(r.PostFormValue("site_name")),
-		"threads_per_page":     strings.TrimSpace(r.PostFormValue("threads_per_page")),
-		"posts_per_page":       strings.TrimSpace(r.PostFormValue("posts_per_page")),
-		"register_enabled":     reg,
-		"moderate_enabled":     moderate,
-		"upload_enabled":       upload,
-		"max_image_mb":         strings.TrimSpace(r.PostFormValue("max_image_mb")),
-		"max_file_mb":          strings.TrimSpace(r.PostFormValue("max_file_mb")),
-		"upload_max_disk_gb":   strings.TrimSpace(r.PostFormValue("upload_max_disk_gb")),
-		"captcha_enabled":      captcha,
-		"email_verify_enabled": emailVerify,
-		"require_consent":      consent,
-		"site_logo":            strings.TrimSpace(r.PostFormValue("site_logo")),
-		"footer_text":          strings.TrimSpace(r.PostFormValue("footer_text")),
-		"terms_content":        r.PostFormValue("terms_content"),
-		"privacy_content":      r.PostFormValue("privacy_content"),
-		"site_closed":          closed,
-		"site_closed_reason":   strings.TrimSpace(r.PostFormValue("site_closed_reason")),
-	}
-	if err := s.st.SaveSettings(r.Context(), kv); err != nil {
-		s.fail(w, r, http.StatusInternalServerError, "操作失败", err.Error())
-		return
-
-	}
-	s.logOp(r, "settings.save", "更新站点设置")
-	result.Message = "设置已保存"
-	s.respond(w, http.StatusOK, result)
+	s.saveLegacySettings(w, r)
 }
 
 func (s *Server) forbidden(w http.ResponseWriter, r *http.Request) {

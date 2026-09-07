@@ -192,6 +192,18 @@ func (s *Server) apiStateMW(next http.Handler) http.Handler {
 			s.fail(w, r, 409, "SETUP_REQUIRED", "站点尚未初始化")
 			return
 		}
+		// Keep the authorized settings repair endpoints reachable with invalid stored settings.
+		if !strings.HasPrefix(p, "/api/v1/admin/settings") {
+			var err error
+			r, err = s.loadSettings(r)
+			if err != nil {
+				s.fail(w, r, 503, "SETTINGS_UNAVAILABLE", "站点配置暂不可用，请联系管理员")
+				return
+			}
+		} else {
+			next.ServeHTTP(w, r)
+			return
+		}
 		if s.sets(r).SiteClosed && !strings.HasPrefix(p, "/api/v1/admin") && !strings.HasPrefix(p, "/api/v1/auth/") && p != "/api/v1/site" && !strings.HasPrefix(p, "/api/v1/me") && !strings.HasPrefix(p, "/captcha/") {
 			s.fail(w, r, 503, "SITE_CLOSED", s.sets(r).SiteClosedReason)
 			return

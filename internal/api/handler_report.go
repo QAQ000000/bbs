@@ -4,12 +4,10 @@ package api
 import (
 	"errors"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
 
-	"dzforum/internal/perm"
 	"dzforum/internal/store"
 )
 
@@ -67,50 +65,37 @@ func (s *Server) adminReportHandle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rid := formInt64(r, "id")
-	tid, err := s.st.ReportThreadID(r.Context(), rid)
+	op := r.PostFormValue("op")
+	if op != "delete" && op != "dismiss" {
+		s.fail(w, r, 422, "VALIDATION_FAILED", "处理方式必须为 delete 或 dismiss")
+		return
+	}
+	// Capture broadcast context before deletion; permissions are checked again in the transaction.
+	tid, _ := s.st.ReportThreadID(r.Context(), rid)
+	th, _ := s.st.Thread(r.Context(), tid)
+	pid, tid, floor, alreadyDeleted, err := s.st.HandleReport(r.Context(), rid, User(r).ID, op, maskIP(remoteIP(r)))
 	if errors.Is(err, store.ErrReportNotFound) {
 		s.fail(w, r, http.StatusNotFound, "VALIDATION_FAILED", "举报不存在或已被处理")
 		return
 
+	} else if errors.Is(err, store.ErrReportForbidden) {
+		s.fail(w, r, 403, "FORBIDDEN", "无权处理该版块的举报")
+		return
 	} else if err != nil {
 		s.fail(w, r, http.StatusInternalServerError, "加载失败", err.Error())
 		return
 	}
-	th, err := s.st.Thread(r.Context(), tid)
-	if err != nil || !s.canModerateThread(r, th) {
-		s.fail(w, r, http.StatusForbidden, "无权操作", "只能处理自己管辖版块的举报。")
-		return
-	}
-	u := User(r)
-	switch r.PostFormValue("op") {
-	case "delete":
-		if !hasPoint(u, perm.ContentDeleteAny) {
-			s.fail(w, r, 403, "FORBIDDEN", "缺少删除他人内容权限")
-			return
+	if op == "delete" {
+		if !alreadyDeleted && th != nil {
+			s.broadcastPost("post.delete", th, &store.Post{ID: pid, ThreadID: tid, Floor: floor})
+			s.broadcastThread("thread.update", th)
 		}
-		pid, err := s.st.SetReportStatus(r.Context(), rid, u.ID, store.ReportResolved)
-		if err != nil {
-			s.fail(w, r, http.StatusInternalServerError, "操作失败", err.Error())
-			return
-
-		}
-		p, err := s.st.Post(r.Context(), pid)
-		if err == nil {
-			if _, _, err := s.st.DeletePost(r.Context(), pid); err == nil {
-				s.broadcastPost("post.delete", th, &store.Post{ID: pid, ThreadID: tid, Floor: p.Floor})
-				s.broadcastThread("thread.update", th)
-			}
-		}
-		s.logOp(r, "report.delete", "举报 #"+strconv.FormatInt(rid, 10)+"：删除楼层 #"+strconv.FormatInt(pid, 10))
 		result.Message = "已删除被举报楼层"
-	default: // dismiss
-		if _, err := s.st.SetReportStatus(r.Context(), rid, u.ID, store.ReportDismissed); err != nil {
-			s.fail(w, r, http.StatusInternalServerError, "操作失败", err.Error())
-			return
-		} else {
-			s.logOp(r, "report.dismiss", "驳回举报 #"+strconv.FormatInt(rid, 10))
-			result.Message = "举报已驳回"
+		if alreadyDeleted {
+			result.Message = "被举报内容已删除，举报已结案"
 		}
+	} else {
+		result.Message = "举报已驳回"
 	}
 	s.respond(w, http.StatusOK, result)
 }

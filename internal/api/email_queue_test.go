@@ -51,7 +51,7 @@ func TestEmailAPIHTTPRestartSMTPAndAdminRetry(t *testing.T) {
 		t.Fatal(err)
 	}
 	email := "restart@example.test"
-	if _, err := srv.st.UpdateProfile(ctx, u.ID, "", email); err != nil {
+	if _, err := smokePool.Exec(ctx, `UPDATE users SET email=$2,email_verified=false WHERE id=$1`, u.ID, email); err != nil {
 		t.Fatal(err)
 	}
 	// A real loopback HTTP request enqueues the job without any running email worker.
@@ -145,7 +145,7 @@ func TestEmailQueueRevalidatesTokenAndRecipient(t *testing.T) {
 	srv, _ := emailAPIServer(t)
 	u, _, _ := memberTestUser(t)
 	email := "invalidate@example.test"
-	if _, err := srv.st.UpdateProfile(ctx, u.ID, "", email); err != nil {
+	if _, err := smokePool.Exec(ctx, `UPDATE users SET email=$2,email_verified=false WHERE id=$1`, u.ID, email); err != nil {
 		t.Fatal(err)
 	}
 	queue := func() {
@@ -165,7 +165,7 @@ func TestEmailQueueRevalidatesTokenAndRecipient(t *testing.T) {
 	if err != nil || !strings.Contains(msg.Link, "/verify?token=") {
 		t.Fatal(msg, err)
 	}
-	if _, err = srv.st.UpdateProfile(ctx, u.ID, "", "changed@example.test"); err != nil {
+	if _, err = smokePool.Exec(ctx, `UPDATE users SET email=$2,email_verified=false WHERE id=$1`, u.ID, "changed@example.test"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = srv.prepareEmail(ctx, current); !errors.Is(err, errEmailCancelled) {
@@ -194,7 +194,7 @@ func TestEmailQueueRevalidatesContentAndPreferences(t *testing.T) {
 	u, _, _ := memberTestUser(t)
 	c := memberAPIConfig(t)
 	email := "content@example.test"
-	if _, err := srv.st.UpdateProfile(ctx, u.ID, "", email); err != nil {
+	if _, err := smokePool.Exec(ctx, `UPDATE users SET email=$2,email_verified=false WHERE id=$1`, u.ID, email); err != nil {
 		t.Fatal(err)
 	}
 	th, p, err := srv.st.CreateThread(ctx, 1, 1, "admin", "notification topic", "notification body", "", false, "")
@@ -243,7 +243,7 @@ func TestEmailOnlySubscriptionDurabilityAndUnsubscribe(t *testing.T) {
 	ctx := context.Background()
 	srv, _ := emailAPIServer(t)
 	u, _, _ := memberTestUser(t)
-	if _, err := srv.st.UpdateProfile(ctx, u.ID, "", "subscription@example.test"); err != nil {
+	if _, err := smokePool.Exec(ctx, `UPDATE users SET email=$2,email_verified=false WHERE id=$1`, u.ID, "subscription@example.test"); err != nil {
 		t.Fatal(err)
 	}
 	th, _, err := srv.st.CreateThread(ctx, 1, 1, "admin", "subscription mail", "body", "", false, "")

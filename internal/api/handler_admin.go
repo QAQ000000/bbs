@@ -30,5 +30,5 @@ func (s *Server) requireAdmin(w http.ResponseWriter, r *http.Request) bool {
 }
 
 func (s *Server) sets(r *http.Request) store.SiteSettings {
-	return s.st.Settings(r.Context())
+	return r.Context().Value(settingsKey{}).(store.SiteSettings)
 }

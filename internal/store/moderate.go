@@ -20,6 +20,13 @@ func (s *Store) SetThreadApproved(ctx context.Context, tid int64) error {
 		return err
 	}
 	defer tx.Rollback(ctx)
+	var fid int64
+	if err = tx.QueryRow(ctx, `SELECT forum_id FROM threads WHERE id=$1 AND NOT deleted FOR UPDATE`, tid).Scan(&fid); err != nil {
+		return err
+	}
+	if err = lockForumStats(ctx, tx, fid); err != nil {
+		return err
+	}
 	if _, err := tx.Exec(ctx, `UPDATE threads SET pending=false, pending_reason='' WHERE id=$1`, tid); err != nil {
 		return err
 	}
@@ -29,17 +36,13 @@ func (s *Store) SetThreadApproved(ctx context.Context, tid int64) error {
 	) UPDATE users u SET post_count=u.post_count+x.n FROM (SELECT author_id,count(*) n FROM approved GROUP BY author_id) x WHERE u.id=x.author_id`, tid); err != nil {
 		return err
 	}
-	if err := tx.Commit(ctx); err != nil {
+	if err := recomputeThreadLastPost(ctx, tx, tid); err != nil {
 		return err
 	}
-	if err := s.RecomputeThreadLastPost(ctx, tid); err != nil {
+	if err := recomputeForumStats(ctx, tx, fid); err != nil {
 		return err
 	}
-	var fid int64
-	if err := s.pool.QueryRow(ctx, `SELECT forum_id FROM threads WHERE id=$1`, tid).Scan(&fid); err != nil {
-		return err
-	}
-	return s.RecomputeForumStats(ctx, fid)
+	return tx.Commit(ctx)
 }
 
 // SetPostPendingModeration 将楼层（首楼连主题）标记为待审核并记录原因。
@@ -47,9 +50,28 @@ func (s *Store) SetThreadApproved(ctx context.Context, tid int64) error {
 // 公开口径对称：楼层退出公开即回扣作者发帖计数（批准时再加回），
 // 防止反复「重新入队→批准」抬升计数影响信任升级。
 func (s *Store) SetPostPendingModeration(ctx context.Context, postID int64, reason string) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	if err = setPostPendingTx(ctx, tx, postID, reason); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+func setPostPendingTx(ctx context.Context, tx pgx.Tx, postID int64, reason string) error {
 	var tid, uid int64
+	var fid int64
 	var floor int
-	if err := s.pool.QueryRow(ctx,
+	if err := tx.QueryRow(ctx, `SELECT t.id,t.forum_id FROM threads t WHERE t.id=(SELECT thread_id FROM posts WHERE id=$1) AND NOT t.deleted FOR UPDATE`, postID).Scan(&tid, &fid); err != nil {
+		return err
+	}
+	if err := lockForumStats(ctx, tx, fid); err != nil {
+		return err
+	}
+	if err := tx.QueryRow(ctx,
 		`UPDATE posts SET pending=true, pending_reason=$2, moderation_status='pending', moderation_note='' WHERE id=$1 AND NOT deleted AND NOT pending
 		 RETURNING thread_id, floor, author_id`, postID, reason).Scan(&tid, &floor, &uid); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -57,36 +79,45 @@ func (s *Store) SetPostPendingModeration(ctx context.Context, postID int64, reas
 		}
 		return err
 	}
-	if err := s.BumpUsersPostCount(ctx, uid, -1); err != nil {
+	if _, err := tx.Exec(ctx, `UPDATE users SET post_count=greatest(post_count-1,0) WHERE id=$1`, uid); err != nil {
 		return err
 	}
 	if floor == 1 {
-		_, err := s.pool.Exec(ctx,
+		_, err := tx.Exec(ctx,
 			`UPDATE threads SET pending=true, pending_reason=$2 WHERE id=$1`, tid, reason)
 		if err != nil {
 			return err
 		}
 	} else {
 		// 非首楼重新入队：主题活跃度回退到最新公开楼层
-		if err := s.RecomputeThreadLastPost(ctx, tid); err != nil {
+		if err := recomputeThreadLastPost(ctx, tx, tid); err != nil {
 			return err
 		}
 	}
-	var fid int64
-	if err := s.pool.QueryRow(ctx, `SELECT forum_id FROM threads WHERE id=$1`, tid).Scan(&fid); err != nil {
-		return err
-	}
-	return s.RecomputeForumStats(ctx, fid)
+	return recomputeForumStats(ctx, tx, fid)
 }
 
 // SetPostApproved 审核通过单条回复：翻 pending、回补作者计数、重算主题最后发表与版块公开统计。
 // 与 SetThreadApproved 同一套公开口径。已过审或已删除时不重复 bump，仍返回当前楼层与主题。
 func (s *Store) SetPostApproved(ctx context.Context, pid int64) (*Post, *Thread, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer tx.Rollback(ctx)
 	var tid, uid int64
-	err := s.pool.QueryRow(ctx,
+	var fid int64
+	if err = tx.QueryRow(ctx, `SELECT t.id,t.forum_id FROM threads t WHERE t.id=(SELECT thread_id FROM posts WHERE id=$1) AND NOT t.deleted FOR UPDATE`, pid).Scan(&tid, &fid); err != nil {
+		return nil, nil, err
+	}
+	if err = lockForumStats(ctx, tx, fid); err != nil {
+		return nil, nil, err
+	}
+	err = tx.QueryRow(ctx,
 		`UPDATE posts SET pending=false, pending_reason='', moderation_status='approved', moderation_note='' WHERE id=$1 AND pending AND NOT deleted
 		 RETURNING thread_id, author_id`, pid).Scan(&tid, &uid)
 	if errors.Is(err, pgx.ErrNoRows) {
+		_ = tx.Rollback(ctx)
 		p, err := s.Post(ctx, pid)
 		if err != nil {
 			return nil, nil, err
@@ -97,17 +128,16 @@ func (s *Store) SetPostApproved(ctx context.Context, pid int64) (*Post, *Thread,
 	if err != nil {
 		return nil, nil, err
 	}
-	if err := s.BumpUsersPostCount(ctx, uid, 1); err != nil {
+	if _, err := tx.Exec(ctx, `UPDATE users SET post_count=post_count+1 WHERE id=$1`, uid); err != nil {
 		return nil, nil, err
 	}
-	if err := s.RecomputeThreadLastPost(ctx, tid); err != nil {
+	if err := recomputeThreadLastPost(ctx, tx, tid); err != nil {
 		return nil, nil, err
 	}
-	var fid int64
-	if err := s.pool.QueryRow(ctx, `SELECT forum_id FROM threads WHERE id=$1`, tid).Scan(&fid); err != nil {
+	if err := recomputeForumStats(ctx, tx, fid); err != nil {
 		return nil, nil, err
 	}
-	if err := s.RecomputeForumStats(ctx, fid); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		return nil, nil, err
 	}
 	p, err := s.Post(ctx, pid)

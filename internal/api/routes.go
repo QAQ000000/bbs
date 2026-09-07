@@ -61,7 +61,9 @@ func (s *Server) routes() http.Handler {
 		"POST /api/v1/auth/login":                s.loginSubmit, "POST /api/v1/auth/register": s.registerSubmit, "POST /api/v1/auth/logout": s.logout,
 		"POST /api/v1/auth/password/forgot": s.forgotSubmit, "POST /api/v1/auth/password/reset": s.resetSubmit, "POST /api/v1/auth/email/verify": s.verifyEmail,
 		"POST /api/v1/me/email/verify-resend": s.profileVerifyResend, "POST /api/v1/setup": s.setupSubmit,
-		"PATCH /api/v1/me": s.profileSave, "POST /api/v1/me/password": s.profilePassword, "POST /api/v1/me/avatar": s.profileAvatar,
+		"POST /api/v1/me/email/change":  s.profileEmailChange,
+		"POST /api/v1/me/email/confirm": s.profileEmailConfirm,
+		"PATCH /api/v1/me":              s.profileSave, "POST /api/v1/me/password": s.profilePassword, "POST /api/v1/me/avatar": s.profileAvatar,
 		"DELETE /api/v1/me/avatar": s.profileAvatarClear, "DELETE /api/v1/me": s.profileSelfDelete,
 		"POST /api/v1/threads": s.newThreadSubmit, "POST /api/v1/threads/{tid}/posts": s.replySubmit, "PATCH /api/v1/posts/{pid}": s.editSubmit, "DELETE /api/v1/posts/{pid}": s.deletePost,
 		"POST /api/v1/posts/{pid}/like": s.likeToggle, "POST /api/v1/threads/{tid}/favorite": s.favoriteToggle,
@@ -91,8 +93,12 @@ func (s *Server) routes() http.Handler {
 		"GET /api/v1/admin/users": s.adminUsers, "GET /api/v1/admin/settings": s.adminSettings, "GET /api/v1/admin/perms": s.adminPerms,
 		"GET /api/v1/admin/logs": s.adminLogs, "GET /api/v1/admin/recyclebin": s.adminRecycle, "GET /api/v1/admin/censor": s.adminCensor,
 		"GET /api/v1/admin/announcements": s.adminAnnounce, "GET /api/v1/admin/moderate": s.adminModerate,
-		"GET /api/v1/admin/tags":       s.tagsGet,
-		"GET /api/v1/admin/email-jobs": s.adminEmailQueue,
+		"GET /api/v1/admin/tags":            s.tagsGet,
+		"GET /api/v1/admin/settings/schema": s.settingsSchema,
+		"GET /api/v1/admin/settings/status": s.settingsStatus,
+		"PUT /api/v1/admin/settings":        s.settingsJSONSave,
+		"PATCH /api/v1/admin/settings":      s.settingsJSONSave,
+		"GET /api/v1/admin/email-jobs":      s.adminEmailQueue,
 	} {
 		m.HandleFunc(route, s.adminPointGuard(route, h))
 	}

@@ -160,6 +160,10 @@ var ErrEditConflict = errors.New("edit conflict")
 // 并发编辑只有一个请求成功，后写不再覆盖先写。
 // 改前快照与内容更新同事务：更新失败快照也不会落盘（历史不重复）。
 func (s *Store) UpdatePost(ctx context.Context, postID int64, expectedVersion int, editorID int64, prevMD, title, md, html string) (*Post, *Thread, error) {
+	return s.UpdatePostModerated(ctx, postID, expectedVersion, editorID, title, md, html, false, "")
+}
+
+func (s *Store) UpdatePostModerated(ctx context.Context, postID int64, expectedVersion int, editorID int64, title, md, html string, pending bool, reason string) (*Post, *Thread, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return nil, nil, err
@@ -169,9 +173,13 @@ func (s *Store) UpdatePost(ctx context.Context, postID int64, expectedVersion in
 	var floor int
 	var tid int64
 	var version int
+	var prevMD string
+	if err = tx.QueryRow(ctx, `SELECT t.id FROM threads t WHERE t.id=(SELECT thread_id FROM posts WHERE id=$1) AND NOT t.deleted FOR UPDATE`, postID).Scan(&tid); err != nil {
+		return nil, nil, err
+	}
 	err = tx.QueryRow(ctx,
-		`SELECT floor, thread_id, version FROM posts WHERE id=$1 FOR UPDATE`,
-		postID).Scan(&floor, &tid, &version)
+		`SELECT floor, thread_id, version, content_md FROM posts WHERE id=$1 AND NOT deleted FOR UPDATE`,
+		postID).Scan(&floor, &tid, &version, &prevMD)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil, ErrNotFound
 	}
@@ -196,28 +204,27 @@ func (s *Store) UpdatePost(ctx context.Context, postID int64, expectedVersion in
 		if _, err := tx.Exec(ctx, `UPDATE threads SET title=$2 WHERE id=$1`, tid, title); err != nil {
 			return nil, nil, err
 		}
+	} else {
+		title = ""
+	}
+	if _, err = tx.Exec(ctx, `UPDATE posts SET search_data=setweight(to_tsvector('simple',$2),'A') || setweight(to_tsvector('simple',$3),'B') WHERE id=$1`, postID, SearchTokens(title), SearchTokens(md)); err != nil {
+		return nil, nil, err
+	}
+	if pending {
+		if err = setPostPendingTx(ctx, tx, postID, reason); err != nil {
+			return nil, nil, err
+		}
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return nil, nil, err
 	}
+	markMemberCommit(ctx)
 	p, err := s.Post(ctx, postID)
 	if err != nil {
 		return nil, nil, err
 	}
-	if p.Floor == 1 {
-		_ = s.IndexPost(ctx, postID, thTitle(ctx, s, tid), md)
-	} else {
-		_ = s.IndexPost(ctx, postID, "", md)
-	}
 	th, err := s.Thread(ctx, tid)
 	return p, th, err
-}
-
-// thTitle 查主题标题（索引用）。
-func thTitle(ctx context.Context, s *Store, tid int64) string {
-	var title string
-	_ = s.pool.QueryRow(ctx, `SELECT title FROM threads WHERE id=$1`, tid).Scan(&title)
-	return title
 }
 
 // DeletePost 删除楼层。若为首楼则整个主题软删；
@@ -239,7 +246,18 @@ func (s *Store) deletePost(ctx context.Context, postID int64, note string) (dele
 		return false, 0, err
 	}
 	defer tx.Rollback(ctx)
+	deletedThread, tid, err = deletePostTx(ctx, tx, postID, note)
+	if err != nil {
+		return false, 0, err
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return false, 0, err
+	}
+	markMemberCommit(ctx)
+	return deletedThread, tid, nil
+}
 
+func deletePostTx(ctx context.Context, tx pgx.Tx, postID int64, note string) (deletedThread bool, tid int64, err error) {
 	var uid, floor int
 	var forumID int64
 	// Lock the parent before posts, matching CreateReply's lock order.
@@ -250,6 +268,9 @@ func (s *Store) deletePost(ctx context.Context, postID int64, note string) (dele
 		return false, 0, ErrNotFound
 	}
 	if err != nil {
+		return false, 0, err
+	}
+	if err = lockForumStats(ctx, tx, forumID); err != nil {
 		return false, 0, err
 	}
 	var pending bool
@@ -291,10 +312,9 @@ func (s *Store) deletePost(ctx context.Context, postID int64, note string) (dele
 			WHERE u.id = x.author_id`, tid); err != nil {
 			return false, 0, err
 		}
-		if err := tx.Commit(ctx); err != nil {
+		if err := recomputeForumStats(ctx, tx, forumID); err != nil {
 			return false, 0, err
 		}
-		_ = s.RecomputeForumStats(ctx, forumID)
 		return true, tid, nil
 	}
 
@@ -313,12 +333,11 @@ func (s *Store) deletePost(ctx context.Context, postID int64, note string) (dele
 	if _, err := tx.Exec(ctx, `UPDATE threads SET post_count=GREATEST(post_count-1, 0) WHERE id=$1`, tid); err != nil {
 		return false, 0, err
 	}
-	if err := tx.Commit(ctx); err != nil {
+	if err := recomputeThreadLastPost(ctx, tx, tid); err != nil {
 		return false, 0, err
 	}
-	var forumID2 int64
-	if err := s.pool.QueryRow(ctx, `SELECT forum_id FROM threads WHERE id=$1`, tid).Scan(&forumID2); err == nil {
-		_ = s.RecomputeForumStats(ctx, forumID2)
+	if err := recomputeForumStats(ctx, tx, forumID); err != nil {
+		return false, 0, err
 	}
 	return false, tid, nil
 }

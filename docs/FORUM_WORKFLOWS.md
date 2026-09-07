@@ -1,5 +1,7 @@
 # 论坛基础流程 API
 
+2026-09-08 补充：schema 15 将编辑送审、审核状态和公开计数放入同一事务；举报的内容删除、结案、结果通知和审计也同时提交，失败保持 open。举报动作仅接受 `delete/dismiss`；内容已删除时可明确结案，已结案举报再次处理返回 404。后续已实现功能见 [社区 API](COMMUNITY_API.md)、[持久邮件队列](EMAIL_QUEUE.md) 和 [设备会话管理](DEVICE_SESSIONS.md)，下方阶段性记录不代表这些能力仍缺失。
+
 2026-09-06，schema 8。补齐通知、审核反馈、草稿标题和楼层回复；仅实现 Go API，Nuxt 页面另行开发。迁移文件为 `008_forum_workflows.sql`，保留原有草稿正文、通知及已读状态。本轮不部署现有网站或操作业务库。
 
 ## 1. 通知中心
@@ -79,6 +81,8 @@ GET 不修改已读状态。空对象不再代表全部已读，须显式提交 
 ## 3. 草稿和本人内容
 
 草稿保存 `POST /me/draft` 新增 subject，最多 80 个 Unicode 字符。context 必须为 `new:正整数版块ID`、`reply:正整数主题ID`、`edit:正整数楼层ID`，ID 为无前导零的十进制。reply 草稿不接受非空标题。content 和 subject 同时为空才删除，允许只保存标题。每个用户每个 context 一份；保存为全量覆盖，前端每次提交两字段。
+
+正文与发布/编辑共用 30,000 个 Unicode 字符上限，字符数按 Unicode 码点计算；不再将 40,000 字节作为草稿限制。超长草稿返回 413，正文发布校验仍为 422；HTTP 请求体保留独立字节上限。空草稿和仅标题草稿继续有效。
 
 `GET /me/draft?context=...` 和 `GET /me/drafts` 均返回 subject、content、context、updatedAt。草稿是用户私有暂存，context 不代表资源授权；真正发布/编辑仍通过内容权限校验。
 

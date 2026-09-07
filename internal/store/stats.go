@@ -2,7 +2,20 @@ package store
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
+
+type statsDB interface {
+	Exec(context.Context, string, ...any) (pgconn.CommandTag, error)
+	QueryRow(context.Context, string, ...any) pgx.Row
+}
+
+func lockForumStats(ctx context.Context, tx pgx.Tx, forumID int64) error {
+	var id int64
+	return tx.QueryRow(ctx, `SELECT id FROM forums WHERE id=$1 FOR NO KEY UPDATE`, forumID).Scan(&id)
+}
 
 // ---- 版块统计口径 ----
 //
@@ -12,6 +25,16 @@ import (
 
 // RecomputeForumStats 从公开内容重算单个版块的全部统计与最后发表。
 func (s *Store) RecomputeForumStats(ctx context.Context, forumID int64) error {
+	return recomputeForumStats(ctx, s.pool, forumID)
+}
+
+func recomputeForumStats(ctx context.Context, db statsDB, forumID int64) error {
+	// A separate lock statement gives the aggregate a fresh snapshot after any wait.
+	if tx, ok := db.(pgx.Tx); ok {
+		if err := lockForumStats(ctx, tx, forumID); err != nil {
+			return err
+		}
+	}
 	// 标量子查询可引用 UPDATE 目标行（UPDATE...FROM 里 LATERAL 不能引用目标表）。
 	// 主题与楼层状态同时约束：待审/已删主题下的公开回复同样不进公开口径，
 	// 否则首楼被重新送审后，last_* 仍会引用隐藏主题的标题与作者。
@@ -24,7 +47,7 @@ func (s *Store) RecomputeForumStats(ctx context.Context, forumID int64) error {
 			ORDER BY p.created_at DESC
 			LIMIT 1)`
 	}
-	_, err := s.pool.Exec(ctx, `
+	_, err := db.Exec(ctx, `
 		UPDATE forums f SET
 			thread_count = (SELECT count(*) FROM threads t
 				WHERE t.forum_id=f.id AND NOT t.deleted AND NOT t.pending),
@@ -67,7 +90,11 @@ func (s *Store) RecomputeAllForumStats(ctx context.Context) error {
 
 // RecomputeThreadLastPost 主题级最后发表回填（审批通过后调用）。
 func (s *Store) RecomputeThreadLastPost(ctx context.Context, threadID int64) error {
-	_, err := s.pool.Exec(ctx, `
+	return recomputeThreadLastPost(ctx, s.pool, threadID)
+}
+
+func recomputeThreadLastPost(ctx context.Context, db statsDB, threadID int64) error {
+	_, err := db.Exec(ctx, `
 		UPDATE threads t SET
 			last_post_at = (SELECT p.created_at FROM posts p
 				WHERE p.thread_id = t.id AND NOT p.deleted AND NOT p.pending

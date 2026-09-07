@@ -113,6 +113,14 @@ func emailQualifiedCols() string {
 
 func (s *Store) AuthEmailValid(ctx context.Context, j *EmailJob) (bool, error) {
 	var valid bool
+	if j.Kind == "email_change" {
+		var email, old string
+		err := s.pool.QueryRow(ctx, emailChangeValid, j.UID, j.TokenHash).Scan(&email, &old)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, nil
+		}
+		return strings.EqualFold(email, j.Recipient), err
+	}
 	query := `SELECT EXISTS(SELECT 1 FROM password_resets WHERE uid=$1 AND token_hash=$2 AND NOT used AND expires_at>now())`
 	if j.Kind == "email_verify" {
 		query = `SELECT EXISTS(SELECT 1 FROM email_verifications WHERE uid=$1 AND token_hash=$2 AND expires_at>now() AND email=lower($3))`

@@ -64,7 +64,7 @@ func TestCommunityMigrationFromEightAndRestart(t *testing.T) {
 	}
 	var text string
 	var follows, version int
-	if err = pool.QueryRow(ctx, `SELECT body,(SELECT count(*) FROM user_follows),(SELECT max(version) FROM schema_migrations) FROM messages WHERE conversation_id=1`).Scan(&text, &follows, &version); err != nil || text != "preserved" || follows != 1 || version != 14 {
+	if err = pool.QueryRow(ctx, `SELECT body,(SELECT count(*) FROM user_follows),(SELECT max(version) FROM schema_migrations) FROM messages WHERE conversation_id=1`).Scan(&text, &follows, &version); err != nil || text != "preserved" || follows != 1 || version != 15 {
 		t.Fatal(text, follows, version, err)
 	}
 	if _, err = pool.Exec(ctx, `INSERT INTO conversations(id) VALUES(2)`); err != nil {

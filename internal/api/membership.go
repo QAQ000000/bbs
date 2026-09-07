@@ -29,6 +29,13 @@ func membershipOf(r *http.Request) *membershipContext {
 	return m
 }
 func (s *Server) loadMembership(r *http.Request) (*http.Request, error) {
+	if r.Context().Value(settingsKey{}) == nil && !strings.HasPrefix(r.URL.Path, "/api/v1/admin/settings") {
+		var err error
+		r, err = s.loadSettings(r)
+		if err != nil {
+			return r, err
+		}
+	}
 	c, err := s.st.MembershipConfig(r.Context())
 	if err != nil {
 		return r, err

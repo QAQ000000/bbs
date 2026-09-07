@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"errors"
+	"strconv"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -36,15 +37,19 @@ func (s *Store) InitializeSite(ctx context.Context, username, password, email, s
 	if err != nil {
 		return nil, err
 	}
+	version, err := lockSettings(ctx, tx)
+	if err != nil {
+		return nil, err
+	}
 	if _, err = tx.Exec(ctx, `INSERT INTO settings (key,value) VALUES ('site_name',$1)
 		ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value`, siteName); err != nil {
+		return nil, err
+	}
+	if _, err = tx.Exec(ctx, `UPDATE settings SET value=$2 WHERE key=$1`, settingsVersionKey, strconv.FormatInt(version+1, 10)); err != nil {
 		return nil, err
 	}
 	if err = tx.Commit(ctx); err != nil {
 		return nil, err
 	}
-	settingsMu.Lock()
-	settingsCache = nil
-	settingsMu.Unlock()
 	return u, nil
 }

@@ -27,6 +27,7 @@ type Mailer struct{ cfg Config }
 type Message struct {
 	ID                                       int64
 	To, Kind, Link, FromName, Title, Excerpt string
+	SiteName                                 string
 }
 
 func New(cfg Config, _ *slog.Logger) *Mailer { return &Mailer{cfg: cfg} }
@@ -41,6 +42,12 @@ func (m *Mailer) render(msg Message) (string, string, error) {
 	case "email_verify":
 		subject = "邮箱验证"
 		body = "请通过下面的链接验证您的邮箱地址：\n\n" + msg.Link + "\n\n链接 24 小时内有效。如果不是您本人操作，请忽略本邮件。"
+	case "email_change":
+		subject = "确认更换邮箱"
+		body = "请在发起换绑的登录设备上打开下面的链接，确认将此地址作为新的账号邮箱：\n\n" + msg.Link + "\n\n链接 30 分钟内有效。确认前账号仍使用原邮箱。如果不是您本人操作，请忽略本邮件。"
+	case "email_changed":
+		subject = "账号邮箱已变更"
+		body = "您的账号邮箱已完成换绑，此地址不再用于该账号的密码恢复。如果不是您本人操作，请立即联系站点管理员。"
 	case "mention":
 		subject = msg.FromName + " 在帖子中提到了你"
 		body = msg.FromName + " 在帖子《" + msg.Title + "》中提到了你：\n\n" + msg.Excerpt + "\n\n" + msg.Link
@@ -50,8 +57,12 @@ func (m *Mailer) render(msg Message) (string, string, error) {
 	default:
 		return "", "", errors.New("unsupported template")
 	}
-	subject = strings.NewReplacer("\r", " ", "\n", " ").Replace("[" + m.cfg.SiteName + "] " + subject)
-	return subject, body + "\n\n--\n" + m.cfg.SiteName, nil
+	name := msg.SiteName
+	if name == "" {
+		name = m.cfg.SiteName
+	}
+	subject = strings.NewReplacer("\r", " ", "\n", " ").Replace("[" + name + "] " + subject)
+	return subject, body + "\n\n--\n" + name, nil
 }
 
 // ErrorCode deliberately discards SMTP server text, which can echo credentials or recipients.

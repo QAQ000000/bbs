@@ -18,6 +18,11 @@ var errEmailCancelled = errors.New("email no longer eligible")
 
 func (s *Server) prepareEmail(ctx context.Context, j *store.EmailJob) (mail.Message, error) {
 	msg := mail.Message{ID: j.ID, To: j.Recipient, Kind: j.Kind}
+	settings, err := s.st.Settings(ctx)
+	if err != nil {
+		return msg, err
+	}
+	msg.SiteName = settings.SiteName
 	u, err := s.st.UserByID(ctx, j.UID)
 	if errors.Is(err, store.ErrNotFound) {
 		return msg, errEmailCancelled
@@ -25,10 +30,17 @@ func (s *Server) prepareEmail(ctx context.Context, j *store.EmailJob) (mail.Mess
 	if err != nil {
 		return msg, err
 	}
-	if u.IsBlocked() || u.Email == "" || !strings.EqualFold(u.Email, j.Recipient) || !time.Now().Before(j.ExpiresAt) {
+	if !time.Now().Before(j.ExpiresAt) {
 		return msg, errEmailCancelled
 	}
-	if j.Kind == "password_reset" || j.Kind == "email_verify" {
+	// A security notice is deliberately addressed to the previous recovery address.
+	if j.Kind == "email_changed" {
+		return msg, nil
+	}
+	if u.IsBlocked() || (j.Kind != "email_change" && (u.Email == "" || !strings.EqualFold(u.Email, j.Recipient))) {
+		return msg, errEmailCancelled
+	}
+	if j.Kind == "password_reset" || j.Kind == "email_verify" || j.Kind == "email_change" {
 		valid, err := s.st.AuthEmailValid(ctx, j)
 		if err != nil {
 			return msg, err
@@ -43,6 +55,9 @@ func (s *Server) prepareEmail(ctx context.Context, j *store.EmailJob) (mail.Mess
 		path := "/reset?token="
 		if j.Kind == "email_verify" {
 			path = "/verify?token="
+		}
+		if j.Kind == "email_change" {
+			path = "/settings/email/confirm?token="
 		}
 		msg.Link = strings.TrimRight(s.cfg.SiteURL, "/") + path + url.QueryEscape(raw)
 		return msg, nil

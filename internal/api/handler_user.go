@@ -156,7 +156,7 @@ func (s *Server) registerSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var seal func(string) (string, error)
-	if s.emailGateEnabled() && email != "" {
+	if s.emailGateEnabled(r) && email != "" {
 		seal = s.mailTokens.Seal
 	}
 	u, err := s.st.CreateUserWithVerification(r.Context(), username, password, email, seal)

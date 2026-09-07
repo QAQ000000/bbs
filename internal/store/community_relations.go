@@ -190,7 +190,20 @@ func (s *Store) ProcessSubscriptionBatch(ctx context.Context, limit int, authori
 	defer tx.Rollback(ctx)
 	var cursor int64
 	var at time.Time
-	err = tx.QueryRow(ctx, `SELECT post_id,cursor_uid,created_at FROM subscription_events WHERE NOT completed ORDER BY post_id LIMIT 1 FOR UPDATE SKIP LOCKED`).Scan(&batch.PostID, &cursor, &at)
+	var eventID, threadID int64
+	// Lock the parent first, matching moderation triggers. Hidden events stay resumable
+	// and cannot block delivery of later public events.
+	err = tx.QueryRow(ctx, `SELECT e.post_id,t.id FROM subscription_events e
+ JOIN posts p ON p.id=e.post_id JOIN threads t ON t.id=p.thread_id
+ WHERE NOT e.completed AND NOT p.pending AND NOT p.deleted AND NOT t.pending AND NOT t.deleted
+ ORDER BY e.post_id LIMIT 1 FOR UPDATE OF t SKIP LOCKED`).Scan(&eventID, &threadID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return batch, nil
+	}
+	if err != nil {
+		return batch, err
+	}
+	err = tx.QueryRow(ctx, `SELECT post_id,cursor_uid,created_at FROM subscription_events WHERE post_id=$1 AND NOT completed FOR UPDATE SKIP LOCKED`, eventID).Scan(&batch.PostID, &cursor, &at)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return batch, nil
 	}
@@ -273,7 +286,7 @@ func (s *Store) ProcessSubscriptionBatch(ctx context.Context, limit int, authori
 		}
 		batch.Deliveries = append(batch.Deliveries, d)
 	}
-	if _, err = tx.Exec(ctx, `UPDATE subscription_events SET cursor_uid=$2,completed=$3 WHERE post_id=$1`, batch.PostID, cursor, !public || len(candidates) < limit); err != nil {
+	if _, err = tx.Exec(ctx, `UPDATE subscription_events SET cursor_uid=$2,completed=$3 WHERE post_id=$1`, batch.PostID, cursor, public && len(candidates) < limit); err != nil {
 		return batch, err
 	}
 	return batch, tx.Commit(ctx)

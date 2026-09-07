@@ -98,10 +98,6 @@ func adminLogDTO(v *store.AdminLogEntry) map[string]any {
 	return map[string]any{"id": idString(v.ID), "uId": idString(v.UID), "username": v.Username, "action": v.Action, "detail": v.Detail, "maskedIp": maskIP(v.IP), "createdAt": v.CreatedAt}
 }
 
-func settingsDTO(v *store.SiteSettings) map[string]any {
-	return map[string]any{"siteName": v.SiteName, "threadsPerPage": v.ThreadsPerPage, "postsPerPage": v.PostsPerPage, "registerEnabled": v.RegisterEnabled, "siteClosed": v.SiteClosed, "siteClosedReason": v.SiteClosedReason, "moderateEnabled": v.ModerateEnabled, "uploadEnabled": v.UploadEnabled, "maxImageMB": v.MaxImageMB, "maxFileMB": v.MaxFileMB, "uploadMaxDiskGB": v.UploadMaxDiskGB, "captchaEnabled": v.CaptchaEnabled, "emailVerifyEnabled": v.EmailVerifyEnabled, "requireConsent": v.RequireConsent, "termsContent": v.TermsContent, "privacyContent": v.PrivacyContent, "siteLogo": v.SiteLogo, "footerText": v.FooterText}
-}
-
 func reportDTO(v *store.ReportRow) map[string]any {
 	return map[string]any{"id": idString(v.ID), "postId": idString(v.PostID), "reporterId": idString(v.ReporterID), "reporter": v.Reporter, "reason": v.Reason, "createdAt": v.CreatedAt, "excerpt": v.Excerpt, "floor": v.Floor, "pending": v.Pending, "deleted": v.Deleted, "tId": idString(v.TID), "threadTtl": v.ThreadTtl, "authorName": v.AuthorName}
 }

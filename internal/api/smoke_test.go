@@ -448,7 +448,7 @@ func TestVisibilityAcrossReadsAndActions(t *testing.T) {
 	checkJSON(t, smokeGet(t, "/api/v1/posts/"+idString(reply.ID), userCookie), 404)
 }
 func TestProfilePasswordAndExport(t *testing.T) {
-	checkJSON(t, apiRequest(t, "PATCH", "/api/v1/me", userCSRF, `{"signature":"API签名","email":"user@test.local"}`, userCookie), 200)
+	checkJSON(t, apiRequest(t, "PATCH", "/api/v1/me", userCSRF, `{"signature":"API签名"}`, userCookie), 200)
 	w := smokeGet(t, "/api/v1/users/2", nil)
 	if !strings.Contains(w.Body.String(), "API签名") || strings.Contains(w.Body.String(), "user@test.local") {
 		t.Fatal("public profile projection")

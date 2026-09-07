@@ -6,7 +6,7 @@
 
 会员等级、成长规则、经验流水、徽章、版块访问限制及 12 个新增接口见 [会员 API 文档](MEMBERSHIP.md)。该文档定义配置预览、人工调整幂等和等级额度语义。
 
-任务称号、自动补发、佩戴、作者采纳及 13 个新增接口见 [称号 API 文档](TITLES.md)。当前数据库 schema 为 14，Nuxt 管理和展示页面仍待开发。通知、楼层回复及定位、草稿标题和本人内容状态见 [基础流程 API](FORUM_WORKFLOWS.md)。标签、关注/粉丝、订阅投递和私信接口见 [社区 API](COMMUNITY_API.md)，该文档补充下方基础路由清单。
+任务称号、自动补发、佩戴、作者采纳及 13 个新增接口见 [称号 API 文档](TITLES.md)。当前数据库 schema 为 15，Nuxt 管理和展示页面仍待开发。通知、楼层回复及定位、草稿标题和本人内容状态见 [基础流程 API](FORUM_WORKFLOWS.md)。标签、关注/粉丝、订阅投递和私信接口见 [社区 API](COMMUNITY_API.md)，该文档补充下方基础路由清单。邮箱换绑及旧恢复链接撤销见 [安全邮箱换绑](EMAIL_CHANGE.md)。
 
 ## 请求与响应
 
@@ -53,7 +53,9 @@ TOTP 绑定、验证登录、关闭和恢复码更新见 [二次验证](MFA.md)�
 | `POST /auth/password/reset` | `token`、`password` |
 | `POST /auth/email/verify` | `token`；一次性验证 |
 | `POST /setup` | `site_name`、`username`、`email`、`password`、`confirm_password` |
-| `PATCH /me` | `signature`、`email` |
+| `PATCH /me` | 可选 `signature`，省略保持原值；不能直接换绑邮箱 |
+| `POST /me/email/change` | `email`、`password`；启用 2FA 需 `code` 或 `recovery`；成功 202，验证前不变更邮箱 |
+| `POST /me/email/confirm` | `token`；在发起会话确认新邮箱，旧恢复链接与其他会话同时失效 |
 | `POST /me/password` | `old_password`、`new_password`、`confirm_password` |
 | `POST /threads` | `forumId`、`subject`、`content`；成功 201，返回 threadId、postId、pending、version |
 | `POST /threads/{tid}/posts` | `content`；成功 201，返回资源 ID、审核状态和版本 |
@@ -101,7 +103,7 @@ TOTP 绑定、验证登录、关闭和恢复码更新见 [二次验证](MFA.md)�
 - 用户动作：`uid`，禁言/封禁另传 `days`、`reason`，改组传 `group`。
 - 审核：`tid` 或 `pid`、`op=approve/delete`、可选 `note`（最多 500 字）；首楼使用主题接口。举报处理：`id`、`op=delete/dismiss`。
 - 权限矩阵：完整字段集 `allow.角色编号.权限点`；缺失即关闭，管理员入口有防自锁保护。
-- 设置保存为完整表单，字段仍为 `site_name`、`register_enabled` 等 snake_case；切勿把它当作局部 PATCH。布尔值支持 JSON true/false 或表单 1/0。
+- 站点设置新增带版本号的 JSON PUT 完整更新、PATCH 局部更新，以及 schema/status 元数据与生效诊断接口；GET 返回 18 项 camelCase 设置和 `version`。原 POST 保留完整 snake_case 字段，但现在也必须提交 `version`，缺字段不再被解释为关闭开关。详见 [站点配置 API](SETTINGS.md)。
 - 回收站：单主题使用 `tid`；批量清理使用 `kind`、`author`、`keyword`、`forum`、`days`，范围规则继续在 Go 校验。
 
 ## 已注册路由清单
@@ -144,6 +146,8 @@ TOTP 绑定、验证登录、关闭和恢复码更新见 [二次验证](MFA.md)�
 | POST | `/api/v1/auth/password/reset` |
 | POST | `/api/v1/auth/email/verify` |
 | POST | `/api/v1/me/email/verify-resend` |
+| POST | `/api/v1/me/email/change` |
+| POST | `/api/v1/me/email/confirm` |
 | POST | `/api/v1/setup` |
 | PATCH | `/api/v1/me` |
 | POST | `/api/v1/me/password` |
@@ -168,6 +172,10 @@ TOTP 绑定、验证登录、关闭和恢复码更新见 [二次验证](MFA.md)�
 | GET | `/api/v1/admin/threads` |
 | GET | `/api/v1/admin/users` |
 | GET | `/api/v1/admin/settings` |
+| GET | `/api/v1/admin/settings/schema` |
+| GET | `/api/v1/admin/settings/status` |
+| PUT | `/api/v1/admin/settings` |
+| PATCH | `/api/v1/admin/settings` |
 | GET | `/api/v1/admin/perms` |
 | GET | `/api/v1/admin/logs` |
 | GET | `/api/v1/admin/recyclebin` |

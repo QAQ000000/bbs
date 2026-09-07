@@ -76,7 +76,7 @@ func (s *Server) draftSave(w http.ResponseWriter, r *http.Request) {
 	if !s.checkNotBanned(w, r) {
 		return
 	}
-	if len(req.Content) > 40000 {
+	if utf8.RuneCountInString(req.Content) > maxContentRunes {
 		s.fail(w, r, http.StatusRequestEntityTooLarge, "", `{"error":"too large"}`)
 		return
 	}

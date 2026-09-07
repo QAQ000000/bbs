@@ -2,8 +2,6 @@
 package api
 
 import (
-	"context"
-
 	"errors"
 	"net/http"
 	"strconv"
@@ -14,6 +12,8 @@ import (
 	"dzforum/internal/perm"
 	"dzforum/internal/store"
 )
+
+const maxContentRunes = 30000
 
 // 内容校验：标题 1-80 字符，正文 1-30000 字符。
 func validateContent(subject, content string, requireSubject bool) string {
@@ -30,7 +30,7 @@ func validateContent(subject, content string, requireSubject bool) string {
 	if content == "" {
 		return "内容不能为空"
 	}
-	if utf8.RuneCountInString(content) > 30000 {
+	if utf8.RuneCountInString(content) > maxContentRunes {
 		return "内容不能超过 30000 个字符"
 	}
 	return ""
@@ -237,23 +237,19 @@ func (s *Server) editSubmit(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", msg)
 		return
 	}
-	// 编辑复检：过审内容被编辑时按规则重新入队（堵住"过审后编辑加链接"的绕过）；
-	// 已在待审队列的内容保持待审
-	reenqueue := false
-	reason := ""
-	if !p.Pending {
-		existingThread, err := s.st.Thread(r.Context(), p.ThreadID)
-		if s.readError(w, r, err) {
-			return
-		}
-		reenqueue, reason = s.moderationDecision(r, u, existingThread.ForumID, subject+" "+content)
+	// Approval can race the initial read. Always evaluate the new content; the
+	// transaction preserves existing pending state or reenqueues after approval.
+	existingThread, err := s.st.Thread(r.Context(), p.ThreadID)
+	if s.readError(w, r, err) {
+		return
 	}
+	reenqueue, reason := s.moderationDecision(r, u, existingThread.ForumID, subject+" "+content)
 	ct := s.censorTexts(r, subject, content)
 	subject, content = ct[0], ct[1]
 	html := "" // 兼容旧存储参数；正文由独立前端渲染。
 	// 版本校验、改前快照与内容更新在 UpdatePost 事务内完成：
 	// 并发编辑只有一个请求成功，后写不覆盖先写
-	p2, th, err := s.st.UpdatePost(r.Context(), pid, v, u.ID, p.ContentMD, subject, content, html)
+	p2, th, err := s.st.UpdatePostModerated(r.Context(), pid, v, u.ID, subject, content, html, reenqueue, reason)
 	if errors.Is(err, store.ErrEditConflict) {
 		s.fail(w, r, http.StatusConflict, "内容已被他人更新",
 			"你编辑期间该楼层被其他会话修改过，请刷新查看最新内容后重新编辑。")
@@ -264,13 +260,7 @@ func (s *Server) editSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.linkUploads(r, u.ID, pid, content)
-	if reenqueue {
-		if err := s.st.SetPostPendingModeration(r.Context(), pid, reason); err != nil {
-			s.fail(w, r, 500, "INTERNAL_ERROR", err.Error())
-			return
-		}
-
-	} else if !p2.Pending && !th.Pending {
+	if !p2.Pending && !th.Pending {
 		// 只有最终公开的楼层才广播：编辑待审内容不能把完整正文
 		// 推给订阅了该主题的游客
 		s.broadcastPost("post.edit", th, p2)
@@ -354,8 +344,8 @@ const (
 )
 
 // emailGateEnabled 邮箱验证闸门是否生效：开关开启且 SMTP 可用（否则自动降级）。
-func (s *Server) emailGateEnabled() bool {
-	return s.st.Settings(context.Background()).EmailVerifyEnabled && s.mailer.Enabled()
+func (s *Server) emailGateEnabled(r *http.Request) bool {
+	return s.sets(r).EmailVerifyEnabled && s.mailer.Enabled()
 }
 
 // moderationDecision 决定该用户此内容是否进入审核队列及原因：
@@ -370,7 +360,7 @@ func (s *Server) moderationDecision(r *http.Request, u *store.User, fid int64, c
 		if !memberRuleAllowed(r, "post.link.direct", fid) {
 			return true, reasonNewUserLink
 		}
-		if s.emailGateEnabled() && u.Email != "" && !u.EmailVerified {
+		if s.emailGateEnabled(r) && u.Email != "" && !u.EmailVerified {
 			return true, reasonEmailUnverified
 		}
 	}

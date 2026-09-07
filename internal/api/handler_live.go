@@ -192,6 +192,10 @@ func (s *Server) liveAuthorized(r *http.Request) bool {
 		rr = rr.WithContext(context.WithValue(rr.Context(), ctxUser, fresh))
 	}
 	var membershipErr error
+	rr, membershipErr = s.loadSettings(rr)
+	if membershipErr != nil {
+		return false
+	}
 	rr, membershipErr = s.loadMembership(rr)
 	if membershipErr != nil {
 		return false
