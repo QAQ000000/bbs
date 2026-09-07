@@ -6,9 +6,13 @@ Go + PostgreSQL 论坛后端，正在迁移到 Nuxt SSR + Go API 的前后端分
 
 开发入口：[任务称号与采纳](docs/TITLES.md) · [会员等级与权限](docs/MEMBERSHIP.md) · [当前 API](docs/API.md) · [分离方案与实施记录](docs/FRONTEND_BACKEND_SEPARATION.md)。
 
+后续社区扩展功能的规则和开发顺序见 [社区扩展功能方案](docs/COMMUNITY_FEATURES_PLAN.md)。
+
+schema 9 已实现标签管理与筛选、关注/粉丝、主题/版块/标签订阅投递和一对一私信。私信支持首条等待回复、屏蔽、分页与已读；接口与当前限制见 [社区 API](docs/COMMUNITY_API.md)。
+
 会员后端现已支持可配置等级与徽章、成长经验、自动升级、等级权限和额度、版块访问限制、后台配置预览与人工调整。管理页面仍待 Nuxt 实现。
 
-任务称号支持发帖、回复、精华、点赞和作者采纳等条件，含历史补发、限时有效、人工授予/撤销、佩戴及审计 API。称号不授予权限，也不要求先获得经验；当前 schema 为 8。
+任务称号支持发帖、回复、精华、点赞和作者采纳等条件，含历史补发、限时有效、人工授予/撤销、佩戴及审计 API。称号不授予权限，也不要求先获得经验；当前 schema 为 9。
 
 通知分页与偏好、审核/采纳/称号/升级结果通知、草稿标题、本人内容状态、具体楼层回复及定位已接入 API。契约见 [论坛基础流程](docs/FORUM_WORKFLOWS.md)，后续待办见 [功能核查](docs/FORUM_FEATURE_AUDIT.md)。
 

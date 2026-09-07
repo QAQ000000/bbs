@@ -342,6 +342,14 @@ func memberSignatureAllowed(r *http.Request, value string) bool {
 	return m != nil && m.Member != nil && (m.Member.Level.Limits.SignatureLength < 0 || int64(utf8.RuneCountInString(value)) <= m.Member.Level.Limits.SignatureLength)
 }
 func (s *Server) memberThreadRows(r *http.Request, rows []*store.Thread) ([]map[string]any, error) {
+	tids := []int64{}
+	for _, v := range rows {
+		tids = append(tids, v.ID)
+	}
+	tags, err := s.st.ThreadTags(r.Context(), tids)
+	if err != nil {
+		return nil, err
+	}
 	ids := []int64{}
 	for _, v := range rows {
 		ids = append(ids, v.AuthorID)
@@ -358,6 +366,7 @@ func (s *Server) memberThreadRows(r *http.Request, rows []*store.Thread) ([]map[
 		v := threadDTO(t)
 		v["authorLevel"] = badges[t.AuthorID]
 		v["equippedTitle"] = titles[t.AuthorID]
+		v["tags"] = tags[t.ID]
 		return v
 	}), nil
 }

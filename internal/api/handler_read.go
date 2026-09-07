@@ -147,6 +147,11 @@ func (s *Server) threadGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	m := threadDTO(th)
+	tags, err := s.st.ThreadTags(r.Context(), []int64{th.ID})
+	if s.readError(w, r, err) {
+		return
+	}
+	m["tags"] = tags[th.ID]
 	badges, err := s.st.MemberSummaries(r.Context(), []int64{th.AuthorID})
 	if s.readError(w, r, err) {
 		return

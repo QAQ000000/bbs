@@ -424,6 +424,14 @@ func (s *Store) SetUserGroup(ctx context.Context, uid int64, groupID int) error 
 // DeleteUser 删号：公开内容仍在则拒绝；仅剩软删楼层/主题时先硬删这些残留再删用户。
 // 会话、草稿、点赞、通知等已 ON DELETE CASCADE。
 func (s *Store) DeleteUser(ctx context.Context, uid int64) error {
+	var hasCommunityData bool
+	if err := s.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM conversation_members WHERE uid=$1)
+	 OR EXISTS(SELECT 1 FROM tags WHERE created_by=$1)`, uid).Scan(&hasCommunityData); err != nil {
+		return err
+	}
+	if hasCommunityData {
+		return ErrUserHasContent
+	}
 	var n int64
 	if err := s.pool.QueryRow(ctx, `SELECT count(*) FROM users WHERE id=$1`, uid).Scan(&n); err != nil {
 		return err

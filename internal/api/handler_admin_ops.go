@@ -453,7 +453,7 @@ func (s *Server) adminUserDelete(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, http.StatusNotFound, "VALIDATION_FAILED", "用户不存在")
 		return
 	case errors.Is(err, store.ErrUserHasContent):
-		s.fail(w, r, http.StatusConflict, "USER_HAS_CONTENT", "账号仍有公开内容")
+		s.fail(w, r, http.StatusConflict, "USER_HAS_CONTENT", "账号仍有发帖、私信会话或标签管理记录")
 		return
 	case err != nil:
 		s.fail(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "删号失败，请稍后重试")

@@ -30,6 +30,14 @@ func (s *Server) notificationPreferencesSave(w http.ResponseWriter, r *http.Requ
 	prefs := map[string]bool{}
 	for _, key := range store.NotificationPreferenceKeys {
 		value := r.PostFormValue(key)
+		if key == "subscriptions" && value == "" {
+			current, err := s.st.NotificationPreferences(r.Context(), User(r).ID)
+			if s.readError(w, r, err) {
+				return
+			}
+			prefs[key] = current[key]
+			continue
+		}
 		switch value {
 		case "1", "true":
 			prefs[key] = true

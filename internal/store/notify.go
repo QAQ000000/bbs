@@ -215,7 +215,7 @@ func (s *Store) ReadNotifications(ctx context.Context, uid int64, ids []int64, a
 	return tag.RowsAffected(), err
 }
 
-var NotificationPreferenceKeys = []string{"mentions", "replies", "acceptance", "membership", "titles", "moderation", "reports", "email"}
+var NotificationPreferenceKeys = []string{"mentions", "replies", "acceptance", "membership", "titles", "moderation", "reports", "email", "subscriptions"}
 
 func (s *Store) NotificationPreferences(ctx context.Context, uid int64) (map[string]bool, error) {
 	out := map[string]bool{}

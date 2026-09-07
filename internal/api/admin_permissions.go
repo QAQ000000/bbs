@@ -15,6 +15,8 @@ func requestWithUser(r *http.Request, u *store.User) *http.Request {
 func (s *Server) adminPointGuard(route string, h http.HandlerFunc) http.HandlerFunc {
 	var point perm.Point
 	switch {
+	case strings.Contains(route, "/tags"):
+		point = perm.TagsConfigure
 	case strings.Contains(route, "/titles/") && strings.HasPrefix(route, "PATCH "):
 		point = perm.TitleView
 	case strings.Contains(route, "/titles/") && strings.HasSuffix(route, "/logs"):

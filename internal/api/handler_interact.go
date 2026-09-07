@@ -66,7 +66,7 @@ func (s *Server) draftSave(w http.ResponseWriter, r *http.Request) {
 	req := struct{ Context, Content string }{r.PostFormValue("context"), r.PostFormValue("content")}
 	subject := r.PostFormValue("subject")
 	if !validDraftContext(req.Context) {
-		s.fail(w, r, 400, "BAD_REQUEST", "草稿上下文无效")
+		s.fail(w, r, 422, "VALIDATION_FAILED", "草稿上下文无效")
 		return
 	}
 	if !s.checkCSRF(r) {

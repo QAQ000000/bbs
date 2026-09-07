@@ -26,6 +26,10 @@ const bumpForumSQL = `UPDATE forums SET
 // CreateThread 发新主题：建主题 + 首楼 + 统计，返回主题与首楼。
 // pending=true 时主题进入审核队列（公开列表不可见，作者与管理人员可见）。
 func (s *Store) CreateThread(ctx context.Context, forumID, authorID int64, authorName, title, md, html string, pending bool, reason string) (*Thread, *Post, error) {
+	return s.CreateTaggedThread(ctx, forumID, authorID, authorName, title, md, html, pending, reason, nil)
+}
+
+func (s *Store) CreateTaggedThread(ctx context.Context, forumID, authorID int64, authorName, title, md, html string, pending bool, reason string, tagIDs []int64) (*Thread, *Post, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return nil, nil, err
@@ -40,6 +44,9 @@ func (s *Store) CreateThread(ctx context.Context, forumID, authorID int64, autho
 	}
 
 	var pid int64
+	if err := setThreadTags(ctx, tx, tid, tagIDs); err != nil {
+		return nil, nil, err
+	}
 	if err := tx.QueryRow(ctx,
 		`INSERT INTO posts (thread_id, author_id, floor, content_md, content_html, pending, pending_reason)
 		 VALUES ($1,$2,1,$3,$4,$5,$6) RETURNING id`, tid, authorID, md, html, pending, reason).Scan(&pid); err != nil {

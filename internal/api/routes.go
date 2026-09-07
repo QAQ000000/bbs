@@ -24,6 +24,16 @@ func (s *Server) routes() http.Handler {
 	m.HandleFunc("GET /api/v1/me/drafts", s.draftsGet)
 	m.HandleFunc("GET /api/v1/me/draft", s.draftGet)
 	m.HandleFunc("GET /api/v1/me/notifications", s.notificationsGet)
+	m.HandleFunc("GET /api/v1/me/conversations", s.messagesGet)
+	m.HandleFunc("GET /api/v1/me/subscriptions", s.subscriptionsGet)
+	m.HandleFunc("GET /api/v1/me/following", s.followsGet)
+	m.HandleFunc("GET /api/v1/me/followers", s.followsGet)
+	m.HandleFunc("GET /api/v1/users/{id}/followers", s.followsGet)
+	m.HandleFunc("GET /api/v1/tags", s.tagsGet)
+	m.HandleFunc("GET /api/v1/tags/{tagId}", s.tagGet)
+	m.HandleFunc("GET /api/v1/tag-slugs/{slug}", s.tagGet)
+	m.HandleFunc("GET /api/v1/tags/{tagId}/threads", s.tagThreads)
+	m.HandleFunc("GET /api/v1/conversations/{cid}/messages", s.conversationMessagesGet)
 	m.HandleFunc("GET /api/v1/me/notifications/summary", s.notificationSummary)
 	m.HandleFunc("GET /api/v1/me/notification-preferences", s.notificationPreferencesGet)
 	m.HandleFunc("GET /api/v1/me/content", s.ownContentGet)
@@ -46,7 +56,21 @@ func (s *Server) routes() http.Handler {
 		"POST /api/v1/me/draft": s.draftSave, "DELETE /api/v1/me/draft": s.draftDelete,
 		"POST /api/v1/me/notifications/read": s.notificationsRead, "POST /api/v1/threads/{tid}/read": s.readRecord,
 		"PUT /api/v1/me/notification-preferences": s.notificationPreferencesSave,
-		"POST /api/v1/uploads":                    s.uploadImage, "POST /api/v1/posts/{pid}/reports": s.reportSubmit,
+		"POST /api/v1/users/{id}/follow":          s.followToggle, "DELETE /api/v1/users/{id}/follow": s.followToggle,
+		"POST /api/v1/threads/{tid}/subscribe": s.threadSubscribe, "DELETE /api/v1/threads/{tid}/subscribe": s.threadSubscribe,
+		"POST /api/v1/users/{id}/messages":         s.messageSend,
+		"POST /api/v1/conversations/{cid}/block":   s.conversationBlock,
+		"DELETE /api/v1/conversations/{cid}/block": s.conversationBlock,
+		"POST /api/v1/conversations/{cid}/read":    s.conversationRead,
+		"PUT /api/v1/threads/{tid}/tags":           s.threadTagsSave,
+		"PUT /api/v1/threads/{tid}/subscribe":      s.threadSubscribe,
+		"POST /api/v1/forums/{fid}/subscribe":      s.threadSubscribe,
+		"PUT /api/v1/forums/{fid}/subscribe":       s.threadSubscribe,
+		"DELETE /api/v1/forums/{fid}/subscribe":    s.threadSubscribe,
+		"POST /api/v1/tags/{tagId}/subscribe":      s.threadSubscribe,
+		"PUT /api/v1/tags/{tagId}/subscribe":       s.threadSubscribe,
+		"DELETE /api/v1/tags/{tagId}/subscribe":    s.threadSubscribe,
+		"POST /api/v1/uploads":                     s.uploadImage, "POST /api/v1/posts/{pid}/reports": s.reportSubmit,
 	} {
 		m.HandleFunc(route, s.action(h))
 	}
@@ -55,11 +79,13 @@ func (s *Server) routes() http.Handler {
 		"GET /api/v1/admin/users": s.adminUsers, "GET /api/v1/admin/settings": s.adminSettings, "GET /api/v1/admin/perms": s.adminPerms,
 		"GET /api/v1/admin/logs": s.adminLogs, "GET /api/v1/admin/recyclebin": s.adminRecycle, "GET /api/v1/admin/censor": s.adminCensor,
 		"GET /api/v1/admin/announcements": s.adminAnnounce, "GET /api/v1/admin/moderate": s.adminModerate,
+		"GET /api/v1/admin/tags": s.tagsGet,
 	} {
 		m.HandleFunc(route, s.adminPointGuard(route, h))
 	}
 	for route, h := range map[string]http.HandlerFunc{
 		"POST /api/v1/admin/forums/save": s.adminForumSave, "POST /api/v1/admin/forums/delete": s.adminForumDelete, "POST /api/v1/admin/forums/move": s.adminForumMove,
+		"POST /api/v1/admin/tags": s.tagSave, "PUT /api/v1/admin/tags/{tagId}": s.tagSave,
 		"POST /api/v1/admin/cats/save": s.adminCatSave, "POST /api/v1/admin/cats/delete": s.adminCatDelete, "POST /api/v1/admin/threads/action": s.adminThreadAction,
 		"POST /api/v1/admin/users/ban": s.adminUserBan, "POST /api/v1/admin/users/unban": s.adminUserUnban, "POST /api/v1/admin/users/group": s.adminUserGroup,
 		"POST /api/v1/admin/users/delete": s.adminUserDelete, "POST /api/v1/admin/users/block": s.adminUserBlock, "POST /api/v1/admin/users/unblock": s.adminUserUnblock,

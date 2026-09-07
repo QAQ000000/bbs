@@ -287,7 +287,7 @@ func (s *Server) profileSelfDelete(w http.ResponseWriter, r *http.Request) {
 	err := s.st.DeleteUser(r.Context(), u.ID)
 	switch {
 	case errors.Is(err, store.ErrUserHasContent):
-		s.fail(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "账号下仍有发帖内容，无法自助删除；请联系站长处理。")
+		s.fail(w, r, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "账号仍有发帖、私信会话或标签管理记录，无法自助删除；请联系站长处理。")
 		return
 
 	case err != nil:

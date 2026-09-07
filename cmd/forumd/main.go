@@ -161,6 +161,7 @@ func main() {
 		}
 	}()
 	// 会话过期清理
+	go srv.RunSubscriptions(ctx)
 	go func() {
 		t := time.NewTicker(time.Hour)
 		defer t.Stop()

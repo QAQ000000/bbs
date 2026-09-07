@@ -49,6 +49,7 @@ const (
 	TitleGrant       Point = "titles.grant"
 	TitleRevoke      Point = "titles.revoke"
 	TitleLogs        Point = "titles.logs"
+	TagsConfigure    Point = "tags.configure"
 	ReplyAccept      Point = "reply.accept"
 	UploadUse        Point = "upload.use" // 使用本站上传
 )
@@ -57,7 +58,8 @@ const (
 // 管理员拥有全部权限点；版主拥有内容治理面；会员拥有基础面。
 var rolePerms = map[Role]map[Point]bool{
 	RoleAdmin: {
-		TitleView: true, TitleConfigure: true, TitleGrant: true, TitleRevoke: true, TitleLogs: true, ReplyAccept: true,
+		TagsConfigure: true,
+		TitleView:     true, TitleConfigure: true, TitleGrant: true, TitleRevoke: true, TitleLogs: true, ReplyAccept: true,
 		PermissionsEdit: true, UsersView: true, MemberView: true, MemberConfigure: true, MemberAdjust: true, ExperienceAdjust: true, MemberLogs: true,
 		AdminPanel: true, ForumManage: true, ContentModerate: true,
 		ContentEditOwn: true, ContentEditAny: true, ContentDeleteOwn: true, ContentDeleteAny: true,
@@ -134,6 +136,7 @@ func Matrix() map[Role]map[Point]bool {
 // AllPoints 全部命名权限点（矩阵页按此顺序渲染）。
 func AllPoints() []Point {
 	return []Point{
+		TagsConfigure,
 		TitleView, TitleConfigure, TitleGrant, TitleRevoke, TitleLogs, ReplyAccept,
 		PermissionsEdit, UsersView, MemberView, MemberConfigure, MemberAdjust, ExperienceAdjust, MemberLogs,
 		AdminPanel, ForumManage, ContentModerate,

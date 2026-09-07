@@ -85,7 +85,15 @@ func (s *Server) newThreadSubmit(w http.ResponseWriter, r *http.Request) {
 	subject, content = ct[0], ct[1]
 	pending, reason := s.moderationDecision(r, u, fid, subject+" "+content)
 	html := "" // 兼容旧存储参数；正文由独立前端渲染。
-	th, p, err := s.st.CreateThread(r.Context(), fid, u.ID, u.Username, subject, content, html, pending, reason)
+	ids, err := tagIDs(r)
+	if s.communityError(w, r, err) {
+		return
+	}
+	th, p, err := s.st.CreateTaggedThread(r.Context(), fid, u.ID, u.Username, subject, content, html, pending, reason, ids)
+	if errors.Is(err, store.ErrCommunityInvalid) {
+		s.communityError(w, r, err)
+		return
+	}
 	if err != nil {
 		s.fail(w, r, http.StatusInternalServerError, "发帖失败", err.Error())
 		return
