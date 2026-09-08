@@ -42,12 +42,21 @@ func (s *Store) RunSearchIndex(ctx context.Context, logger *slog.Logger) {
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			for i := 0; i < 10; i++ {
-				if err := s.ProcessSearchIndex(ctx); err != nil {
-					logger.Warn("搜索索引任务失败", "err", err)
+			job, cancel := context.WithTimeout(ctx, 10*time.Second)
+			start := time.Now()
+			for i := 0; i < 10 && time.Since(start) < 250*time.Millisecond; i++ {
+				processed, err := s.processSearchEvent(job)
+				if err != nil {
+					if ctx.Err() == nil {
+						logger.Warn("搜索索引任务失败", "err", err)
+					}
+					break
+				}
+				if !processed {
 					break
 				}
 			}
+			cancel()
 		}
 	}
 }
@@ -55,28 +64,48 @@ func (s *Store) RunSearchIndex(ctx context.Context, logger *slog.Logger) {
 // ProcessSearchIndex claims and processes one due event. It commits retry
 // metadata when indexing fails so a transient database error survives restart.
 func (s *Store) ProcessSearchIndex(ctx context.Context) error {
-	return s.processSearchEvent(ctx)
+	_, err := s.processSearchEvent(ctx)
+	return err
 }
 
-func (s *Store) processSearchEvent(ctx context.Context) error {
+func (s *Store) processSearchEvent(ctx context.Context) (bool, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
-		return err
+		return false, err
 	}
 	defer tx.Rollback(ctx)
-	var id, postID int64
-	err = tx.QueryRow(ctx, `SELECT id,post_id FROM search_index_events WHERE next_attempt_at<=now() ORDER BY id LIMIT 1 FOR UPDATE SKIP LOCKED`).Scan(&id, &postID)
+	var id, postID, tid int64
+	// Writers lock thread, then post, then enqueue. Match that order to avoid
+	// deadlocks and hold the content stable until index and event commit together.
+	err = tx.QueryRow(ctx, `SELECT t.id FROM search_index_events e JOIN posts p ON p.id=e.post_id
+JOIN threads t ON t.id=p.thread_id WHERE e.next_attempt_at<=now() ORDER BY e.id LIMIT 1
+FOR NO KEY UPDATE OF t SKIP LOCKED`).Scan(&tid)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil
+		return false, nil
 	}
 	if err != nil {
-		return err
+		return false, err
+	}
+	err = tx.QueryRow(ctx, `SELECT p.id FROM posts p JOIN search_index_events e ON e.post_id=p.id
+WHERE p.thread_id=$1 AND e.next_attempt_at<=now() ORDER BY e.id LIMIT 1 FOR NO KEY UPDATE OF p SKIP LOCKED`, tid).Scan(&postID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	err = tx.QueryRow(ctx, `SELECT id FROM search_index_events WHERE post_id=$1 AND next_attempt_at<=now() FOR UPDATE SKIP LOCKED`, postID).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
 	}
 	var title, body string
 	var deleted bool
 	work, workErr := tx.Begin(ctx)
 	if workErr != nil {
-		return workErr
+		return false, workErr
 	}
 	err = work.QueryRow(ctx, `SELECT CASE WHEN p.floor=1 THEN t.title ELSE '' END,p.content_md,p.deleted OR t.deleted OR p.pending OR t.pending FROM posts p JOIN threads t ON t.id=p.thread_id WHERE p.id=$1`, postID).Scan(&title, &body, &deleted)
 	if err == nil {
@@ -90,7 +119,7 @@ func (s *Store) processSearchEvent(ctx context.Context) error {
 		err = work.Commit(ctx)
 	} else {
 		if rollbackErr := work.Rollback(ctx); rollbackErr != nil {
-			return errors.Join(err, rollbackErr)
+			return false, errors.Join(err, rollbackErr)
 		}
 	}
 	if err != nil {
@@ -100,15 +129,15 @@ func (s *Store) processSearchEvent(ctx context.Context) error {
 			state = pgErr.Code
 		}
 		if _, updateErr := tx.Exec(ctx, `UPDATE search_index_events SET attempts=least(attempts+1,16),next_attempt_at=now()+least(300,power(2,attempts))*interval '1 second',last_sqlstate=$2 WHERE id=$1`, id, state); updateErr != nil {
-			return errors.Join(err, updateErr)
+			return false, errors.Join(err, updateErr)
 		}
 		if commitErr := tx.Commit(ctx); commitErr != nil {
-			return errors.Join(err, commitErr)
+			return false, errors.Join(err, commitErr)
 		}
-		return err
+		return false, err
 	}
 	if _, err = tx.Exec(ctx, `DELETE FROM search_index_events WHERE id=$1`, id); err != nil {
-		return err
+		return false, err
 	}
-	return tx.Commit(ctx)
+	return true, tx.Commit(ctx)
 }

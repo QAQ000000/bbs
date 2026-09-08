@@ -25,6 +25,10 @@ var testPool *pgxpool.Pool
 func TestMain(m *testing.M) {
 	dsn := os.Getenv("FORUM_TEST_DSN")
 	if dsn == "" {
+		if os.Getenv("FORUM_REQUIRE_TEST_DB") == "1" {
+			fmt.Fprintln(os.Stderr, "required store test database is missing")
+			os.Exit(1)
+		}
 		fmt.Println("SKIP: store integration tests require explicit FORUM_TEST_DSN")
 		os.Exit(0)
 	}

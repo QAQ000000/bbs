@@ -42,6 +42,10 @@ var (
 func TestMain(m *testing.M) {
 	dsn := os.Getenv("FORUM_TEST_DSN")
 	if dsn == "" {
+		if os.Getenv("FORUM_REQUIRE_TEST_DB") == "1" {
+			fmt.Fprintln(os.Stderr, "required API test database is missing")
+			os.Exit(1)
+		}
 		os.Exit(m.Run())
 	}
 	parsed, err := pgxpool.ParseConfig(dsn)
@@ -50,7 +54,8 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 	ctx := context.Background()
-	pool, err := db.Open(ctx, dsn)
+	cfg := config.FromEnv()
+	pool, err := db.OpenWithPoolSize(ctx, dsn, cfg.DBMaxConnections, cfg.DBMinConnections)
 	if err != nil {
 		fmt.Println("SKIP: 冒烟测试数据库不可达（", err, "）")
 		os.Exit(1)
@@ -65,6 +70,9 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 	st := store.New(pool)
+	if os.Getenv("FORUM_TEST_ASYNC") == "1" {
+		st = store.NewWithAsyncForumStats(pool)
+	}
 
 	// 最小数据集：管理员 + 普通用户 + 分类/版块 + 主题/回复 + 软删主题 + 公告 + 敏感词
 	admin, err := st.CreateUser(ctx, "admin", "admin123456", "admin@test.local")
@@ -161,7 +169,6 @@ func TestMain(m *testing.M) {
 	userCookie = &http.Cookie{Name: "forum_session", Value: tokU}
 	modCookie = &http.Cookie{Name: "forum_session", Value: tokM}
 	adminCSRF, userCSRF, modCSRF = csrfA, csrfU, csrfM
-	cfg := config.FromEnv()
 	cfg.SiteName = "GoBBS 冒烟站"
 	uploadDir, err := os.MkdirTemp("", "gobbs-api-uploads-")
 	if err != nil {

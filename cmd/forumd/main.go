@@ -132,47 +132,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	memberDone := make(chan struct{})
-	go func() { defer close(memberDone); st.RunMemberWork(ctx, logger) }()
-	defer func() { stop(); <-memberDone }()
-	forumStatsDone := make(chan struct{})
-	go func() { defer close(forumStatsDone); st.RunForumStats(ctx, logger) }()
-	searchDone := make(chan struct{})
-	go func() { defer close(searchDone); st.RunSearchIndex(ctx, logger) }()
-	defer func() { stop(); <-searchDone }()
-	analyticsDone := make(chan struct{})
-	go func() {
-		defer close(analyticsDone)
-		tick := time.NewTicker(time.Hour)
-		defer tick.Stop()
-		refresh := func() {
-			job, cancel := context.WithTimeout(ctx, 30*time.Second)
-			period := time.Now().Truncate(time.Hour)
-			if err := st.RefreshPointsLeaderboard(job, period, 100); err != nil {
-				logger.Warn("排行榜快照刷新失败", "err", err)
-			}
-			if err := st.RefreshSiteReport(job, time.Now().Truncate(24*time.Hour)); err != nil {
-				logger.Warn("站点报表快照刷新失败", "err", err)
-			}
-			cancel()
-		}
-		refresh()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-tick.C:
-				refresh()
-			}
-		}
-	}()
-	defer func() { stop(); <-analyticsDone }()
-	defer func() { stop(); <-forumStatsDone }()
+	workersDone := make(chan struct{})
+	go func() { defer close(workersDone); srv.RunBackgroundWorkers(ctx) }()
+	defer func() { stop(); <-workersDone }()
 	// 会话过期清理
-	go srv.RunSubscriptions(ctx)
-	emailDone := make(chan struct{})
-	go func() { defer close(emailDone); srv.RunEmails(ctx) }()
-	defer func() { stop(); <-emailDone }()
 	go func() {
 		t := time.NewTicker(time.Hour)
 		defer t.Stop()

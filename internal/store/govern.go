@@ -116,6 +116,10 @@ func (s *Store) RestoreThread(ctx context.Context, tid int64) error {
 		WHERE id=$1`, tid); err != nil {
 		return err
 	}
+	if _, err := tx.Exec(ctx, `INSERT INTO search_index_events(post_id) SELECT id FROM posts WHERE thread_id=$1 AND NOT deleted
+ON CONFLICT(post_id) DO UPDATE SET next_attempt_at=now()`, tid); err != nil {
+		return err
+	}
 
 	if err := tx.Commit(ctx); err != nil {
 		return err

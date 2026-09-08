@@ -1,0 +1,55 @@
+name: Backend tests
+on:
+  pull_request:
+  push:
+    branches: ['**']
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: isolated-ci-password
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: {go-version-file: go.mod}
+      - name: Create isolated databases
+        env:
+          PGPASSWORD: isolated-ci-password
+        run: |
+          psql -h 127.0.0.1 -U postgres -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE gobbs_test LOGIN PASSWORD 'isolated-test-password' NOSUPERUSER NOCREATEDB NOCREATEROLE;
+          CREATE DATABASE gobbs_test_store OWNER gobbs_test;
+          CREATE DATABASE gobbs_test_api OWNER gobbs_test;
+          CREATE DATABASE gobbs_test_migrations OWNER gobbs_test;
+          SQL
+      - name: Required database regressions and build
+        env:
+          FORUM_STORE_TEST_DSN: postgres://gobbs_test:isolated-test-password@127.0.0.1:5432/gobbs_test_store?sslmode=disable
+          FORUM_API_TEST_DSN: postgres://gobbs_test:isolated-test-password@127.0.0.1:5432/gobbs_test_api?sslmode=disable
+          FORUM_MIGRATION_TEST_DSN: postgres://gobbs_test:isolated-test-password@127.0.0.1:5432/gobbs_test_migrations?sslmode=disable
+          FORUM_TEST_RESULTS_DIR: test-results
+        run: bash scripts/test-backend.sh
+      - name: Asynchronous HTTP smoke benchmark
+        env:
+          FORUM_TEST_DSN: postgres://gobbs_test:isolated-test-password@127.0.0.1:5432/gobbs_test_api?sslmode=disable
+          FORUM_REQUIRE_TEST_DB: '1'
+          FORUM_TEST_ASYNC: '1'
+          FORUM_DB_MAX_CONNS: '20'
+          FORUM_DB_MIN_CONNS: '2'
+        run: go test ./internal/api -run '^$' -bench '^BenchmarkForumTraffic$' -benchtime=1x -count=1 -timeout=8m -v > test-results/load.log 2>&1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-test-results
+          path: test-results/

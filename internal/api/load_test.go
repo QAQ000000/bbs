@@ -8,12 +8,14 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"slices"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"dzforum/internal/db"
 	"dzforum/internal/live"
 )
 
@@ -29,6 +31,15 @@ func BenchmarkForumTraffic(b *testing.B) {
 	}
 	if b.N != 1 {
 		b.Fatal("use -benchtime=1x")
+	}
+	status, err := smokeSrv.st.ForumStatsQueueStatus(context.Background())
+	if err != nil || !status.AsyncPublication || os.Getenv("FORUM_TEST_ASYNC") != "1" {
+		b.Fatal("benchmark requires FORUM_TEST_ASYNC=1 and asynchronous Store", err)
+	}
+	b.Logf("LOAD config poolMax=%d poolMin=%d asyncPublication=%t workers=growth,titles,forum,search,subscriptions,email,analytics threads=10000 posts=50000 smtp=%t",
+		smokePool.Config().MaxConns, smokePool.Config().MinConns, status.AsyncPublication, smokeSrv.mailer.Enabled())
+	if smokeSrv.mailer.Enabled() {
+		b.Fatal("traffic benchmark requires SMTP disabled; use mail integration fixtures")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
 	defer cancel()
@@ -108,10 +119,11 @@ func BenchmarkForumTraffic(b *testing.B) {
 
 	workers, stopWorkers := context.WithCancel(ctx)
 	var workerWG sync.WaitGroup
-	workerWG.Add(1)
-	go func() { defer workerWG.Done(); smokeSrv.RunSubscriptions(workers) }()
-	workerWG.Add(1)
-	go func() { defer workerWG.Done(); smokeSrv.st.RunMemberWork(workers, smokeSrv.log) }()
+	workerWG.Add(2)
+	go func() { defer workerWG.Done(); smokeSrv.RunBackgroundWorkers(workers) }()
+	go func() { defer workerWG.Done(); db.Monitor(workers, smokePool, smokeSrv.log) }()
+	smokeSrv.st.StartViewCounter(workers)
+	defer smokeSrv.st.StopViewCounter()
 	defer func() { stopWorkers(); workerWG.Wait() }()
 	server := httptest.NewServer(smokeSrv.Handler())
 	defer server.Close()
@@ -147,10 +159,7 @@ func BenchmarkForumTraffic(b *testing.B) {
 	if err = smokePool.QueryRow(ctx, `SELECT count(*) FROM posts p JOIN threads t ON t.id=p.thread_id WHERE t.forum_id=$1 AND NOT p.pending AND NOT p.deleted`, fid).Scan(&actual); err != nil || actual != 50320 {
 		b.Fatalf("public write count %d: %v", actual, err)
 	}
-	var exact bool
-	if err = smokePool.QueryRow(ctx, `SELECT post_count=50320 AND thread_count=10000 FROM forums WHERE id=$1`, fid).Scan(&exact); err != nil || !exact {
-		b.Fatal("forum counters drifted", err)
-	}
+	loadWaitDerived(b, ctx, fid)
 	loadSSE(b, ctx, server.URL, client, people, tids[0], read)
 
 	var subForum int64
@@ -181,21 +190,55 @@ func BenchmarkForumTraffic(b *testing.B) {
 	b.Logf("LOAD fanout recipients=500 elapsedMs=%d", time.Since(start).Milliseconds())
 	drainStart := time.Now()
 	for i := 0; i < 600; i++ {
-		var growth, titles, subscriptions int
+		var growth, titles, subscriptions, search, forum, email int
 		if err = smokePool.QueryRow(ctx, `SELECT (SELECT count(*) FROM member_events),(SELECT count(*) FROM title_events),
 		 (SELECT count(*) FROM subscription_events e JOIN posts p ON p.id=e.post_id JOIN threads t ON t.id=p.thread_id
-		 WHERE NOT e.completed AND NOT p.pending AND NOT p.deleted AND NOT t.pending AND NOT t.deleted)`).Scan(&growth, &titles, &subscriptions); err != nil {
+		 WHERE NOT e.completed AND NOT p.pending AND NOT p.deleted AND NOT t.pending AND NOT t.deleted),
+		 (SELECT count(*) FROM search_index_events),(SELECT count(*) FROM forum_stat_events),
+		 (SELECT count(*) FROM email_jobs WHERE status IN ('pending','sending'))`).Scan(&growth, &titles, &subscriptions, &search, &forum, &email); err != nil {
 			b.Fatal(err)
 		}
-		if growth+titles+subscriptions == 0 {
-			b.Logf("LOAD final queues: growth=0 titles=0 publicSubscriptions=0 drainMs=%d", time.Since(drainStart).Milliseconds())
+		if growth+titles+subscriptions+search+forum+email == 0 {
+			loadWaitDerived(b, ctx, fid)
+			loadWaitDerived(b, ctx, subForum)
+			var snapshots int
+			if err := smokePool.QueryRow(ctx, `SELECT count(DISTINCT name) FROM analytics_snapshots WHERE name IN ('points','site')`).Scan(&snapshots); err != nil || snapshots != 2 {
+				b.Fatal("snapshot worker did not run", err)
+			}
+			b.Logf("LOAD final queues: growth=0 titles=0 publicSubscriptions=0 search=0 forum=0 email=0 snapshots=2 drainMs=%d", time.Since(drainStart).Milliseconds())
 			return
 		}
 		if i%50 == 0 {
-			b.Logf("LOAD draining queues: growth=%d titles=%d publicSubscriptions=%d", growth, titles, subscriptions)
+			b.Logf("LOAD draining queues: growth=%d titles=%d publicSubscriptions=%d search=%d forum=%d email=%d", growth, titles, subscriptions, search, forum, email)
 		}
 		if i == 599 {
-			b.Fatalf("queues did not drain: %d %d %d", growth, titles, subscriptions)
+			b.Fatalf("queues did not drain: %d %d %d %d %d %d", growth, titles, subscriptions, search, forum, email)
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+}
+
+func loadWaitDerived(b *testing.B, ctx context.Context, fid int64) {
+	b.Helper()
+	start := time.Now()
+	for {
+		var exact bool
+		err := smokePool.QueryRow(ctx, `SELECT
+post_count=(SELECT count(*) FROM posts p JOIN threads t ON t.id=p.thread_id WHERE t.forum_id=$1 AND NOT p.pending AND NOT p.deleted AND NOT t.pending AND NOT t.deleted)
+AND thread_count=(SELECT count(*) FROM threads WHERE forum_id=$1 AND NOT pending AND NOT deleted)
+AND NOT EXISTS(SELECT 1 FROM forum_stat_events WHERE forum_id=$1)
+AND NOT EXISTS(SELECT 1 FROM search_index_events e JOIN posts p ON p.id=e.post_id JOIN threads t ON t.id=p.thread_id WHERE t.forum_id=$1)
+AND NOT EXISTS(SELECT 1 FROM posts p JOIN threads t ON t.id=p.thread_id WHERE t.forum_id=$1 AND p.content_md='load reply' AND (p.search_data IS NULL OR NOT (p.search_data @@ to_tsquery('simple','load & reply'))))
+FROM forums WHERE id=$1`, fid).Scan(&exact)
+		if err != nil {
+			b.Fatal(err)
+		}
+		if exact {
+			b.Logf("LOAD derived forum=%d consistent=true waitMs=%d", fid, time.Since(start).Milliseconds())
+			return
+		}
+		if time.Since(start) > 45*time.Second {
+			b.Fatal("derived data did not converge")
 		}
 		time.Sleep(100 * time.Millisecond)
 	}

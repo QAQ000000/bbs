@@ -198,6 +198,7 @@ scripts/           辅助脚本（素材导出、发布自检）
 - 检查：`go vet ./...`、`go build ./...`。
 - 后端 API 测试：`go test ./internal/api`；不设置 `FORUM_TEST_DSN` 时，仅运行无需数据库的测试，集成测试明确跳过。
 - 完整集成：为 API 和 store **分别**准备独立测试库，并分别设置 `FORUM_TEST_DSN` 执行 `go test ./internal/api` 与 `go test ./internal/store`。API 测试要求库名以 `gobbs_test_` 开头，上传文件使用临时目录。
+- 发布门禁：`bash scripts/verify-local-backend.sh test` 自动启动独立 PostgreSQL 集群，执行与 CI 相同的严格回归。已有专用测试库时可设置 `FORUM_STORE_TEST_DSN`、`FORUM_API_TEST_DSN`、`FORUM_MIGRATION_TEST_DSN` 后执行 `bash scripts/test-backend.sh`。三个库名必须不同且以 `gobbs_test_` 开头；任何跳过、失败或数据库缺失均拒绝通过。详见 [测试门禁](docs/TEST_GATE.md)。
 - 数据库测试会清空目标库 schema；禁止使用业务库，禁止两个包共用同一测试库并行执行。`store` 已移除默认数据库连接，同样要求显式指定 `gobbs_test_` 测试库。
 - API 回归覆盖 JSON 数据、字段隐私、登录/CSRF、发帖/编辑/删除、权限、审核、附件及 SSE；原 HTML 展示断言已移除，后续由 Nuxt 测试接替。
 
