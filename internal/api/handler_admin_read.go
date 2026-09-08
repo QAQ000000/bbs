@@ -48,6 +48,10 @@ func (s *Server) adminDiagnostics(w http.ResponseWriter, r *http.Request) {
 	if s.readError(w, r, err) {
 		return
 	}
+	workload, err := s.st.DatabaseWorkloadStats(r.Context())
+	if s.readError(w, r, err) {
+		return
+	}
 	forum, err := s.st.ForumStatsQueueStatus(r.Context())
 	if s.readError(w, r, err) {
 		return
@@ -56,7 +60,7 @@ func (s *Server) adminDiagnostics(w http.ResponseWriter, r *http.Request) {
 	if s.readError(w, r, err) {
 		return
 	}
-	s.respond(w, 200, map[string]any{"databasePool": s.st.DatabasePoolStats(), "lockWaits": locks, "forumStats": forum, "searchIndex": search})
+	s.respond(w, 200, map[string]any{"databasePool": s.st.DatabasePoolStats(), "databaseWorkload": workload, "lockWaits": locks, "forumStats": forum, "searchIndex": search})
 }
 func (s *Server) adminForums(w http.ResponseWriter, r *http.Request) {
 	if !s.requireAdmin(w, r) {
