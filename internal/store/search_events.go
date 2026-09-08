@@ -36,13 +36,19 @@ func (s *Store) RunSearchIndex(ctx context.Context, logger *slog.Logger) {
 			return
 		case <-t.C:
 			for i := 0; i < 10; i++ {
-				if err := s.processSearchEvent(ctx); err != nil {
+				if err := s.ProcessSearchIndex(ctx); err != nil {
 					logger.Warn("搜索索引任务失败", "err", err)
 					break
 				}
 			}
 		}
 	}
+}
+
+// ProcessSearchIndex claims and processes one due event. It commits retry
+// metadata when indexing fails so a transient database error survives restart.
+func (s *Store) ProcessSearchIndex(ctx context.Context) error {
+	return s.processSearchEvent(ctx)
 }
 
 func (s *Store) processSearchEvent(ctx context.Context) error {
@@ -70,7 +76,12 @@ func (s *Store) processSearchEvent(ctx context.Context) error {
 		}
 	}
 	if err != nil {
-		_, _ = tx.Exec(ctx, `UPDATE search_index_events SET attempts=attempts+1,next_attempt_at=now()+make_interval(secs=>least(300,power(2,attempts))),last_sqlstate='' WHERE id=$1`, id)
+		if _, updateErr := tx.Exec(ctx, `UPDATE search_index_events SET attempts=least(attempts+1,16),next_attempt_at=now()+make_interval(secs=>least(300,power(2,attempts))),last_sqlstate='' WHERE id=$1`, id); updateErr != nil {
+			return errors.Join(err, updateErr)
+		}
+		if commitErr := tx.Commit(ctx); commitErr != nil {
+			return errors.Join(err, commitErr)
+		}
 		return err
 	}
 	if _, err = tx.Exec(ctx, `DELETE FROM search_index_events WHERE id=$1`, id); err != nil {
