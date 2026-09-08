@@ -16,6 +16,7 @@ type Config struct {
 	UploadRequestTimeout time.Duration
 	DBMaxConnections     int
 	DBMinConnections     int
+	AsyncForumStats      bool
 
 	SiteName  string
 	SiteLogo  string
@@ -63,6 +64,7 @@ func FromEnv() Config {
 		UploadRequestTimeout: time.Duration(getint("FORUM_UPLOAD_TIMEOUT_SECONDS", 60)) * time.Second,
 		DBMaxConnections:     getint("FORUM_DB_MAX_CONNS", 20),
 		DBMinConnections:     getint("FORUM_DB_MIN_CONNS", 2),
+		AsyncForumStats:      os.Getenv("FORUM_ASYNC_FORUM_STATS") == "1",
 
 		SiteName: getenv("FORUM_SITE_NAME", "GoBBS 社区"),
 		SiteLogo: getenv("FORUM_SITE_LOGO", "Go!BBS"),

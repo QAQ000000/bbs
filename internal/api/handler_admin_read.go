@@ -19,6 +19,16 @@ func (s *Server) adminDash(w http.ResponseWriter, r *http.Request) {
 	}
 	s.respond(w, 200, map[string]any{"stats": statsDTO(v), "recycle": s.st.RecycleCount(r.Context()), "banned": s.st.BannedCount(r.Context()), "dbSize": s.st.DBSize(r.Context()), "databasePool": s.st.DatabasePoolStats(), "subscriptions": s.hub.Count(), "uptimeSeconds": int64(time.Since(s.start).Seconds()), "goVersion": runtime.Version(), "uploadBytes": s.uploadDirBytes(), "uploadLimitGB": s.sets(r).UploadMaxDiskGB})
 }
+
+func (s *Server) adminForumStats(w http.ResponseWriter, r *http.Request) {
+	if !s.requireAdmin(w, r) {
+		return
+	}
+	v, err := s.st.ForumStatsQueueStatus(r.Context())
+	if !s.readError(w, r, err) {
+		s.respond(w, 200, v)
+	}
+}
 func (s *Server) adminForums(w http.ResponseWriter, r *http.Request) {
 	if !s.requireAdmin(w, r) {
 		return

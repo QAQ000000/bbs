@@ -11,7 +11,7 @@ import (
 
 // ---- 写操作（事务）----
 
-// bumpForumSQL 维护版块反范式统计：总帖数、今日帖数（跨天自动归零）、最后发表。
+// bumpForumSQL maintains synchronous public forum statistics and author count.
 // $1 版块, $2 用户, $3 用户名, $4 主题id, $5 主题标题, $6 是否同时 +主题数
 const bumpForumSQL = `WITH stats AS (UPDATE forums SET
 	post_count = post_count + 1,
@@ -23,6 +23,17 @@ const bumpForumSQL = `WITH stats AS (UPDATE forums SET
 	thread_count = thread_count + CASE WHEN $6 THEN 1 ELSE 0 END
 	WHERE id = $1 RETURNING id)
 	UPDATE users SET post_count=post_count+1 WHERE id=$2 AND EXISTS(SELECT 1 FROM stats)`
+
+func (s *Store) recordPublication(ctx context.Context, tx pgx.Tx, fid, uid int64, username string, tid int64, title string, thread bool) error {
+	if !s.asyncForumStats {
+		_, err := tx.Exec(ctx, bumpForumSQL, fid, uid, username, tid, title, thread)
+		return err
+	}
+	_, err := tx.Exec(ctx, `WITH queued AS (
+	 INSERT INTO forum_stat_events(forum_id) VALUES($1) RETURNING id
+	) UPDATE users SET post_count=post_count+1 WHERE id=$2 AND EXISTS(SELECT 1 FROM queued)`, fid, uid)
+	return err
+}
 
 // CreateThread 发新主题：建主题 + 首楼 + 统计，返回主题与首楼。
 // pending=true 时主题进入审核队列（公开列表不可见，作者与管理人员可见）。
@@ -57,7 +68,7 @@ func (s *Store) CreateTaggedThread(ctx context.Context, forumID, authorID int64,
 		return nil, nil, err
 	}
 	if !pending {
-		if _, err := tx.Exec(ctx, bumpForumSQL, forumID, authorID, authorName, tid, title, true); err != nil {
+		if err := s.recordPublication(ctx, tx, forumID, authorID, authorName, tid, title, true); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -124,12 +135,8 @@ func (s *Store) CreateReplyTo(ctx context.Context, threadID, authorID int64, aut
 		 VALUES ($1,$2,$3,$4,$5,$6,$7,nullif($8,0)) RETURNING id`, threadID, authorID, floor, md, html, pending, reason, replyTo).Scan(&pid); err != nil {
 		return nil, nil, err
 	}
-	var forum Forum
-	if err := tx.QueryRow(ctx, `SELECT name FROM forums WHERE id=$1`, th.ForumID).Scan(&forum.Name); err != nil {
-		return nil, nil, err
-	}
 	if !pending {
-		if _, err := tx.Exec(ctx, bumpForumSQL, th.ForumID, authorID, authorName, threadID, th.Title, false); err != nil {
+		if err := s.recordPublication(ctx, tx, th.ForumID, authorID, authorName, threadID, th.Title, false); err != nil {
 			return nil, nil, err
 		}
 	}

@@ -25,7 +25,15 @@ func lockForumStats(ctx context.Context, tx pgx.Tx, forumID int64) error {
 
 // RecomputeForumStats 从公开内容重算单个版块的全部统计与最后发表。
 func (s *Store) RecomputeForumStats(ctx context.Context, forumID int64) error {
-	return recomputeForumStats(ctx, s.pool, forumID)
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	if err = recomputeForumStats(ctx, tx, forumID); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 func recomputeForumStats(ctx context.Context, db statsDB, forumID int64) error {

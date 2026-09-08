@@ -1233,3 +1233,15 @@ CREATE INDEX IF NOT EXISTS threads_public_author_idx
  ON threads(author_id,last_post_at DESC,id DESC) WHERE NOT deleted AND NOT pending;
 CREATE INDEX IF NOT EXISTS posts_public_created_idx
  ON posts(created_at,thread_id) WHERE NOT deleted AND NOT pending;
+
+-- Asynchronous forum statistics (schema 17).
+CREATE TABLE IF NOT EXISTS forum_stat_events (
+ id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+ forum_id bigint NOT NULL REFERENCES forums(id) ON DELETE CASCADE,
+ created_at timestamptz NOT NULL DEFAULT now(),
+ attempts integer NOT NULL DEFAULT 0 CHECK(attempts BETWEEN 0 AND 16),
+ next_attempt_at timestamptz NOT NULL DEFAULT now(),
+ last_sqlstate text NOT NULL DEFAULT '' CHECK(length(last_sqlstate)<=5)
+);
+CREATE INDEX IF NOT EXISTS forum_stat_events_due ON forum_stat_events(next_attempt_at,id);
+CREATE INDEX IF NOT EXISTS forum_stat_events_forum ON forum_stat_events(forum_id,id);

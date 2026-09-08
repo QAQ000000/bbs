@@ -36,11 +36,20 @@ type Store struct {
 	viewCounterOnce sync.Once
 	views           *viewCounter
 	homeStats       homeStatsCache
+	asyncForumStats bool
 }
 
 func New(pool *pgxpool.Pool) *Store {
 	s := &Store{pool: pool}
 	s.avatars = newNameCache(s)
+	return s
+}
+
+// NewWithAsyncForumStats enables asynchronous publication statistics only.
+// Moderation and removal continue synchronously to hide metadata immediately.
+func NewWithAsyncForumStats(pool *pgxpool.Pool) *Store {
+	s := New(pool)
+	s.asyncForumStats = true
 	return s
 }
 

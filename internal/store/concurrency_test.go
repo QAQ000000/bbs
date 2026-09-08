@@ -160,3 +160,28 @@ func TestConcurrencyDeliveryAndHotReplies(t *testing.T) {
 		t.Fatal(valid, err)
 	}
 }
+
+func TestAsyncForumStatsEventuallyReconciles(t *testing.T) {
+	ctx := context.Background()
+	a, _ := setupUsers(t)
+	fid := setupForum(t)
+	s := NewWithAsyncForumStats(testPool)
+	th, _, err := s.CreateThread(ctx, fid, a, "author", "async stats", "body", "", false, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = testPool.QueryRow(ctx, `SELECT post_count,thread_count FROM forums WHERE id=$1`, fid).Scan(new(int64), new(int64)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.ProcessForumStats(ctx); err != nil {
+		t.Fatal(err)
+	}
+	var ok bool
+	if err = testPool.QueryRow(ctx, `SELECT post_count=1 AND thread_count=1 AND last_thread_id=$2 FROM forums WHERE id=$1`, fid, th.ID).Scan(&ok); err != nil || !ok {
+		t.Fatal("async statistics not reconciled", err)
+	}
+	status, err := s.ForumStatsQueueStatus(ctx)
+	if err != nil || status.Pending != 0 {
+		t.Fatal(status, err)
+	}
+}

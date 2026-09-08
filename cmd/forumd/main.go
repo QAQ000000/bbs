@@ -74,6 +74,10 @@ func main() {
 	defer func() { stop(); <-monitorDone }()
 
 	st := store.New(pool)
+	if cfg.AsyncForumStats {
+		st = store.NewWithAsyncForumStats(pool)
+		logger.Warn("异步版块统计已启用", "consistency", "display-fields-eventual")
+	}
 	st.StartViewCounter(ctx)
 	defer st.StopViewCounter()
 
@@ -131,6 +135,9 @@ func main() {
 	memberDone := make(chan struct{})
 	go func() { defer close(memberDone); st.RunMemberWork(ctx, logger) }()
 	defer func() { stop(); <-memberDone }()
+	forumStatsDone := make(chan struct{})
+	go func() { defer close(forumStatsDone); st.RunForumStats(ctx, logger) }()
+	defer func() { stop(); <-forumStatsDone }()
 	// 会话过期清理
 	go srv.RunSubscriptions(ctx)
 	emailDone := make(chan struct{})
