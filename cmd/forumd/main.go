@@ -137,6 +137,9 @@ func main() {
 	defer func() { stop(); <-memberDone }()
 	forumStatsDone := make(chan struct{})
 	go func() { defer close(forumStatsDone); st.RunForumStats(ctx, logger) }()
+	searchDone := make(chan struct{})
+	go func() { defer close(searchDone); st.RunSearchIndex(ctx, logger) }()
+	defer func() { stop(); <-searchDone }()
 	defer func() { stop(); <-forumStatsDone }()
 	// 会话过期清理
 	go srv.RunSubscriptions(ctx)

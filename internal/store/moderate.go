@@ -42,6 +42,9 @@ func (s *Store) SetThreadApproved(ctx context.Context, tid int64) error {
 	if err := recomputeForumStats(ctx, tx, fid); err != nil {
 		return err
 	}
+	if _, err := tx.Exec(ctx, `INSERT INTO search_index_events(post_id) SELECT id FROM posts WHERE thread_id=$1 ON CONFLICT(post_id) DO UPDATE SET created_at=now(),next_attempt_at=now()`, tid); err != nil {
+		return err
+	}
 	return tx.Commit(ctx)
 }
 
@@ -94,7 +97,11 @@ func setPostPendingTx(ctx context.Context, tx pgx.Tx, postID int64, reason strin
 			return err
 		}
 	}
-	return recomputeForumStats(ctx, tx, fid)
+	if err := recomputeForumStats(ctx, tx, fid); err != nil {
+		return err
+	}
+	_, err := tx.Exec(ctx, `INSERT INTO search_index_events(post_id) VALUES($1) ON CONFLICT(post_id) DO UPDATE SET created_at=now(),next_attempt_at=now()`, postID)
+	return err
 }
 
 // SetPostApproved 审核通过单条回复：翻 pending、回补作者计数、重算主题最后发表与版块公开统计。
@@ -135,6 +142,9 @@ func (s *Store) SetPostApproved(ctx context.Context, pid int64) (*Post, *Thread,
 		return nil, nil, err
 	}
 	if err := recomputeForumStats(ctx, tx, fid); err != nil {
+		return nil, nil, err
+	}
+	if _, err := tx.Exec(ctx, `INSERT INTO search_index_events(post_id) VALUES($1) ON CONFLICT(post_id) DO UPDATE SET created_at=now(),next_attempt_at=now()`, pid); err != nil {
 		return nil, nil, err
 	}
 	if err := tx.Commit(ctx); err != nil {

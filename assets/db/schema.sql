@@ -1245,3 +1245,15 @@ CREATE TABLE IF NOT EXISTS forum_stat_events (
 );
 CREATE INDEX IF NOT EXISTS forum_stat_events_due ON forum_stat_events(next_attempt_at,id);
 CREATE INDEX IF NOT EXISTS forum_stat_events_forum ON forum_stat_events(forum_id,id);
+
+-- Asynchronous search index updates.
+CREATE TABLE IF NOT EXISTS search_index_events (
+ id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+ post_id bigint NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+ created_at timestamptz NOT NULL DEFAULT now(),
+ attempts integer NOT NULL DEFAULT 0 CHECK(attempts BETWEEN 0 AND 16),
+ next_attempt_at timestamptz NOT NULL DEFAULT now(),
+ last_sqlstate text NOT NULL DEFAULT '' CHECK(length(last_sqlstate)<=5),
+ UNIQUE(post_id)
+);
+CREATE INDEX IF NOT EXISTS search_index_events_due ON search_index_events(next_attempt_at,id);

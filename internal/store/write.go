@@ -77,7 +77,7 @@ func (s *Store) CreateTaggedThread(ctx context.Context, forumID, authorID int64,
 		return nil, nil, err
 	}
 	markMemberCommit(ctx)
-	_ = s.IndexPost(ctx, pid, title, md) // 首楼：标题权重 A + 正文 B
+	_ = s.QueueSearchIndex(ctx, pid)
 	th, err := s.Thread(ctx, tid)
 	if err != nil {
 		return nil, nil, err
@@ -149,7 +149,7 @@ func (s *Store) CreateReplyTo(ctx context.Context, threadID, authorID int64, aut
 	th.LastPostName = authorName
 	p, err := s.Post(ctx, pid)
 	if err == nil {
-		_ = s.IndexPost(ctx, pid, "", md) // 回复：仅正文
+		_ = s.QueueSearchIndex(ctx, pid)
 	}
 	return &th, p, err
 }
@@ -209,7 +209,7 @@ func (s *Store) UpdatePostModerated(ctx context.Context, postID int64, expectedV
 	} else {
 		title = ""
 	}
-	if _, err = tx.Exec(ctx, `UPDATE posts SET search_data=setweight(to_tsvector('simple',$2),'A') || setweight(to_tsvector('simple',$3),'B') WHERE id=$1`, postID, SearchTokens(title), SearchTokens(md)); err != nil {
+	if _, err = tx.Exec(ctx, `INSERT INTO search_index_events(post_id) VALUES($1) ON CONFLICT(post_id) DO UPDATE SET created_at=now(),next_attempt_at=now()`, postID); err != nil {
 		return nil, nil, err
 	}
 	if pending {
@@ -317,6 +317,9 @@ func deletePostTx(ctx context.Context, tx pgx.Tx, postID int64, note string) (de
 		if err := recomputeForumStats(ctx, tx, forumID); err != nil {
 			return false, 0, err
 		}
+		if _, err := tx.Exec(ctx, `INSERT INTO search_index_events(post_id) SELECT id FROM posts WHERE thread_id=$1 ON CONFLICT(post_id) DO UPDATE SET created_at=now(),next_attempt_at=now()`, tid); err != nil {
+			return false, 0, err
+		}
 		return true, tid, nil
 	}
 
@@ -339,6 +342,9 @@ func deletePostTx(ctx context.Context, tx pgx.Tx, postID int64, note string) (de
 		return false, 0, err
 	}
 	if err := recomputeForumStats(ctx, tx, forumID); err != nil {
+		return false, 0, err
+	}
+	if _, err := tx.Exec(ctx, `INSERT INTO search_index_events(post_id) VALUES($1) ON CONFLICT(post_id) DO UPDATE SET created_at=now(),next_attempt_at=now()`, postID); err != nil {
 		return false, 0, err
 	}
 	return false, tid, nil
