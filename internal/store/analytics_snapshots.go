@@ -36,6 +36,14 @@ func (s *Store) RefreshPointsLeaderboard(ctx context.Context, periodStart time.T
 	return s.SaveAnalyticsSnapshot(ctx, "points", periodStart, items)
 }
 
+func (s *Store) RefreshSiteReport(ctx context.Context, periodStart time.Time) error {
+	v, err := s.SiteStats(ctx)
+	if err != nil {
+		return err
+	}
+	return s.SaveAnalyticsSnapshot(ctx, "site", periodStart, v)
+}
+
 func (s *Store) SaveAnalyticsSnapshot(ctx context.Context, name string, periodStart time.Time, payload any) error {
 	raw, err := json.Marshal(payload)
 	if err != nil {

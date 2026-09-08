@@ -140,6 +140,33 @@ func main() {
 	searchDone := make(chan struct{})
 	go func() { defer close(searchDone); st.RunSearchIndex(ctx, logger) }()
 	defer func() { stop(); <-searchDone }()
+	analyticsDone := make(chan struct{})
+	go func() {
+		defer close(analyticsDone)
+		tick := time.NewTicker(time.Hour)
+		defer tick.Stop()
+		refresh := func() {
+			job, cancel := context.WithTimeout(ctx, 30*time.Second)
+			period := time.Now().Truncate(time.Hour)
+			if err := st.RefreshPointsLeaderboard(job, period, 100); err != nil {
+				logger.Warn("排行榜快照刷新失败", "err", err)
+			}
+			if err := st.RefreshSiteReport(job, time.Now().Truncate(24*time.Hour)); err != nil {
+				logger.Warn("站点报表快照刷新失败", "err", err)
+			}
+			cancel()
+		}
+		refresh()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-tick.C:
+				refresh()
+			}
+		}
+	}()
+	defer func() { stop(); <-analyticsDone }()
 	defer func() { stop(); <-forumStatsDone }()
 	// 会话过期清理
 	go srv.RunSubscriptions(ctx)
