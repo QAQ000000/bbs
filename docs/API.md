@@ -114,6 +114,7 @@ TOTP 绑定、验证登录、关闭和恢复码更新见 [二次验证](MFA.md)�
 - `GET /api/v1/admin/forum-stats` 返回异步版块统计开关、待处理任务、重试数量和最老任务年龄；仅管理员可读。
 - `GET /api/v1/admin/search-stats` 返回搜索索引队列待处理数、重试数和最老任务年龄；仅管理员可读。
 - `GET /api/v1/admin/diagnostics` 返回连接池、数据库事务/块读写/缓存命中率、锁等待、版块统计队列和搜索索引队列指标；仅管理员可读，可用于持续压测采样。
+- `GET /api/v1/admin/analytics/{name}` 读取指定排行榜或报表的最新 JSON 快照；仅管理员可读。
 
 ## 已注册路由清单
 

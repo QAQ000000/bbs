@@ -6,8 +6,25 @@ import (
 	"dzforum/internal/store"
 	"net/http"
 	"runtime"
+	"strings"
 	"time"
 )
+
+func (s *Server) adminAnalyticsSnapshot(w http.ResponseWriter, r *http.Request) {
+	if !s.requireAdmin(w, r) {
+		return
+	}
+	name := strings.TrimSpace(r.PathValue("name"))
+	if name == "" || len(name) > 64 {
+		s.respond(w, 422, map[string]any{"error": "invalid snapshot name"})
+		return
+	}
+	raw, generated, err := s.st.LatestAnalyticsSnapshot(r.Context(), name)
+	if s.readError(w, r, err) {
+		return
+	}
+	s.respond(w, 200, map[string]any{"name": name, "generatedAt": generated, "payload": raw})
+}
 
 func (s *Server) adminDash(w http.ResponseWriter, r *http.Request) {
 	if !s.requireAdmin(w, r) {
