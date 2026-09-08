@@ -92,6 +92,14 @@ func Monitor(ctx context.Context, pool *pgxpool.Pool, logger *slog.Logger) {
 			} else if waits > 0 {
 				logger.Warn("db lock waits", "sessions", waits)
 			}
+			var commits, rollbacks, reads, hits int64
+			if err := pool.QueryRow(probe, `SELECT xact_commit,xact_rollback,blks_read,blks_hit FROM pg_stat_database WHERE datname=current_database()`).Scan(&commits, &rollbacks, &reads, &hits); err == nil {
+				ratio := float64(1)
+				if reads+hits > 0 {
+					ratio = float64(hits) / float64(reads+hits)
+				}
+				logger.Info("db workload", "commits", commits, "rollbacks", rollbacks, "blocksRead", reads, "blocksHit", hits, "cacheHitRatio", ratio)
+			}
 		}
 	}
 }
