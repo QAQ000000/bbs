@@ -92,6 +92,7 @@ func (s *Server) routes() http.Handler {
 		"GET /api/v1/admin": s.adminDash, "GET /api/v1/admin/forums": s.adminForums, "GET /api/v1/admin/threads": s.adminThreads,
 		"GET /api/v1/admin/forum-stats":  s.adminForumStats,
 		"GET /api/v1/admin/search-stats": s.adminSearchStats,
+		"GET /api/v1/admin/diagnostics":  s.adminDiagnostics,
 		"GET /api/v1/admin/users":        s.adminUsers, "GET /api/v1/admin/settings": s.adminSettings, "GET /api/v1/admin/perms": s.adminPerms,
 		"GET /api/v1/admin/logs": s.adminLogs, "GET /api/v1/admin/recyclebin": s.adminRecycle, "GET /api/v1/admin/censor": s.adminCensor,
 		"GET /api/v1/admin/announcements": s.adminAnnounce, "GET /api/v1/admin/moderate": s.adminModerate,

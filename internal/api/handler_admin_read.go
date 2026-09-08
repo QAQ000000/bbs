@@ -39,6 +39,25 @@ func (s *Server) adminSearchStats(w http.ResponseWriter, r *http.Request) {
 		s.respond(w, 200, v)
 	}
 }
+
+func (s *Server) adminDiagnostics(w http.ResponseWriter, r *http.Request) {
+	if !s.requireAdmin(w, r) {
+		return
+	}
+	locks, err := s.st.DatabaseLockWaits(r.Context())
+	if s.readError(w, r, err) {
+		return
+	}
+	forum, err := s.st.ForumStatsQueueStatus(r.Context())
+	if s.readError(w, r, err) {
+		return
+	}
+	search, err := s.st.SearchIndexQueueStatus(r.Context())
+	if s.readError(w, r, err) {
+		return
+	}
+	s.respond(w, 200, map[string]any{"databasePool": s.st.DatabasePoolStats(), "lockWaits": locks, "forumStats": forum, "searchIndex": search})
+}
 func (s *Server) adminForums(w http.ResponseWriter, r *http.Request) {
 	if !s.requireAdmin(w, r) {
 		return
