@@ -24,7 +24,7 @@ worker 使用 `FOR UPDATE SKIP LOCKED` 分批领取任务，同一版块按 ID �
 
 ## 启用策略
 
-第一阶段已实现任务表、worker、重试和校准，异步展示统计默认启用。设置 `FORUM_ASYNC_FORUM_STATS=0` 可紧急回退到同步更新；未设置或设置为其他值均保持异步模式。任务表由当前 schema 的幂等 DDL 创建，因此不增加 schema 版本号。
+第一阶段已实现任务表、worker、重试和校准，异步展示统计固定启用。任务表由当前 schema 的幂等 DDL 创建，因此不增加 schema 版本号。
 
 ## 验收指标
 

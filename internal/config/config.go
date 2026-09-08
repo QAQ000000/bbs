@@ -64,9 +64,7 @@ func FromEnv() Config {
 		UploadRequestTimeout: time.Duration(getint("FORUM_UPLOAD_TIMEOUT_SECONDS", 60)) * time.Second,
 		DBMaxConnections:     getint("FORUM_DB_MAX_CONNS", 20),
 		DBMinConnections:     getint("FORUM_DB_MIN_CONNS", 2),
-		// Async forum display statistics are enabled by default. Set the
-		// variable to 0 for an emergency fallback to synchronous updates.
-		AsyncForumStats: os.Getenv("FORUM_ASYNC_FORUM_STATS") != "0",
+		AsyncForumStats:      true,
 
 		SiteName: getenv("FORUM_SITE_NAME", "GoBBS 社区"),
 		SiteLogo: getenv("FORUM_SITE_LOGO", "Go!BBS"),
