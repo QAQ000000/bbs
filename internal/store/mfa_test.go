@@ -40,7 +40,7 @@ func setupMFA(t *testing.T) mfaFixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := testStore.ManageMFA(ctx, uid, sess.ID, "enable", "pass123456", pending.SetupID, mfa.Code(pending.Secret, time.Now().Unix()/30-1), "", "", c)
+	result, err := testStore.ManageMFA(ctx, uid, sess.ID, "enable", "pass123456", pending.SetupID, mfa.Code(pending.Secret, time.Now().Unix()/30), "", "", c)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +74,7 @@ func TestMFAEnrollmentGuardsAndRotation(t *testing.T) {
 	if err != nil || len(p.RecoveryCodes) != 0 {
 		t.Fatal(err)
 	}
-	code := mfa.Code(p.Secret, time.Now().Unix()/30-1)
+	code := mfa.Code(p.Secret, time.Now().Unix()/30)
 	if _, err = manage("enable", "pass123456", p.SetupID, code, "", otherSess.ID); !errors.Is(err, ErrMFAInvalid) {
 		t.Fatal("wrong session", err)
 	}
@@ -153,7 +153,9 @@ func TestMFAConcurrentProofsAndRollback(t *testing.T) {
 			ctx := context.Background()
 			f := setupMFA(t)
 			a, b := f.challenge(t), f.challenge(t)
-			code, recovery := mfa.Code(f.secret, time.Now().Unix()/30), ""
+			// Enrollment consumed the current step. Use the next accepted step for
+			// login, keeping the same proof for rollback and replay assertions.
+			code, recovery := mfa.Code(f.secret, time.Now().Unix()/30+1), ""
 			if kind == "recovery" {
 				code, recovery = "", f.codes[0]
 			}

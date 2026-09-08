@@ -128,7 +128,7 @@ func TestEmailChangeRequiresMFAAndRejectsReplay(t *testing.T) {
 	t.Cleanup(func() { smokeSrv = original })
 	u, cookie, csrf := memberTestUser(t)
 	setup := mfaAPIData(t, memberJSON(t, "POST", "/api/v1/me/2fa/setup", map[string]any{"password": "password123"}, csrf, cookie), 200)
-	enabled := mfaAPIData(t, memberJSON(t, "POST", "/api/v1/me/2fa/enable", map[string]any{"password": "password123", "setupId": setup["setupId"], "code": mfa.Code(setup["secret"].(string), time.Now().Unix()/30-1)}, csrf, cookie), 200)
+	enabled := mfaAPIData(t, memberJSON(t, "POST", "/api/v1/me/2fa/enable", map[string]any{"password": "password123", "setupId": setup["setupId"], "code": mfa.Code(setup["secret"].(string), time.Now().Unix()/30)}, csrf, cookie), 200)
 	body := map[string]any{"email": fmt.Sprintf("mfa-%d@example.test", u.ID), "password": "password123"}
 	checkJSON(t, memberJSON(t, "POST", "/api/v1/me/email/change", body, csrf, cookie), 401)
 	body["recovery"] = enabled["recoveryCodes"].([]any)[0]

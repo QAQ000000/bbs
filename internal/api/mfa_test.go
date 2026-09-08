@@ -53,7 +53,7 @@ func TestMFAJSONAndFormLogin(t *testing.T) {
 		t.Fatal(setup)
 	}
 	secret := setup["secret"].(string)
-	enabled := mfaAPIData(t, post("/api/v1/me/2fa/enable", map[string]any{"password": "password123", "setupId": setup["setupId"], "code": mfa.Code(secret, time.Now().Unix()/30-1)}), 200)
+	enabled := mfaAPIData(t, post("/api/v1/me/2fa/enable", map[string]any{"password": "password123", "setupId": setup["setupId"], "code": mfa.Code(secret, time.Now().Unix()/30)}), 200)
 	codes := enabled["recoveryCodes"].([]any)
 	response := smokeGet(t, "/api/v1/me/2fa", cookie)
 	checkJSON(t, response, 200)
@@ -73,7 +73,8 @@ func TestMFAJSONAndFormLogin(t *testing.T) {
 		return memberJSON(t, "POST", "/api/v1/auth/2fa", body, anon.Value, anon)
 	}
 	checkJSON(t, verify(map[string]any{"challenge": challenge, "code": "bad"}), 401)
-	valid := verify(map[string]any{"challenge": challenge, "code": mfa.Code(secret, time.Now().Unix()/30)})
+	// Enrollment consumed the current step; the next step is within clock skew.
+	valid := verify(map[string]any{"challenge": challenge, "code": mfa.Code(secret, time.Now().Unix()/30+1)})
 	checkJSON(t, valid, 200)
 	var logged *http.Cookie
 	for _, c := range valid.Result().Cookies() {
@@ -107,7 +108,7 @@ func TestMFAUnavailableFailsClosed(t *testing.T) {
 	mfaTestServer(t)
 	u, cookie, csrf := memberTestUser(t)
 	setup := mfaAPIData(t, memberJSON(t, "POST", "/api/v1/me/2fa/setup", map[string]any{"password": "password123"}, csrf, cookie), 200)
-	mfaAPIData(t, memberJSON(t, "POST", "/api/v1/me/2fa/enable", map[string]any{"password": "password123", "setupId": setup["setupId"], "code": mfa.Code(setup["secret"].(string), time.Now().Unix()/30-1)}, csrf, cookie), 200)
+	mfaAPIData(t, memberJSON(t, "POST", "/api/v1/me/2fa/enable", map[string]any{"password": "password123", "setupId": setup["setupId"], "code": mfa.Code(setup["secret"].(string), time.Now().Unix()/30)}, csrf, cookie), 200)
 	anon := &http.Cookie{Name: cookieCSRF, Value: strings.Repeat("d", 32)}
 	challenge := mfaAPIData(t, memberJSON(t, "POST", "/api/v1/auth/login", map[string]any{"username": u.Username, "password": "password123"}, anon.Value, anon), 401)["challenge"].(string)
 	good := smokeSrv.mfaCipher
@@ -116,7 +117,7 @@ func TestMFAUnavailableFailsClosed(t *testing.T) {
 		if key != "" {
 			smokeSrv.mfaCipher, _ = mfa.NewCipher(key)
 		}
-		rec := memberJSON(t, "POST", "/api/v1/auth/2fa", map[string]any{"challenge": challenge, "code": mfa.Code(setup["secret"].(string), time.Now().Unix()/30)}, anon.Value, anon)
+		rec := memberJSON(t, "POST", "/api/v1/auth/2fa", map[string]any{"challenge": challenge, "code": mfa.Code(setup["secret"].(string), time.Now().Unix()/30+1)}, anon.Value, anon)
 		checkJSON(t, rec, 503)
 		for _, c := range rec.Result().Cookies() {
 			if c.Name == cookieSession {
@@ -129,7 +130,7 @@ func TestMFAUnavailableFailsClosed(t *testing.T) {
 		checkJSON(t, memberJSON(t, "POST", "/api/v1/me/2fa/disable", map[string]any{"password": "password123", "code": "123456"}, csrf, cookie), 503)
 	}
 	smokeSrv.mfaCipher = good
-	checkJSON(t, memberJSON(t, "POST", "/api/v1/auth/2fa", map[string]any{"challenge": challenge, "code": mfa.Code(setup["secret"].(string), time.Now().Unix()/30)}, anon.Value, anon), 200)
+	checkJSON(t, memberJSON(t, "POST", "/api/v1/auth/2fa", map[string]any{"challenge": challenge, "code": mfa.Code(setup["secret"].(string), time.Now().Unix()/30+1)}, anon.Value, anon), 200)
 	// A failed MFA lookup must fail password login, including for an ordinary user.
 	ordinary, err := smokeSrv.st.CreateUser(context.Background(), "ordinary_"+t.Name(), "password123", "")
 	if err != nil {

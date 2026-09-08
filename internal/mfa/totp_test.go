@@ -43,6 +43,30 @@ func TestRFCVectorsAndReplay(t *testing.T) {
 	}
 }
 
+func TestVerificationAcrossStepBoundary(t *testing.T) {
+	const secret = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"
+	before := time.Unix(100*30+29, 0)
+	after := before.Add(2 * time.Second)
+	previous := Code(secret, 99)
+	current := Code(secret, 100)
+	if _, ok := Verify(secret, previous, before, -1); !ok {
+		t.Fatal("previous step should be valid before boundary")
+	}
+	if _, ok := Verify(secret, previous, after, -1); ok {
+		t.Fatal("expired previous step accepted after boundary")
+	}
+	step, ok := Verify(secret, current, after, -1)
+	if !ok || step != 100 {
+		t.Fatal("current step lost across boundary")
+	}
+	if _, ok := Verify(secret, current, after, step); ok {
+		t.Fatal("boundary allowed replay")
+	}
+	if next, ok := Verify(secret, Code(secret, 101), before, step); !ok || next != 101 {
+		t.Fatal("next step within clock skew rejected")
+	}
+}
+
 func TestRecoveryAndCipher(t *testing.T) {
 	codes, hashes, err := RecoveryCodes()
 	if err != nil || len(codes) != 10 {
