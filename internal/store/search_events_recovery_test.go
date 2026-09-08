@@ -26,8 +26,15 @@ func TestSearchIndexFailureRetryAndRecovery(t *testing.T) {
 	if err := testStore.ProcessSearchIndex(ctx); err == nil {
 		t.Fatal("expected injected failure")
 	}
+	// A fresh worker invocation must observe the durable retry state.
+	if _, err := testPool.Exec(ctx, `UPDATE search_index_events SET next_attempt_at=now() WHERE post_id=$1`, pid); err != nil {
+		t.Fatal(err)
+	}
+	if err := testStore.ProcessSearchIndex(ctx); err == nil {
+		t.Fatal("expected failure after worker restart")
+	}
 	var attempts int
-	if err := testPool.QueryRow(ctx, `SELECT attempts FROM search_index_events WHERE post_id=$1`, pid).Scan(&attempts); err != nil || attempts == 0 {
+	if err := testPool.QueryRow(ctx, `SELECT attempts FROM search_index_events WHERE post_id=$1`, pid).Scan(&attempts); err != nil || attempts < 2 {
 		t.Fatalf("retry state missing: %d %v", attempts, err)
 	}
 	_, _ = testPool.Exec(ctx, `DROP TRIGGER fail_search_index ON posts`)
