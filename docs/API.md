@@ -112,6 +112,7 @@ TOTP 绑定、验证登录、关闭和恢复码更新见 [二次验证](MFA.md)�
 - 回收站：单主题使用 `tid`；批量清理使用 `kind`、`author`、`keyword`、`forum`、`days`，范围规则继续在 Go 校验。
 - `GET /api/v1/admin` 另含 `data.databasePool`，提供本实例的连接使用量、获取耗时及等待/取消累计次数；沿用后台仪表盘权限，不公开到健康接口。
 - `GET /api/v1/admin/forum-stats` 返回异步版块统计开关、待处理任务、重试数量和最老任务年龄；仅管理员可读。
+- `GET /api/v1/admin/search-stats` 返回搜索索引队列待处理数、重试数和最老任务年龄；仅管理员可读。
 
 ## 已注册路由清单
 

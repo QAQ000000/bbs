@@ -2,9 +2,23 @@ package store
 
 import (
 	"context"
+	"errors"
+	"github.com/jackc/pgx/v5"
 	"log/slog"
 	"time"
 )
+
+type SearchIndexQueueStatus struct {
+	Pending          int64   `json:"pending"`
+	Retrying         int64   `json:"retrying"`
+	OldestAgeSeconds float64 `json:"oldestAgeSeconds"`
+}
+
+func (s *Store) SearchIndexQueueStatus(ctx context.Context) (SearchIndexQueueStatus, error) {
+	var v SearchIndexQueueStatus
+	err := s.pool.QueryRow(ctx, `SELECT count(*),count(*) FILTER (WHERE attempts>0),coalesce(extract(epoch FROM now()-min(created_at)),0)::float8 FROM search_index_events`).Scan(&v.Pending, &v.Retrying, &v.OldestAgeSeconds)
+	return v, err
+}
 
 // QueueSearchIndex schedules an idempotent rebuild for one post.
 func (s *Store) QueueSearchIndex(ctx context.Context, postID int64) error {
@@ -39,8 +53,11 @@ func (s *Store) processSearchEvent(ctx context.Context) error {
 	defer tx.Rollback(ctx)
 	var id, postID int64
 	err = tx.QueryRow(ctx, `SELECT id,post_id FROM search_index_events WHERE next_attempt_at<=now() ORDER BY id LIMIT 1 FOR UPDATE SKIP LOCKED`).Scan(&id, &postID)
-	if err != nil {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil
+	}
+	if err != nil {
+		return err
 	}
 	var title, body string
 	var deleted bool

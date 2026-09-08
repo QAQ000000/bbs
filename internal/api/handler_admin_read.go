@@ -29,6 +29,16 @@ func (s *Server) adminForumStats(w http.ResponseWriter, r *http.Request) {
 		s.respond(w, 200, v)
 	}
 }
+
+func (s *Server) adminSearchStats(w http.ResponseWriter, r *http.Request) {
+	if !s.requireAdmin(w, r) {
+		return
+	}
+	v, err := s.st.SearchIndexQueueStatus(r.Context())
+	if !s.readError(w, r, err) {
+		s.respond(w, 200, v)
+	}
+}
 func (s *Server) adminForums(w http.ResponseWriter, r *http.Request) {
 	if !s.requireAdmin(w, r) {
 		return
