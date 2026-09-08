@@ -110,31 +110,8 @@ func BenchmarkForumTraffic(b *testing.B) {
 	var workerWG sync.WaitGroup
 	workerWG.Add(1)
 	go func() { defer workerWG.Done(); smokeSrv.RunSubscriptions(workers) }()
-	for _, task := range []struct {
-		name  string
-		run   func(context.Context, int) (int, error)
-		limit int
-	}{{"growth", smokeSrv.st.ProcessMemberEvents, 100}, {"titles", smokeSrv.st.ProcessTitleWork, 50}} {
-		workerWG.Add(1)
-		go func() {
-			defer workerWG.Done()
-			tick := time.NewTicker(time.Second)
-			defer tick.Stop()
-			for {
-				select {
-				case <-workers.Done():
-					return
-				case <-tick.C:
-					job, done := context.WithTimeout(workers, 10*time.Second)
-					_, err := task.run(job, task.limit)
-					done()
-					if workers.Err() == nil && err != nil {
-						b.Errorf("background %s: %v", task.name, err)
-					}
-				}
-			}
-		}()
-	}
+	workerWG.Add(1)
+	go func() { defer workerWG.Done(); smokeSrv.st.RunMemberWork(workers, smokeSrv.log) }()
 	defer func() { stopWorkers(); workerWG.Wait() }()
 	server := httptest.NewServer(smokeSrv.Handler())
 	defer server.Close()

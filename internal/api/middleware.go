@@ -152,14 +152,11 @@ func isStaticPath(p string) bool {
 func (s *Server) authMW(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if c, err := r.Cookie(cookieSession); err == nil && c.Value != "" {
-			if sess, err := s.st.Session(r.Context(), c.Value); err == nil {
-				if u, err := s.st.UserByID(r.Context(), sess.UserID); err == nil && !u.IsBlocked() {
-					r = r.WithContext(context.WithValue(r.Context(), ctxUser, u))
-					r = r.WithContext(context.WithValue(r.Context(), ctxSession, sess))
-					if !isStaticPath(r.URL.Path) {
-						_ = s.st.TouchSession(r.Context(), sess.ID, maskIP(remoteIP(r)))
-					}
-
+			if sess, u, lastSeen, err := s.st.SessionUser(r.Context(), c.Value); err == nil && !u.IsBlocked() {
+				r = r.WithContext(context.WithValue(r.Context(), ctxUser, u))
+				r = r.WithContext(context.WithValue(r.Context(), ctxSession, sess))
+				if !isStaticPath(r.URL.Path) && time.Since(lastSeen) >= time.Minute {
+					_ = s.st.TouchSession(r.Context(), sess.ID, maskIP(remoteIP(r)))
 				}
 			}
 		}

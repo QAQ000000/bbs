@@ -39,6 +39,10 @@ func scanForum(row pgx.Row) (*Forum, error) {
 
 // CategoriesWithForums 首页数据：全部分类及其版块。
 func (s *Store) CategoriesWithForums(ctx context.Context) ([]*Category, error) {
+	return s.categoriesWithForums(ctx, nil)
+}
+
+func (s *Store) categoriesWithForums(ctx context.Context, counts *homeCounts) ([]*Category, error) {
 	catRows, err := s.pool.Query(ctx, `SELECT id, name FROM categories ORDER BY displayorder, id`)
 	if err != nil {
 		return nil, err
@@ -61,15 +65,20 @@ func (s *Store) CategoriesWithForums(ctx context.Context) ([]*Category, error) {
 	catRows.Close()
 
 	// Aggregate today's visible posts once for the entire forum list.
-	rows, err := s.pool.Query(ctx, `WITH today AS (
+	todayCTE := `WITH today AS (
 	 SELECT t.forum_id,count(*) AS n FROM posts p JOIN threads t ON t.id=p.thread_id
 	 WHERE NOT p.deleted AND NOT p.pending AND NOT t.deleted AND NOT t.pending
-	 AND p.created_at>=current_date`+forumFilter(ctx, "t.forum_id")+` GROUP BY t.forum_id
-	) SELECT f.id,f.category_id,f.name,f.description,f.thread_count,f.post_count,coalesce(d.n,0),
+	 AND p.created_at>=current_date` + forumFilter(ctx, "t.forum_id") + ` GROUP BY t.forum_id
+	) `
+	todayValue, todayJoin := "coalesce(d.n,0)", " LEFT JOIN today d ON d.forum_id=f.id"
+	if counts != nil {
+		todayCTE, todayValue, todayJoin = "", "0", ""
+	}
+	rows, err := s.pool.Query(ctx, todayCTE+`SELECT f.id,f.category_id,f.name,f.description,f.thread_count,f.post_count,`+todayValue+`,
 	 coalesce(f.last_post_at,'epoch'::timestamptz),f.last_post_at IS NOT NULL,
 	 coalesce(f.last_post_uid,0),coalesce(f.last_post_author,''),coalesce(f.last_thread_id,0),
 	 coalesce(f.last_thread_title,''),coalesce(f.moderators,'')
-	 FROM forums f LEFT JOIN today d ON d.forum_id=f.id WHERE true`+forumFilter(ctx, "f.id")+`
+	 FROM forums f`+todayJoin+` WHERE true`+forumFilter(ctx, "f.id")+`
 	 ORDER BY f.category_id,f.displayorder,f.id`)
 	if err != nil {
 		return nil, err
@@ -80,6 +89,9 @@ func (s *Store) CategoriesWithForums(ctx context.Context) ([]*Category, error) {
 		f, err := scanForum(rows)
 		if err != nil {
 			return nil, err
+		}
+		if counts != nil {
+			f.TodayCount = int(counts.forums[f.ID].TodayPosts)
 		}
 		if c, ok := byID[f.CategoryID]; ok {
 			c.Forums = append(c.Forums, f)

@@ -15,6 +15,7 @@
 - 错误响应为 `{"error":{"code":"FORBIDDEN","message":"..."}}`，使用对应 HTTP 状态码。服务端内部错误不会直接返回数据库错误文本。
 - ID 在新版普通 DTO 和 SSE 中使用字符串；时间通常使用 RFC 3339。`/me/export` 为独立下载格式，`/api/status` 及 ready 接口保留旧监控结构，是 envelope 的例外。
 - API 数据响应使用 `Cache-Control: no-store`；受控附件也不使用共享缓存。公开头像/表情有独立媒体缓存策略。
+- 首页 `/home` 的 `stats` 和版块 `todayCount` 使用服务端最多 5 秒的统计快照；版块权限、名称、最后回复及主题列表仍实时读取。发布或审核后，汇总数字可能短暂滞后于列表。后台统计和独立版块接口保持实时查询，不影响积分、经验或额度结算。
 - 第一版业务写入接受 JSON 或 URL 编码表单，上传接受 multipart。JSON 使用下面列出的**现有业务字段名**，并非全部已统一为 camelCase；数组表示同名重复字段，布尔值按 1/0 传给旧校验流程。
 - 列表从 `page=1` 开始，版块主题/帖子楼层沿用站点每页设置；当前未开放任意 pageSize 参数。越界返回空数据及总数。
 - `GET /threads` 可选 `pagination=cursor`，下一页携带 `cursor=meta.nextCursor`；只支持默认最后回复排序，不与 `page` 或 `sort` 混用。此模式的 meta 为 `{pagination, pageSize, hasMore, nextCursor}`，不计算 total；权限每次重新校验。

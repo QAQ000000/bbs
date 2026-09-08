@@ -55,11 +55,7 @@ func (s *Server) siteGet(w http.ResponseWriter, r *http.Request) {
 	s.respond(w, 200, map[string]any{"name": v.SiteName, "logo": logo, "footerText": v.FooterText, "threadsPerPage": v.ThreadsPerPage, "postsPerPage": v.PostsPerPage, "registerEnabled": v.RegisterEnabled, "siteClosed": v.SiteClosed, "siteClosedReason": v.SiteClosedReason, "uploadEnabled": v.UploadEnabled, "maxImageMB": v.MaxImageMB, "maxFileMB": v.MaxFileMB, "captchaEnabled": v.CaptchaEnabled, "requireConsent": v.RequireConsent, "emailVerificationRequired": s.emailGateEnabled(r), "termsContent": v.TermsContent, "privacyContent": v.PrivacyContent})
 }
 func (s *Server) homeGet(w http.ResponseWriter, r *http.Request) {
-	cats, err := s.st.CategoriesWithForums(r.Context())
-	if s.readError(w, r, err) {
-		return
-	}
-	stats, err := s.st.SiteStats(r.Context())
+	cats, stats, err := s.st.HomeCategoriesAndStats(r.Context())
 	if s.readError(w, r, err) {
 		return
 	}

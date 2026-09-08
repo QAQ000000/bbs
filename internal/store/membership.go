@@ -81,6 +81,10 @@ func scanMember(row pgx.Row, c MembershipConfig) (MemberState, error) {
 	if err != nil {
 		return m, err
 	}
+	return memberWithLevel(m, c)
+}
+
+func memberWithLevel(m MemberState, c MembershipConfig) (MemberState, error) {
 	var ok bool
 	m.Level, ok = c.Level(m.LevelID)
 	if !ok {

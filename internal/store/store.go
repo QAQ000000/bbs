@@ -35,6 +35,7 @@ type Store struct {
 
 	viewCounterOnce sync.Once
 	views           *viewCounter
+	homeStats       homeStatsCache
 }
 
 func New(pool *pgxpool.Pool) *Store {

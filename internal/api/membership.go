@@ -36,37 +36,23 @@ func (s *Server) loadMembership(r *http.Request) (*http.Request, error) {
 			return r, err
 		}
 	}
-	c, err := s.st.FreshMembershipConfig(r.Context())
-	if err != nil {
-		return r, err
-	}
-	m := &membershipContext{Config: c, Forums: map[int64]bool{}, Staff: map[int64]bool{}, Quota: map[string]int64{}}
+	uid := int64(0)
 	if u := User(r); u != nil {
-		member, e := s.st.MembershipWithConfig(r.Context(), u.ID, c)
-		if e != nil {
-			return r, e
-		}
-		m.Member = &member
-		m.Banned, err = s.st.MemberBanned(r.Context(), u.ID)
-		if err != nil {
-			return r, err
-		}
-		m.Quota, err = s.st.MemberQuota(r.Context(), u.ID)
-		if err != nil {
-			return r, err
-		}
-		if hasPoint(u, perm.ContentModerate) {
-			for _, fid := range s.staffForumScope(r) {
-				m.Staff[fid] = true
-			}
-		}
+		uid = u.ID
 	}
-	ids, err := s.st.MemberForums(r.Context())
+	a, err := s.st.MembershipAccess(r.Context(), uid)
 	if err != nil {
 		return r, err
+	}
+	c := a.Config
+	m := &membershipContext{Config: c, Member: a.Member, Banned: a.Banned, Quota: a.Quota, Forums: map[int64]bool{}, Staff: map[int64]bool{}}
+	if hasPoint(User(r), perm.ContentModerate) {
+		for _, fid := range a.Moderates {
+			m.Staff[fid] = true
+		}
 	}
 	visible := []int64{}
-	for _, id := range ids {
+	for _, id := range a.Forums {
 		var level *store.MemberLevel
 		if m.Member != nil {
 			level = &m.Member.Level
