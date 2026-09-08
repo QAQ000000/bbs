@@ -144,7 +144,7 @@ FORUM_TEST_DSN='<isolated-test-dsn>' FORUM_TEST_ASYNC=1 FORUM_REQUIRE_TEST_DB=1 
 
 写入完成后等待派生队列自然清空，检查新回帖搜索词命中和版块计数；不会调用同步校准掩盖 Worker 失败。收尾验证搜索、版块统计、经验、称号、公开订阅和邮件任务无积压，并确认积分与站点快照已生成。预置 50,000 条正文并未构造完整中文搜索索引历史，因此此 benchmark 不作为搜索查询容量测试。
 
-本地可以运行 `FORUM_DB_MAX_CONNS=50 FORUM_DB_MIN_CONNS=5 bash scripts/verify-local-backend.sh load`，自动新建、清理独立 PostgreSQL 集群并保留日志。仍为短测，用于校验夹具和提供基线；30 分钟及 2 小时持续负载、CPU/磁盘采样和告警需另行执行。
+本地可以运行 `FORUM_DB_MAX_CONNS=50 FORUM_DB_MIN_CONNS=5 bash scripts/verify-local-backend.sh load`，自动新建、清理独立 PostgreSQL 集群并保留日志。仍为短测，用于校验夹具和提供基线。30 分钟固定速率持续负载与 CPU/I/O、队列采样入口见 [持续负载验收](SUSTAINED_LOAD.md)；2 小时长稳和告警仍需另行验收。
 
 同主题和同版块写入各 160 次，检查最终公开楼层及版块计数。100 条 SSE 连接分别模拟独立客户端 IP，接收 20 次主题测试事件及至少一次心跳；同时发起 400 次 HTTP 读取。另创建 500 个订阅者，测量站内通知生成耗时，并观察事件队列清空时间。
 

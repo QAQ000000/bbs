@@ -3,7 +3,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 local_mode=${1:-test}
-case "$local_mode" in test|load) ;; *) echo 'usage: verify-local-backend.sh test|load'; exit 1;; esac
+case "$local_mode" in test|load|soak) ;; *) echo 'usage: verify-local-backend.sh test|load|soak'; exit 1;; esac
 local_pg_bin=${RECOVERY_PG_BIN:-/www/server/pgsql/bin}
 local_results=$(mktemp -d /tmp/gobbs-backend-results.XXXXXX)
 local_cluster=$(mktemp -d /tmp/gobbs-backend-cluster.XXXXXX)
@@ -19,7 +19,13 @@ cleanup() {
 trap cleanup EXIT
 echo "Evidence: $local_results"
 "${local_as_pg[@]}" "$local_pg_bin/initdb" -D "$local_cluster/data" -A trust --no-locale -E UTF8 > "$local_results/initdb.log"
-"${local_as_pg[@]}" "$local_pg_bin/pg_ctl" -D "$local_cluster/data" -l "$local_cluster/postgres.log" -o "-k $local_cluster -h '' -p 55440" -w start > "$local_results/start.log"
+local_pg_options="-k $local_cluster -h '' -p 55440"
+local_test_timeout=8m
+if [[ $local_mode == soak ]]; then
+  local_pg_options+=' -c track_io_timing=on -c track_wal_io_timing=on -c log_lock_waits=on'
+  local_test_timeout=4h
+fi
+"${local_as_pg[@]}" "$local_pg_bin/pg_ctl" -D "$local_cluster/data" -l "$local_cluster/postgres.log" -o "$local_pg_options" -w start > "$local_results/start.log"
 "$local_pg_bin/psql" -h "$local_cluster" -p 55440 -U "$local_pg_user" -d postgres -v ON_ERROR_STOP=1 <<'SQL' > "$local_results/create.log"
 CREATE ROLE gobbs_test LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE;
 CREATE DATABASE gobbs_test_store OWNER gobbs_test;
@@ -31,10 +37,17 @@ export FORUM_API_TEST_DSN="host=$local_cluster port=55440 user=gobbs_test dbname
 export FORUM_MIGRATION_TEST_DSN="host=$local_cluster port=55440 user=gobbs_test dbname=gobbs_test_migrations sslmode=disable"
 export FORUM_TEST_RESULTS_DIR=$local_results
 unset FORUM_SMTP_HOST FORUM_SMTP_USER FORUM_SMTP_PASS FORUM_SMTP_FROM
+if [[ $local_mode == soak ]]; then
+  export FORUM_SOAK_STAGE_DURATION=${FORUM_SOAK_STAGE_DURATION:-10m}
+  export FORUM_SOAK_PG_PID=$(head -1 "$local_cluster/data/postmaster.pid")
+  export FORUM_SOAK_CLOCK_TICKS=$(getconf CLK_TCK)
+fi
 if [[ $local_mode == test ]]; then
   bash scripts/test-backend.sh
 else
+  local_load_status=0
   FORUM_REQUIRE_TEST_DB=1 FORUM_TEST_ASYNC=1 FORUM_TEST_DSN="$FORUM_API_TEST_DSN" \
-    go test ./internal/api -run '^$' -bench '^BenchmarkForumTraffic$' -benchtime=1x -count=1 -timeout=8m -v > "$local_results/load.log" 2>&1
-  rg 'LOAD|PASS|FAIL' "$local_results/load.log"
+    go test ./internal/api -run '^$' -bench '^BenchmarkForumTraffic$' -benchtime=1x -count=1 -timeout="$local_test_timeout" -v > "$local_results/load.log" 2>&1 || local_load_status=$?
+  rg 'LOAD|SOAK|PASS|FAIL' "$local_results/load.log" || true
+  exit "$local_load_status"
 fi

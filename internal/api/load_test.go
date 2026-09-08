@@ -41,7 +41,18 @@ func BenchmarkForumTraffic(b *testing.B) {
 	if smokeSrv.mailer.Enabled() {
 		b.Fatal("traffic benchmark requires SMTP disabled; use mail integration fixtures")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
+	soakDuration := time.Duration(0)
+	if raw := os.Getenv("FORUM_SOAK_STAGE_DURATION"); raw != "" {
+		soakDuration, err = time.ParseDuration(raw)
+		if err != nil || soakDuration < 10*time.Second || soakDuration > time.Hour {
+			b.Fatal("FORUM_SOAK_STAGE_DURATION must be between 10s and 1h")
+		}
+	}
+	timeout := 4 * time.Minute
+	if soakDuration > 0 {
+		timeout += 3*soakDuration + 10*time.Minute
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	tx, err := smokePool.Begin(ctx)
 	if err != nil {
@@ -75,7 +86,12 @@ func BenchmarkForumTraffic(b *testing.B) {
 	if err = smokeSrv.st.RecomputeForumStats(ctx, fid); err != nil {
 		b.Fatal(err)
 	}
-	rows, err := smokePool.Query(ctx, `INSERT INTO users(username,password_hash) SELECT 'load-user-'||g,'unusable' FROM generate_series(1,120) g RETURNING id`)
+	identityCount := 120
+	if soakDuration > 0 {
+		// Keep the three stages below 80 replies per identity even in longer runs.
+		identityCount = max(1000, int(soakDuration/time.Second)*50/80+1)
+	}
+	rows, err := smokePool.Query(ctx, `INSERT INTO users(username,password_hash) SELECT 'load-user-'||g,'unusable' FROM generate_series(1,$1::int) g RETURNING id`, identityCount)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -137,6 +153,10 @@ func BenchmarkForumTraffic(b *testing.B) {
 			r.AddCookie(&http.Cookie{Name: cookieSession, Value: people[worker%len(people)].token})
 		}
 		return r
+	}
+	if soakDuration > 0 {
+		loadSustained(b, ctx, client, server.URL, fid, tids, people, soakDuration)
+		return
 	}
 	loadHTTP(b, "mixed_reads_20", client, 20, 50, 200, read)
 	loadHTTP(b, "mixed_reads_100", client, 100, 20, 200, read)
