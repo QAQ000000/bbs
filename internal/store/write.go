@@ -73,13 +73,13 @@ func (s *Store) CreateTaggedThread(ctx context.Context, forumID, authorID int64,
 		}
 	}
 
+	if err := queueSearchIndexTx(ctx, tx, pid); err != nil {
+		return nil, nil, err
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return nil, nil, err
 	}
 	markMemberCommit(ctx)
-	if err := queueSearchIndexTx(ctx, tx, pid); err != nil {
-		return nil, nil, err
-	}
 	th, err := s.Thread(ctx, tid)
 	if err != nil {
 		return nil, nil, err
@@ -142,6 +142,9 @@ func (s *Store) CreateReplyTo(ctx context.Context, threadID, authorID int64, aut
 			return nil, nil, err
 		}
 	}
+	if err := queueSearchIndexTx(ctx, tx, pid); err != nil {
+		return nil, nil, err
+	}
 
 	if err := tx.Commit(ctx); err != nil {
 		return nil, nil, err
@@ -150,11 +153,6 @@ func (s *Store) CreateReplyTo(ctx context.Context, threadID, authorID int64, aut
 	th.LastPostUID = authorID
 	th.LastPostName = authorName
 	p, err := s.Post(ctx, pid)
-	if err == nil {
-		if err := queueSearchIndexTx(ctx, tx, pid); err != nil {
-			return nil, nil, err
-		}
-	}
 	return &th, p, err
 }
 

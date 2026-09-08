@@ -10,10 +10,13 @@ func TestSearchIndexFailureRetryAndRecovery(t *testing.T) {
 		t.Skip("requires isolated database")
 	}
 	ctx := context.Background()
-	var pid int64
-	if err := testPool.QueryRow(ctx, `SELECT id FROM posts ORDER BY id LIMIT 1`).Scan(&pid); err != nil {
-		t.Skip("requires seeded post")
+	uid, _ := setupUsers(t)
+	fid := setupForum(t)
+	_, post, err := testStore.CreateThread(ctx, fid, uid, "author", "recovery", "unique recovery body", "", false, "")
+	if err != nil {
+		t.Fatal(err)
 	}
+	pid := post.ID
 	_, _ = testPool.Exec(ctx, `CREATE OR REPLACE FUNCTION fail_search_index() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'search failure'; END $$`)
 	_, _ = testPool.Exec(ctx, `DROP TRIGGER IF EXISTS fail_search_index ON posts; CREATE TRIGGER fail_search_index BEFORE UPDATE OF search_data ON posts FOR EACH ROW EXECUTE FUNCTION fail_search_index()`)
 	t.Cleanup(func() {

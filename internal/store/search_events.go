@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type SearchIndexQueueStatus struct {
@@ -88,10 +89,17 @@ func (s *Store) processSearchEvent(ctx context.Context) error {
 	if err == nil {
 		err = work.Commit(ctx)
 	} else {
-		_ = work.Rollback(ctx)
+		if rollbackErr := work.Rollback(ctx); rollbackErr != nil {
+			return errors.Join(err, rollbackErr)
+		}
 	}
 	if err != nil {
-		if _, updateErr := tx.Exec(ctx, `UPDATE search_index_events SET attempts=least(attempts+1,16),next_attempt_at=now()+make_interval(secs=>least(300,power(2,attempts))),last_sqlstate='' WHERE id=$1`, id); updateErr != nil {
+		state := ""
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			state = pgErr.Code
+		}
+		if _, updateErr := tx.Exec(ctx, `UPDATE search_index_events SET attempts=least(attempts+1,16),next_attempt_at=now()+least(300,power(2,attempts))*interval '1 second',last_sqlstate=$2 WHERE id=$1`, id, state); updateErr != nil {
 			return errors.Join(err, updateErr)
 		}
 		if commitErr := tx.Commit(ctx); commitErr != nil {
