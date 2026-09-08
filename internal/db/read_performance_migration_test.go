@@ -54,7 +54,7 @@ func TestReadPerformanceMigrationAndRestart(t *testing.T) {
 			t.Fatal(err)
 		}
 		var valid bool
-		if err = pool.QueryRow(ctx, `SELECT (SELECT max(version) FROM schema_migrations)=16
+		if err = pool.QueryRow(ctx, `SELECT (SELECT max(version) FROM schema_migrations)=17
 		 AND (SELECT count(*) FROM pg_index i JOIN pg_class c ON c.oid=i.indexrelid
 		 WHERE c.relname=ANY($1) AND i.indisvalid)=4
 		 AND EXISTS(SELECT 1 FROM users WHERE username='performance-migration')`, []string{"threads_public_latest_idx", "threads_public_new_idx", "threads_public_author_idx", "posts_public_created_idx"}).Scan(&valid); err != nil || !valid {

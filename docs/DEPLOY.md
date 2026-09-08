@@ -81,6 +81,8 @@ CREATE DATABASE forum OWNER gobbs;
 
 schema 由程序启动时自动增量迁移（幂等），无需手工执行 SQL。
 
+当前 schema 17 通过 `017_async_workers.sql` 登记版块统计队列、搜索索引队列和分析快照结构。已有任务和快照在重放时保留，健康接口应返回 `schema: 17`。开发环境恢复演练见 [Worker 恢复验证](WORKER_RECOVERY.md)。
+
 schema 16 增加读取索引。当前迁移使用普通 `CREATE INDEX`，存量大表建索引期间会阻塞相应表的写入，应在维护窗口升级；尚不支持无停机在线建索引迁移。
 
 数据库连接池默认每进程最多 20、最少 2 个连接，可在环境文件配置 `FORUM_DB_MAX_CONNS` 和 `FORUM_DB_MIN_CONNS`（最大值 1–1000，最小值 0–最大值）。普通 API 的 `FORUM_API_TIMEOUT_SECONDS` 默认 15 秒；上传和导出查询的 `FORUM_UPLOAD_TIMEOUT_SECONDS` 默认 60 秒。修改上述运行参数后重启服务。多个实例的连接数要合计预留，后台任务也使用同一连接池。详见 [数据库性能与监控](DATABASE_PERFORMANCE.md)。

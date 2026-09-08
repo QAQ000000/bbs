@@ -63,7 +63,7 @@ func TestSessionsMigrationPreservesLegacyAndRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	var version int
-	if err = pool.QueryRow(ctx, `SELECT (SELECT max(version) FROM schema_migrations),device_name='custom' AND revoked_at IS NOT NULL FROM sessions WHERE id=$1`, id).Scan(&version, &preserved); err != nil || version != 16 || !preserved {
+	if err = pool.QueryRow(ctx, `SELECT (SELECT max(version) FROM schema_migrations),device_name='custom' AND revoked_at IS NOT NULL FROM sessions WHERE id=$1`, id).Scan(&version, &preserved); err != nil || version != 17 || !preserved {
 		t.Fatal(version, preserved, err)
 	}
 }
