@@ -3,9 +3,10 @@ package store
 import (
 	"context"
 	"errors"
-	"github.com/jackc/pgx/v5"
 	"log/slog"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 )
 
 type SearchIndexQueueStatus struct {
@@ -23,6 +24,11 @@ func (s *Store) SearchIndexQueueStatus(ctx context.Context) (SearchIndexQueueSta
 // QueueSearchIndex schedules an idempotent rebuild for one post.
 func (s *Store) QueueSearchIndex(ctx context.Context, postID int64) error {
 	_, err := s.pool.Exec(ctx, `INSERT INTO search_index_events(post_id) VALUES($1) ON CONFLICT(post_id) DO UPDATE SET created_at=now(),next_attempt_at=now()`, postID)
+	return err
+}
+
+func queueSearchIndexTx(ctx context.Context, tx pgx.Tx, postID int64) error {
+	_, err := tx.Exec(ctx, `INSERT INTO search_index_events(post_id) VALUES($1) ON CONFLICT(post_id) DO UPDATE SET created_at=now(),next_attempt_at=now()`, postID)
 	return err
 }
 
@@ -67,13 +73,22 @@ func (s *Store) processSearchEvent(ctx context.Context) error {
 	}
 	var title, body string
 	var deleted bool
-	err = tx.QueryRow(ctx, `SELECT CASE WHEN p.floor=1 THEN t.title ELSE '' END,p.content_md,p.deleted OR t.deleted OR p.pending OR t.pending FROM posts p JOIN threads t ON t.id=p.thread_id WHERE p.id=$1`, postID).Scan(&title, &body, &deleted)
+	work, workErr := tx.Begin(ctx)
+	if workErr != nil {
+		return workErr
+	}
+	err = work.QueryRow(ctx, `SELECT CASE WHEN p.floor=1 THEN t.title ELSE '' END,p.content_md,p.deleted OR t.deleted OR p.pending OR t.pending FROM posts p JOIN threads t ON t.id=p.thread_id WHERE p.id=$1`, postID).Scan(&title, &body, &deleted)
 	if err == nil {
 		if deleted {
-			_, err = tx.Exec(ctx, `UPDATE posts SET search_data=NULL WHERE id=$1`, postID)
+			_, err = work.Exec(ctx, `UPDATE posts SET search_data=NULL WHERE id=$1`, postID)
 		} else {
-			_, err = tx.Exec(ctx, `UPDATE posts SET search_data=setweight(to_tsvector('simple',$2),'A') || setweight(to_tsvector('simple',$3),'B') WHERE id=$1`, postID, SearchTokens(title), SearchTokens(body))
+			_, err = work.Exec(ctx, `UPDATE posts SET search_data=setweight(to_tsvector('simple',$2),'A') || setweight(to_tsvector('simple',$3),'B') WHERE id=$1`, postID, SearchTokens(title), SearchTokens(body))
 		}
+	}
+	if err == nil {
+		err = work.Commit(ctx)
+	} else {
+		_ = work.Rollback(ctx)
 	}
 	if err != nil {
 		if _, updateErr := tx.Exec(ctx, `UPDATE search_index_events SET attempts=least(attempts+1,16),next_attempt_at=now()+make_interval(secs=>least(300,power(2,attempts))),last_sqlstate='' WHERE id=$1`, id); updateErr != nil {
