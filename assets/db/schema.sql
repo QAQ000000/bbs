@@ -1257,3 +1257,12 @@ CREATE TABLE IF NOT EXISTS search_index_events (
  UNIQUE(post_id)
 );
 CREATE INDEX IF NOT EXISTS search_index_events_due ON search_index_events(next_attempt_at,id);
+
+CREATE TABLE IF NOT EXISTS analytics_snapshots (
+ name text NOT NULL,
+ period_start timestamptz NOT NULL,
+ generated_at timestamptz NOT NULL DEFAULT now(),
+ payload jsonb NOT NULL,
+ PRIMARY KEY(name, period_start)
+);
+CREATE INDEX IF NOT EXISTS analytics_snapshots_latest ON analytics_snapshots(name, generated_at DESC);
