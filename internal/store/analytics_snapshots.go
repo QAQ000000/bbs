@@ -40,7 +40,11 @@ func (s *Store) RefreshPointsLeaderboard(ctx context.Context, periodStart time.T
 }
 
 func (s *Store) RefreshSiteReport(ctx context.Context, periodStart time.Time) error {
-	v, err := s.SiteStats(ctx)
+	settings, err := s.Settings(ctx)
+	if err != nil {
+		return err
+	}
+	v, err := s.siteReportAt(ctx, settings.ReportTimeZone, nil)
 	if err != nil {
 		return err
 	}

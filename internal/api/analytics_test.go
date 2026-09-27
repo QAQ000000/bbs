@@ -155,3 +155,35 @@ func TestAnalyticsSnapshotFreshnessAndFailedRefresh(t *testing.T) {
 	}
 	read("points", false)
 }
+
+func TestAnalyticsReportTimeZoneSetting(t *testing.T) {
+	v := settingsAPIFixture(t)
+	if v.ReportTimeZone != "UTC" {
+		t.Fatal("unexpected default", v.ReportTimeZone)
+	}
+	for _, zone := range []string{"Local", "Invalid/Zone", "", "UTC+8"} {
+		checkJSON(t, memberJSON(t, "PATCH", "/api/v1/admin/settings", map[string]any{"version": v.Version, "reportTimeZone": zone}, adminCSRF, adminCookie), 422)
+	}
+	checkJSON(t, memberJSON(t, "PATCH", "/api/v1/admin/settings", map[string]any{"version": v.Version, "reportTimeZone": "Asia/Shanghai"}, adminCSRF, adminCookie), 200)
+	if settingsAPIGet(t).ReportTimeZone != "Asia/Shanghai" {
+		t.Fatal("timezone not persisted")
+	}
+	if err := smokeSrv.st.RefreshSiteReport(context.Background(), time.Now().UTC().Truncate(24*time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	doc := loadAPIContract(t)
+	body := assertContractResponse(t, doc, "GET", "/api/v1/admin/analytics/{name}", smokeGet(t, "/api/v1/admin/analytics/site", adminCookie), 200)
+	payload := body["data"].(contractObject)["payload"].(contractObject)
+	start, err := time.Parse(time.RFC3339Nano, payload["dayStart"].(string))
+	if err != nil {
+		t.Fatal(err)
+	}
+	end, err := time.Parse(time.RFC3339Nano, payload["nextDayStart"].(string))
+	if err != nil {
+		t.Fatal(err)
+	}
+	loc, _ := time.LoadLocation("Asia/Shanghai")
+	if payload["timeZone"] != "Asia/Shanghai" || payload["reportDate"] != start.In(loc).Format("2006-01-02") || end.Sub(start) != 24*time.Hour || start.In(loc).Hour() != 0 || payload["TotalPosts"] == nil {
+		t.Fatal(payload)
+	}
+}

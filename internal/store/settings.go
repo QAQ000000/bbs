@@ -31,6 +31,7 @@ type SiteSettings struct {
 	SiteLogo               string `json:"siteLogo"`
 	FooterText             string `json:"footerText"`
 	AnalyticsRetentionDays int    `json:"analyticsRetentionDays"`
+	ReportTimeZone         string `json:"reportTimeZone"`
 }
 
 // defaultTerms/defaultPrivacy 内置默认文案：开箱即有合规页面，站长可在后台改写。
@@ -63,6 +64,7 @@ const defaultPrivacy = `## 隐私政策
 func defaultSettings() SiteSettings {
 	return SiteSettings{
 		AnalyticsRetentionDays: 30,
+		ReportTimeZone:         "UTC",
 		Version:                1,
 		SiteName:               "GoBBS 社区",
 		ThreadsPerPage:         20,

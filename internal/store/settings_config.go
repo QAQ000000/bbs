@@ -55,6 +55,7 @@ func SiteSettingFields() []SettingField {
 		{"siteLogo", "site_logo", "string", 0, 200},
 		{"footerText", "footer_text", "string", 0, 2000},
 		{"analyticsRetentionDays", "analytics_retention_days", "integer", 0, 3650},
+		{"reportTimeZone", "report_time_zone", "string", 1, 100},
 	}
 }
 
@@ -84,6 +85,9 @@ func normalizeSetting(f SettingField, value string) (string, any, error) {
 		}
 		if (f.Name == "siteName" || f.Name == "siteLogo") && strings.ContainsFunc(value, unicode.IsControl) {
 			return bad("不能包含控制字符")
+		}
+		if f.Name == "reportTimeZone" && !validReportTimeZone(value) {
+			return bad("必须为有效的 IANA 时区，如 UTC 或 Asia/Shanghai；不支持 Local")
 		}
 		return value, value, nil
 	}

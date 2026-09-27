@@ -1,6 +1,6 @@
 # 站点配置 API
 
-当前 19 项业务设置共用类型、范围和依赖校验（原 18 项加分析快照保留期）。配置版本保存在现有 `settings` KV 表的内部键 `site_settings_version`，不新增数据库表，当前 schema 17，保留期复用既有 KV 不增加迁移。没有版本键的旧库按版本 1 读取，首次初始化或保存时事务内建立版本键；普通配置接口不允许直接修改此键。
+当前 20 项业务设置共用类型、范围和依赖校验（原 18 项加分析快照保留期与报表时区）。配置版本保存在现有 `settings` KV 表的内部键 `site_settings_version`，不新增数据库表，当前 schema 17，保留期复用既有 KV 不增加迁移。没有版本键的旧库按版本 1 读取，首次初始化或保存时事务内建立版本键；普通配置接口不允许直接修改此键。
 
 ## 接口
 
@@ -8,7 +8,7 @@
 
 | 方法 | 路径 | 含义 |
 | --- | --- | --- |
-| GET | `/admin/settings` | 返回 19 项 camelCase 设置及当前 `version` |
+| GET | `/admin/settings` | 返回 20 项 camelCase 设置及当前 `version` |
 | PUT | `/admin/settings` | JSON 完整替换，必须提供全部业务字段及 `version` |
 | PATCH | `/admin/settings` | JSON 局部修改，必须提供 `version` 和至少一个业务字段；未传字段保持原值 |
 | POST | `/admin/settings` | 保留的 snake_case 完整保存入口，支持 JSON 或表单；同样必须提供全部业务字段及 `version` |
@@ -27,7 +27,7 @@
 }
 ```
 
-完整替换现包含新增 `analyticsRetentionDays`；旧客户端不能继续只提交原 18 项。建议先 GET 后修改，或使用带版本号的 PATCH。
+完整替换现包含 `analyticsRetentionDays` 和 `reportTimeZone`；旧客户端不能继续只提交原 18/19 项。建议先 GET 后修改，或使用带版本号的 PATCH。
 
 完整替换示例：
 
@@ -52,7 +52,8 @@
   "privacyContent": "本站隐私政策正文",
   "siteLogo": "",
   "footerText": "",
-  "analyticsRetentionDays": 30
+  "analyticsRetentionDays": 30,
+  "reportTimeZone": "UTC"
 }
 ```
 
@@ -83,6 +84,7 @@ PUT/PATCH 只接受真实 JSON 布尔、整数或字符串，拒绝 null、数�
 | `siteLogo` | `site_logo` | 0-200 字；默认空，公共展示仍保留环境 Logo 回退 |
 | `footerText` | `footer_text` | 0-2000 字；默认空 |
 | `analyticsRetentionDays` | `analytics_retention_days` | 整数 0-3650 天；默认 30，0 关闭快照清理；始终保留每类最新快照 |
+| `reportTimeZone` | `report_time_zone` | 有效 IANA 时区名，1-100 字；默认 UTC，例如 Asia/Shanghai；拒绝 Local，作用于后台站点报表 |
 
 `schema.defaults.version` 表示初始版本，不是当前数据库版本。使用默认配置进行重置时仍须提交当前 GET 返回的版本。整数 min/max 表示取值范围，字符串 min/max 表示字符数，布尔字段忽略 min/max。
 
@@ -97,7 +99,7 @@ PUT/PATCH 只接受真实 JSON 布尔、整数或字符串，拒绝 null、数�
 
 ## 生效与错误恢复
 
-站点配置不再使用跨请求的 30 秒缓存。普通请求读取数据库快照并在请求内复用；保存后新的请求看到新配置，已经开始的请求仍可使用原快照。SSE 重新验证时重新读取配置；后台邮件在准备发送时读取最新站点名，因此不会只依赖启动时的品牌文案。修改这 19 项设置不要求重启进程。快照清理每批读取保留期，正常情况下在下一次每分钟调度生效；已开始的批次可能继续使用旧值，故障重试会延后生效，详见 [快照保留期](ANALYTICS_SNAPSHOTS.md)。
+站点配置不再使用跨请求的 30 秒缓存。普通请求读取数据库快照并在请求内复用；保存后新的请求看到新配置，已经开始的请求仍可使用原快照。SSE 重新验证时重新读取配置；后台邮件在准备发送时读取最新站点名，因此不会只依赖启动时的品牌文案。修改这 20 项设置不要求重启进程。快照清理每批读取保留期，正常情况下在下一次每分钟调度生效；已开始的批次可能继续使用旧值，故障重试会延后生效，报表时区在下一次成功刷新时生效（正常周期 1 小时），不会在配置保存请求中重算；详见 [快照配置](ANALYTICS_SNAPSHOTS.md)。
 
 配置查询失败或历史值非法，不再回退为允许注册、免审核等默认状态。正常站点请求会拒绝继续处理；`GET /site` 返回 503。存活探针保持可用。配置管理接口保留授权后的诊断与修复入口：
 

@@ -431,7 +431,7 @@
     },
     "/api/v1/admin/analytics/{name}": {
       "get": {
-        "description": "当前生成 points 和 site；仅管理员可读。刷新失败时保留旧快照，超过 65 分钟标记 stale，不在请求中触发重算。periodStart 为 UTC 存储桶，generatedAt 为成功保存时间，均不是源数据实时一致性水位；未生成时返回 404。",
+        "description": "当前生成 points 和 site；仅管理员可读。刷新失败时保留旧快照，超过 65 分钟标记 stale，不在请求中触发重算。periodStart 为 UTC 存储桶，generatedAt 为成功保存时间，均不是源数据实时一致性水位；未生成时返回 404。 新生成的 site payload 保留原统计字段，并附 timeZone、reportDate、dayStart、nextDayStart；报表时区由后台 reportTimeZone 控制，旧快照可能缺少这些字段。UTC 存储桶 periodStart 与报表本地日期是不同概念。",
         "operationId": "get_api_v1_admin_analytics_name",
         "parameters": [
           {
