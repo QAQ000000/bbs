@@ -132,7 +132,7 @@ func TestSettingsAPIPermissionsAndMetadata(t *testing.T) {
 		Defaults        store.SiteSettings
 		VersionRequired bool
 	}
-	if err := json.Unmarshal(data["data"], &schema); err != nil || len(schema.Fields) != 18 || !schema.VersionRequired || schema.Defaults.ThreadsPerPage != 20 {
+	if err := json.Unmarshal(data["data"], &schema); err != nil || len(schema.Fields) != 19 || !schema.VersionRequired || schema.Defaults.ThreadsPerPage != 20 || schema.Defaults.AnalyticsRetentionDays != 30 {
 		t.Fatal(string(data["data"]), err)
 	}
 	if after := settingsAPIGet(t); after != v {

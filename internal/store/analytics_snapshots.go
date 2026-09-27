@@ -63,6 +63,34 @@ type AnalyticsSnapshot struct {
 	Payload     json.RawMessage `json:"payload"`
 }
 
+// PruneAnalyticsSnapshots removes at most 500 expired generated snapshots. The
+// latest bucket of each built-in kind survives even after a long refresh outage.
+// Read the current validated policy for every batch; invalid settings never
+// become a default deletion policy. Other snapshot kinds are left untouched.
+func (s *Store) PruneAnalyticsSnapshots(ctx context.Context) (int64, error) {
+	settings, err := s.Settings(ctx)
+	if err != nil || settings.AnalyticsRetentionDays == 0 {
+		return 0, err
+	}
+	result, err := s.pool.Exec(ctx, `WITH latest AS MATERIALIZED (
+		SELECT DISTINCT ON(name) name,period_start FROM analytics_snapshots
+		WHERE name IN ('points','site') ORDER BY name,period_start DESC
+	), expired AS (
+		SELECT a.name,a.period_start FROM analytics_snapshots a
+		JOIN latest l ON a.name=l.name
+		WHERE a.period_start < now()-$1::int*interval '24 hours'
+		AND a.period_start < l.period_start
+		ORDER BY a.period_start,a.name LIMIT 500
+		FOR UPDATE OF a SKIP LOCKED
+	)
+	DELETE FROM analytics_snapshots a USING expired e
+	WHERE a.name=e.name AND a.period_start=e.period_start`, settings.AnalyticsRetentionDays)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 func (s *Store) LatestAnalyticsSnapshot(ctx context.Context, name string) (AnalyticsSnapshot, error) {
 	v := AnalyticsSnapshot{Name: name}
 	err := s.pool.QueryRow(ctx, `SELECT payload,period_start,generated_at FROM analytics_snapshots WHERE name=$1 ORDER BY period_start DESC LIMIT 1`, name).Scan(&v.Payload, &v.PeriodStart, &v.GeneratedAt)

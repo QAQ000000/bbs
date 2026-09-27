@@ -108,7 +108,7 @@ TOTP 绑定、验证登录、关闭和恢复码更新见 [二次验证](MFA.md)�
 - 用户动作：`uid`，禁言/封禁另传 `days`、`reason`，改组传 `group`。
 - 审核：`tid` 或 `pid`、`op=approve/delete`、可选 `note`（最多 500 字）；首楼使用主题接口。举报处理：`id`、`op=delete/dismiss`。
 - 权限矩阵：完整字段集 `allow.角色编号.权限点`；缺失即关闭，管理员入口有防自锁保护。
-- 站点设置新增带版本号的 JSON PUT 完整更新、PATCH 局部更新，以及 schema/status 元数据与生效诊断接口；GET 返回 18 项 camelCase 设置和 `version`。原 POST 保留完整 snake_case 字段，但现在也必须提交 `version`，缺字段不再被解释为关闭开关。详见 [站点配置 API](SETTINGS.md)。
+- 站点设置新增带版本号的 JSON PUT 完整更新、PATCH 局部更新，以及 schema/status 元数据与生效诊断接口；GET 返回 19 项 camelCase 设置（含快照保留期 analyticsRetentionDays）和 `version`。原 POST 保留完整 snake_case 字段，但现在也必须提交 `version`，缺字段不再被解释为关闭开关。详见 [站点配置 API](SETTINGS.md)。
 - 回收站：单主题使用 `tid`；批量清理使用 `kind`、`author`、`keyword`、`forum`、`days`，范围规则继续在 Go 校验。
 - `GET /api/v1/admin` 另含 `data.databasePool`，提供本实例的连接使用量、获取耗时及等待/取消累计次数；沿用后台仪表盘权限，不公开到健康接口。
 - `GET /api/v1/admin/forum-stats` 返回异步版块统计开关、待处理任务、重试数量和最老任务年龄；仅管理员可读。

@@ -6,18 +6,20 @@ import (
 )
 
 const (
-	analyticsRefreshInterval = time.Hour
-	analyticsJobTimeout      = 30 * time.Second
-	analyticsRetryInitial    = 5 * time.Second
-	analyticsRetryMax        = 5 * time.Minute
-	analyticsStaleAfter      = analyticsRefreshInterval + analyticsRetryMax
+	analyticsRefreshInterval   = time.Hour
+	analyticsJobTimeout        = 30 * time.Second
+	analyticsRetryInitial      = 5 * time.Second
+	analyticsRetryMax          = 5 * time.Minute
+	analyticsStaleAfter        = analyticsRefreshInterval + analyticsRetryMax
+	analyticsRetentionInterval = time.Minute
 )
 
 type analyticsJob struct {
-	name    string
-	refresh func(context.Context) error
-	next    time.Time
-	retry   time.Duration
+	name     string
+	refresh  func(context.Context) error
+	next     time.Time
+	retry    time.Duration
+	interval time.Duration
 }
 
 func (s *Server) runAnalytics(ctx context.Context) {
@@ -28,9 +30,18 @@ func (s *Server) runAnalytics(ctx context.Context) {
 		{name: "site", refresh: func(ctx context.Context) error {
 			return s.st.RefreshSiteReport(ctx, time.Now().UTC().Truncate(24*time.Hour))
 		}},
+		{name: "retention", interval: analyticsRetentionInterval, refresh: s.pruneAnalyticsSnapshots},
 	}, func(name string, err error, retry time.Duration) {
 		s.log.Warn("analytics snapshot failed", "name", name, "err", err, "retryIn", retry)
 	})
+}
+
+func (s *Server) pruneAnalyticsSnapshots(ctx context.Context) error {
+	deleted, err := s.st.PruneAnalyticsSnapshots(ctx)
+	if err == nil && deleted > 0 {
+		s.log.Info("analytics snapshots pruned", "deleted", deleted)
+	}
+	return err
 }
 
 // Keep refreshes sequential, but give each snapshot its own deadline and retry
@@ -62,7 +73,10 @@ func runAnalyticsWorker(ctx context.Context, jobs []analyticsJob, report func(st
 			if ctx.Err() != nil {
 				return
 			}
-			delay := analyticsRefreshInterval
+			delay := j.interval
+			if delay <= 0 {
+				delay = analyticsRefreshInterval
+			}
 			if err != nil {
 				if j.retry == 0 {
 					j.retry = analyticsRetryInitial

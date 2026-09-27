@@ -23,13 +23,14 @@ type SiteSettings struct {
 	MaxFileMB       int  `json:"maxFileMB"`
 	UploadMaxDiskGB int  `json:"uploadMaxDiskGB"`
 
-	CaptchaEnabled     bool   `json:"captchaEnabled"`
-	EmailVerifyEnabled bool   `json:"emailVerifyEnabled"`
-	RequireConsent     bool   `json:"requireConsent"`
-	TermsContent       string `json:"termsContent"`
-	PrivacyContent     string `json:"privacyContent"`
-	SiteLogo           string `json:"siteLogo"`
-	FooterText         string `json:"footerText"`
+	CaptchaEnabled         bool   `json:"captchaEnabled"`
+	EmailVerifyEnabled     bool   `json:"emailVerifyEnabled"`
+	RequireConsent         bool   `json:"requireConsent"`
+	TermsContent           string `json:"termsContent"`
+	PrivacyContent         string `json:"privacyContent"`
+	SiteLogo               string `json:"siteLogo"`
+	FooterText             string `json:"footerText"`
+	AnalyticsRetentionDays int    `json:"analyticsRetentionDays"`
 }
 
 // defaultTerms/defaultPrivacy 内置默认文案：开箱即有合规页面，站长可在后台改写。
@@ -61,20 +62,21 @@ const defaultPrivacy = `## 隐私政策
 
 func defaultSettings() SiteSettings {
 	return SiteSettings{
-		Version:          1,
-		SiteName:         "GoBBS 社区",
-		ThreadsPerPage:   20,
-		PostsPerPage:     10,
-		RegisterEnabled:  true,
-		SiteClosed:       false,
-		SiteClosedReason: "站点维护中，请稍后再访。",
-		UploadEnabled:    true,
-		MaxImageMB:       8,
-		MaxFileMB:        20,
-		UploadMaxDiskGB:  10,
-		RequireConsent:   true,
-		TermsContent:     defaultTerms,
-		PrivacyContent:   defaultPrivacy,
+		AnalyticsRetentionDays: 30,
+		Version:                1,
+		SiteName:               "GoBBS 社区",
+		ThreadsPerPage:         20,
+		PostsPerPage:           10,
+		RegisterEnabled:        true,
+		SiteClosed:             false,
+		SiteClosedReason:       "站点维护中，请稍后再访。",
+		UploadEnabled:          true,
+		MaxImageMB:             8,
+		MaxFileMB:              20,
+		UploadMaxDiskGB:        10,
+		RequireConsent:         true,
+		TermsContent:           defaultTerms,
+		PrivacyContent:         defaultPrivacy,
 	}
 }
 

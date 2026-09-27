@@ -18,7 +18,7 @@ func TestAnalyticsWorkerRetryAndRecovery(t *testing.T) {
 		start := time.Now()
 		var mu sync.Mutex
 		var attempts, retries []time.Duration
-		siteCalls := 0
+		siteCalls, retentionCalls := 0, 0
 		failure := errors.New("database unavailable")
 		go runAnalyticsWorker(ctx, []analyticsJob{
 			{name: "points", refresh: func(context.Context) error {
@@ -31,6 +31,7 @@ func TestAnalyticsWorkerRetryAndRecovery(t *testing.T) {
 				return nil
 			}},
 			{name: "site", refresh: func(context.Context) error { mu.Lock(); siteCalls++; mu.Unlock(); return nil }},
+			{name: "retention", interval: analyticsRetentionInterval, refresh: func(context.Context) error { mu.Lock(); retentionCalls++; mu.Unlock(); return nil }},
 		}, func(name string, err error, retry time.Duration) {
 			mu.Lock()
 			defer mu.Unlock()
@@ -43,16 +44,16 @@ func TestAnalyticsWorkerRetryAndRecovery(t *testing.T) {
 		synctest.Wait()
 		want := []time.Duration{0, 5 * time.Second, 15 * time.Second, 35 * time.Second, 75 * time.Second, 155 * time.Second, 315 * time.Second, 615 * time.Second}
 		mu.Lock()
-		if !reflect.DeepEqual(attempts, want) || siteCalls != 1 {
-			t.Errorf("attempts=%v siteCalls=%d", attempts, siteCalls)
+		if !reflect.DeepEqual(attempts, want) || siteCalls != 1 || retentionCalls != 11 {
+			t.Errorf("attempts=%v siteCalls=%d retentionCalls=%d", attempts, siteCalls, retentionCalls)
 		}
 		mu.Unlock()
 		// A successful refresh returns to hourly work; the next failure resets backoff.
 		time.Sleep(time.Hour)
 		synctest.Wait()
 		mu.Lock()
-		if len(attempts) != 9 || siteCalls != 2 || retries[len(retries)-1] != 5*time.Second {
-			t.Error(attempts, retries, siteCalls)
+		if len(attempts) != 9 || siteCalls != 2 || retentionCalls != 71 || retries[len(retries)-1] != 5*time.Second {
+			t.Error(attempts, retries, siteCalls, retentionCalls)
 		}
 		mu.Unlock()
 		cancel()

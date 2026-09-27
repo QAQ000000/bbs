@@ -54,6 +54,7 @@ func SiteSettingFields() []SettingField {
 		{"privacyContent", "privacy_content", "string", 0, 30000},
 		{"siteLogo", "site_logo", "string", 0, 200},
 		{"footerText", "footer_text", "string", 0, 2000},
+		{"analyticsRetentionDays", "analytics_retention_days", "integer", 0, 3650},
 	}
 }
 
