@@ -467,7 +467,7 @@ func (s *Server) deliverNotifications(r *http.Request, from *store.User,
 		return
 	}
 	for i, target := range targets {
-		if rows[i].ID == 0 {
+		if rows[i].ID == 0 || !s.hub.HasSubscribers("u:"+strconv.FormatInt(target.ID, 10)) {
 			continue
 		}
 		rr, err := s.loadMembership(requestWithUser(r, target))

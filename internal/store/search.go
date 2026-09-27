@@ -82,12 +82,12 @@ func (s *Store) IndexPost(ctx context.Context, postID int64, title, body string)
 			setweight(to_tsvector('simple', $3), 'B')
 		 WHERE id=$1`, postID, SearchTokens(title), SearchTokens(body))
 	if err != nil {
-		slog.Warn("搜索索引更新失败（启动时会自动补齐）", "post", postID, "err", err)
+		slog.Warn("搜索索引更新失败", "post", postID, "err", err)
 	}
 	return err
 }
 
-// ReindexSearch 全量重建搜索索引（渲染器/分词器升级或存量数据补齐时调用）。
+// ReindexSearch 补齐缺失搜索向量；运行期修复应使用持久化搜索队列。
 func (s *Store) ReindexSearch(ctx context.Context) (int64, error) {
 	rows, err := s.pool.Query(ctx,
 		`SELECT p.id, t.title, p.content_md FROM posts p
@@ -201,59 +201,65 @@ type SearchOpts struct {
 	Author  string // 限定作者用户名（精确）
 }
 
+// searchPageSQL ranks visible matching posts before loading wide display fields.
+// The 400-post candidate cap and best-hit-per-thread semantics are unchanged.
+// A post-ID tie-break makes equal-rank pagination deterministic for a snapshot.
+func searchPageSQL(ctx context.Context) string {
+	return `WITH ranked AS MATERIALIZED (
+        SELECT p.id AS post_id, p.thread_id, ts_rank(p.search_data, q) AS score
+        FROM posts p JOIN threads t ON t.id=p.thread_id
+        CROSS JOIN (SELECT to_tsquery('simple',$1) AS q) qq
+        WHERE p.search_data @@ q AND NOT p.deleted AND NOT p.pending
+          AND NOT t.deleted AND NOT t.pending
+          AND ($2::bigint=0 OR t.forum_id=$2)
+          AND ($3::text='' OR t.author_id=(SELECT id FROM users WHERE username=$3))` + forumFilter(ctx, "t.forum_id") + `
+        ORDER BY score DESC, p.id DESC LIMIT 400
+    ), best AS MATERIALIZED (
+        SELECT DISTINCT ON (thread_id) post_id,thread_id,score FROM ranked
+        ORDER BY thread_id,score DESC,post_id DESC
+    ), selected AS MATERIALIZED (
+        SELECT * FROM best ORDER BY score DESC,post_id DESC LIMIT $4 OFFSET $5
+    )
+    SELECT totals.total,coalesce(t.id,0),coalesce(t.title,''),coalesce(t.forum_id,0),
+        coalesce(f.name,''),coalesce(u.username,''),coalesce(t.created_at,'epoch'::timestamptz),
+        coalesce(left(p.content_md,800),''),coalesce(selected.score,0)
+    FROM (SELECT count(*) AS total FROM best) totals
+    LEFT JOIN selected ON true
+    LEFT JOIN threads t ON t.id=selected.thread_id
+    LEFT JOIN posts p ON p.id=selected.post_id
+    LEFT JOIN users u ON u.id=t.author_id
+    LEFT JOIN forums f ON f.id=t.forum_id
+    ORDER BY selected.score DESC,selected.post_id DESC`
+}
+
 func (s *Store) Search(ctx context.Context, q string, page, size int, opts SearchOpts) ([]*SearchHit, int, error) {
 	tq := SearchQueryTokens(q)
 	if tq == "" {
 		return nil, 0, nil
 	}
 	tokens := strings.Fields(tq)
-	offset := (page - 1) * size
-	// 取足够多的命中做主题级去重分页（小型论坛数据量下足够）
-	// 摘要不用 ts_headline：simple 配置对原文分词为单字，与 bigram 词素不匹配，永远无法高亮
-	rows, err := s.pool.Query(ctx,
-		`SELECT t.id, t.title, t.forum_id, f.name, u.username, t.created_at,
-			left(p.content_md, 800),
-			ts_rank(p.search_data, q) AS score
-		 FROM posts p
-		 JOIN threads t ON t.id = p.thread_id AND NOT t.deleted AND NOT t.pending
-		 JOIN users u ON u.id = t.author_id
-		 JOIN forums f ON f.id = t.forum_id
-		 CROSS JOIN (SELECT to_tsquery('simple', $1) AS q) qq
-		 WHERE p.search_data @@ q AND NOT p.deleted AND NOT p.pending
-		   AND ($2::bigint = 0 OR t.forum_id = $2)
-		   AND ($3::text = '' OR u.username = $3)`+forumFilter(ctx, "t.forum_id")+`
-		 ORDER BY score DESC LIMIT 400`, tq, opts.ForumID, opts.Author)
+	rows, err := s.pool.Query(ctx, searchPageSQL(ctx), tq, opts.ForumID, opts.Author, size, (page-1)*size)
 	if err != nil {
 		return nil, 0, err
 	}
 	defer rows.Close()
-
-	seen := map[int64]bool{}
 	var hits []*SearchHit
+	var total int
 	for rows.Next() {
 		var h SearchHit
 		var raw string
-		if err := rows.Scan(&h.ThreadID, &h.Title, &h.ForumID, &h.ForumName, &h.AuthorName,
-			&h.CreatedAt, &raw, &h.Rank); err != nil {
+		if err := rows.Scan(&total, &h.ThreadID, &h.Title, &h.ForumID, &h.ForumName, &h.AuthorName, &h.CreatedAt, &raw, &h.Rank); err != nil {
 			return nil, 0, err
 		}
-		h.Excerpt = buildExcerpt(raw, tokens)
-		if seen[h.ThreadID] {
+		// LEFT JOIN retains the total even when the requested page is empty.
+		if h.ThreadID == 0 {
 			continue
 		}
-		seen[h.ThreadID] = true
+		h.Excerpt = buildExcerpt(raw, tokens)
 		hits = append(hits, &h)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, 0, err
 	}
-	total := len(hits)
-	lo, hi := offset, offset+size
-	if lo > total {
-		lo = total
-	}
-	if hi > total {
-		hi = total
-	}
-	return hits[lo:hi], total, nil
+	return hits, total, nil
 }

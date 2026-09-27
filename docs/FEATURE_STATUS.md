@@ -13,7 +13,7 @@
 | 版块与内容 | 已实现 | 分类、版块、主题、楼层回复、草稿、编辑版本、删除、附件；Markdown 存储，前端负责安全渲染 | [基础流程](FORUM_WORKFLOWS.md)、[handler_post.go](../internal/api/handler_post.go) |
 | 互动与通知 | 已实现 | 点赞、收藏、@、具体楼层回复、作者采纳、通知偏好/已读；部分 toggle 接口不可自动重试 | [API](API.md)、[handler_workflows.go](../internal/api/handler_workflows.go) |
 | 标签、关注/粉丝 | 已实现 | 标签配置/筛选、关注关系与列表；不等于关注动态推荐流 | [社区 API](COMMUNITY_API.md) |
-| 订阅 | 已实现，有容量边界 | 主题/版块/标签订阅、默认站内及邮件通知、权限复核与去重；高负载下仍可能积压 | [subscriptions.go](../internal/api/subscriptions.go)、[持续负载](SUSTAINED_LOAD.md) |
+| 订阅 | 已实现，有容量边界 | 主题/版块/标签订阅、默认站内及邮件通知、权限复核与去重；在线计数按消费轮次合并，离线省略计数；持续容量仍待复测 | [subscriptions.go](../internal/api/subscriptions.go)、[持续负载](SUSTAINED_LOAD.md) |
 | 私信 | 已实现 | 不要求互关；对方回复前限首条，回复后解除限制，屏蔽拒绝新发送；不是群聊 | [handler_messaging.go](../internal/api/handler_messaging.go)、[社区 API](COMMUNITY_API.md) |
 | 会员成长 | 已实现 | 等级/经验/徽章、自动升级、权限额度、版块访问、后台预览和人工调整；旧 TL 体系已移除 | [会员](MEMBERSHIP.md) |
 | 任务称号 | 已实现 | 发帖、回复、获赞、精华、采纳等条件，补发/授予/撤销/佩戴/审计；称号不授予权限 | [称号](TITLES.md) |
@@ -21,7 +21,7 @@
 | 投票、悬赏、签到 | 未实现 | 无完整创建/投票、冻结/结算/退款或签到日历/连续奖励业务；每日活跃不等于签到 | [扩展方案](COMMUNITY_FEATURES_PLAN.md) |
 | 排行榜与报表 | 部分实现 | Worker 启动及每小时生成积分 Top 100 和站点统计快照；只有管理员读取接口，没有公开榜、多维榜、榜单配置及前端 | [analytics_snapshots.go](../internal/store/analytics_snapshots.go)、[workers.go](../internal/api/workers.go) |
 | 内容治理与后台 | 已实现 | 审核、举报、版主管辖、封禁、回收站、敏感词、公告、角色权限、站点配置和审计；后台页面未开发 | [配置](SETTINGS.md)、[路由](../internal/api/routes.go) |
-| 搜索 | 已实现，有容量边界 | PostgreSQL tsvector + 中文 bigram，异步索引；top-400 候选按主题去重，total 不是无限制全量命中数 | [search.go](../internal/store/search.go)、[数据库性能](DATABASE_PERFORMANCE.md) |
+| 搜索 | 已实现，有容量边界 | PostgreSQL tsvector + 中文 bigram，异步索引；top-400 候选按主题去重，仅加载当前页展示字段；total 不是无限制全量命中数 | [search.go](../internal/store/search.go)、[数据库性能](DATABASE_PERFORMANCE.md) |
 | 数据导出/注销 | 部分实现 | 本人导出与受限删除已有；有业务关联的账号不支持通用匿名化注销 | [handler_profile.go](../internal/api/handler_profile.go)、[积分](POINTS.md) |
 | 第三方登录、插件、付费业务 | 未实现 | 不应从旧路线图或“可扩展”描述推断已有 | [当前 API](API.md) |
 
@@ -56,4 +56,4 @@
 
 本阶段回归入口和结果见 [测试门禁](TEST_GATE.md)。历史短测、持续压测及故障脚本分别见 [数据库性能](DATABASE_PERFORMANCE.md)、[持续负载](SUSTAINED_LOAD.md)、[Worker 恢复](WORKER_RECOVERY.md)。单次短测成功不意味着持续目标吞吐达标；请求未发出、停止负载后队列未排空必须计入结果。
 
-后续优先顺序：搜索查询成本与订阅扇出 → Worker 背压/隔离及全队列恢复 → 快照可见性、保留期与站点时区 → 根据前端模块完善字段契约和真实部署验收。暂不为功能清单完整性同时加入所有新业务。
+搜索分页与在线通知合并已实现，定点比较与回归记录见 [数据库性能](DATABASE_PERFORMANCE.md)。后续优先顺序：复测持续负载、确认中文广匹配排序与订阅积压边界 → Worker 背压/隔离及全队列恢复 → 快照可见性、保留期与站点时区 → 根据前端模块完善字段契约和真实部署验收。暂不为功能清单完整性同时加入所有新业务。

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Disposable cluster wrapper for the same gate used by CI, plus HTTP benchmark.
+# Disposable cluster wrapper for the same gate used by CI, plus HTTP and focused performance benchmarks.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 local_mode=${1:-test}
-case "$local_mode" in test|load|soak) ;; *) echo 'usage: verify-local-backend.sh test|load|soak'; exit 1;; esac
+case "$local_mode" in test|load|soak|perf) ;; *) echo 'usage: verify-local-backend.sh test|load|soak|perf'; exit 1;; esac
 local_pg_bin=${RECOVERY_PG_BIN:-/www/server/pgsql/bin}
 local_results=$(mktemp -d /tmp/gobbs-backend-results.XXXXXX)
 local_cluster=$(mktemp -d /tmp/gobbs-backend-cluster.XXXXXX)
@@ -44,6 +44,12 @@ if [[ $local_mode == soak ]]; then
 fi
 if [[ $local_mode == test ]]; then
   bash scripts/test-backend.sh
+elif [[ $local_mode == perf ]]; then
+  FORUM_REQUIRE_TEST_DB=1 FORUM_TEST_DSN="$FORUM_STORE_TEST_DSN" \
+    go test ./internal/store -run '^$' -bench '^BenchmarkSearchPage$' -benchtime=20x -count=1 -timeout=6m -v > "$local_results/search-benchmark.log" 2>&1
+  FORUM_REQUIRE_TEST_DB=1 FORUM_TEST_DSN="$FORUM_API_TEST_DSN" \
+    go test ./internal/api -run '^$' -bench '^BenchmarkSubscriptionCounts$' -benchtime=20x -count=1 -timeout=3m -v > "$local_results/subscription-benchmark.log" 2>&1
+  rg 'Benchmark.*ns/op|PASS|FAIL' "$local_results/search-benchmark.log" "$local_results/subscription-benchmark.log"
 else
   local_load_status=0
   FORUM_REQUIRE_TEST_DB=1 FORUM_TEST_ASYNC=1 FORUM_TEST_DSN="$FORUM_API_TEST_DSN" \

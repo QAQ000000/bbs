@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Package live 实现基于 SSE 的实时推送中枢：
 // 订阅者按主题（"t:<tid>" 帖子、"f:<fid>" 版块）分组，
-// 发帖/编辑等动作发生时由 web 层调用 Publish 广播渲染好的 HTML 片段。
+// 发帖/编辑等动作发生时由 API 层调用 Publish 广播数据事件。
 package live
 
 import (
@@ -117,4 +117,22 @@ func (h *Hub) Count() int {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	return len(h.subs)
+}
+
+// HasSubscribers is a point-in-time hint for optional live work, never a durable
+// delivery decision. A client must refresh authoritative state after connecting.
+func (h *Hub) HasSubscribers(topic string) bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	for sub := range h.subs {
+		if _, ok := sub.topics[topic]; ok {
+			sub.mu.Lock()
+			active := !sub.closed
+			sub.mu.Unlock()
+			if active {
+				return true
+			}
+		}
+	}
+	return false
 }
