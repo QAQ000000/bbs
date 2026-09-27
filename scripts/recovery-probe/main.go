@@ -8,11 +8,13 @@ import (
 	"os"
 	"os/signal"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
+	"dzforum/internal/api"
+	"dzforum/internal/config"
 	"dzforum/internal/db"
+	"dzforum/internal/live"
 	"dzforum/internal/store"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -24,78 +26,78 @@ func main() {
 	}
 }
 
-func run() error {
-	if len(os.Args) != 2 {
-		return fmt.Errorf("usage: recovery-probe seed|worker|verify|wait-locked")
-	}
-	dsn := os.Getenv("FORUM_TEST_DSN")
+func validateDSN(dsn string) error {
 	cfg, err := pgxpool.ParseConfig(dsn)
-	if err != nil || !strings.HasPrefix(cfg.ConnConfig.Database, "gobbs_test_") {
-		return fmt.Errorf("requires disposable gobbs_test_ database")
+	if err != nil {
+		return fmt.Errorf("invalid test DSN")
 	}
+	if cfg.ConnConfig.Database != "gobbs_test_worker" || cfg.ConnConfig.User != "gobbs_test_worker" ||
+		!strings.HasPrefix(cfg.ConnConfig.Host, "/tmp/gobbs-recovery-cluster.") || len(cfg.ConnConfig.Fallbacks) != 0 {
+		return fmt.Errorf("requires script-owned gobbs_test_worker database on private recovery socket")
+	}
+	return nil
+}
+
+func run() error {
+	if len(os.Args) != 3 {
+		return fmt.Errorf("usage: recovery-probe seed|worker|inject|wait-locked|rollback|release|verify|replay TARGET, or smtp DIRECTORY")
+	}
+	mode, target := os.Args[1], os.Args[2]
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	pool, err := db.OpenWithPoolSize(ctx, dsn, 5, 0)
+	if mode == "smtp" {
+		return serveSMTP(ctx, target)
+	}
+	fault, ok := faults[target]
+	if !ok {
+		return fmt.Errorf("unknown recovery target %q", target)
+	}
+	dsn := os.Getenv("FORUM_TEST_DSN")
+	if err := validateDSN(dsn); err != nil {
+		return err
+	}
+	if mode != "worker" {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 60*time.Second)
+		defer cancel()
+	}
+	pool, err := db.OpenWithPoolSize(ctx, dsn, 20, 0)
 	if err != nil {
 		return err
 	}
 	defer pool.Close()
 	s := store.NewWithAsyncForumStats(pool)
-	switch os.Args[1] {
+	switch mode {
 	case "seed":
-		if err := db.Migrate(ctx, pool); err != nil {
-			return err
-		}
-		u, err := s.CreateUser(ctx, fmt.Sprintf("recovery-%d", time.Now().UnixNano()), "unused-test-password", "")
-		if err != nil {
-			return err
-		}
-		var cid, fid int64
-		if err := pool.QueryRow(ctx, `INSERT INTO categories(name) VALUES('recovery') RETURNING id`).Scan(&cid); err != nil {
-			return err
-		}
-		if err := pool.QueryRow(ctx, `INSERT INTO forums(category_id,name) VALUES($1,'recovery') RETURNING id`, cid).Scan(&fid); err != nil {
-			return err
-		}
-		th, _, err := s.CreateThread(ctx, fid, u.ID, u.Username, "recoveryprobe", "durable body", "", false, "")
-		if err != nil {
-			return err
-		}
-		_, _, err = s.CreateReply(ctx, th.ID, u.ID, u.Username, "recoveryprobe reply", "", false, "")
-		return err
+		return seed(ctx, pool, s)
 	case "worker":
-		var wg sync.WaitGroup
-		for _, work := range []func(context.Context, *slog.Logger){s.RunSearchIndex, s.RunForumStats} {
-			wg.Add(1)
-			go func(work func(context.Context, *slog.Logger)) { defer wg.Done(); work(ctx, slog.Default()) }(work)
+		endpoint, err := readSMTPEndpoint(os.Getenv("RECOVERY_SMTP_DIR"))
+		if err != nil {
+			return err
 		}
-		wg.Wait()
+		// Explicit test configuration: never inherit deployment SMTP credentials.
+		server, err := api.New(config.Config{
+			SiteName: "Recovery test", SiteURL: "http://recovery.example.test", SMTPHost: "127.0.0.1", SMTPPort: endpoint,
+			SMTPFrom: "noreply@example.test", MailKey: strings.Repeat("ab", 32), AsyncForumStats: true,
+		}, s, live.NewHub(), slog.Default())
+		if err != nil {
+			return err
+		}
+		server.RunBackgroundWorkers(ctx)
 		return nil
-	case "verify", "wait-locked":
-		deadline, cancel := context.WithTimeout(ctx, 45*time.Second)
-		defer cancel()
-		for {
-			var ok bool
-			query := `SELECT NOT EXISTS(SELECT 1 FROM search_index_events) AND NOT EXISTS(SELECT 1 FROM forum_stat_events)
-AND NOT EXISTS(SELECT 1 FROM posts WHERE search_data IS NULL OR NOT (search_data @@ to_tsquery('simple','recoveryprobe')))
-AND NOT EXISTS(SELECT 1 FROM forums f WHERE f.post_count<>(SELECT count(*) FROM posts p JOIN threads t ON t.id=p.thread_id WHERE t.forum_id=f.id) OR f.thread_count<>(SELECT count(*) FROM threads t WHERE t.forum_id=f.id))`
-			if os.Args[1] == "wait-locked" {
-				query = `SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE datname=current_database() AND usename=current_user AND wait_event='PgSleep' AND query LIKE 'UPDATE posts SET search_data%')`
-			}
-			if err := pool.QueryRow(deadline, query).Scan(&ok); err != nil {
-				return err
-			}
-			if ok {
-				fmt.Println(os.Args[1], "PASS")
-				return nil
-			}
-			select {
-			case <-deadline.Done():
-				return fmt.Errorf("%s timed out", os.Args[1])
-			case <-time.After(100 * time.Millisecond):
-			}
-		}
+	case "inject":
+		return inject(ctx, pool, fault)
+	case "wait-locked":
+		return waitCheck(ctx, pool, "fault in flight", lockedQuery)
+	case "rollback":
+		return assertRollback(ctx, pool, fault)
+	case "release":
+		return release(ctx, pool, fault)
+	case "verify":
+		return verify(ctx, pool, target)
+	case "replay":
+		return replay(ctx, pool)
 	default:
-		return fmt.Errorf("unknown mode")
+		return fmt.Errorf("unknown mode %q", mode)
 	}
 }

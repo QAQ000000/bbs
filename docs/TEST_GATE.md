@@ -61,4 +61,13 @@ CI 在完整回归后另跑 `BenchmarkForumTraffic` 一次，启用真实异步�
 
 真实异步短测分别使用 50/5 和 CI 同款 20/2 连接池配置通过，每组 3,720 次 HTTP 请求零错误、100 条 SSE 连接收到 2,000 次事件和 100 次心跳；检查的派生队列最终清空，两个分析快照生成。详细数据见 [数据库性能](DATABASE_PERFORMANCE.md)。这是本地验证记录，尚未在 GitHub 执行远端工作流，也未修改分支保护设置。
 
-修改搜索消费者后，另行复跑 `bash scripts/verify-worker-recovery.sh` 通过：迁移重放、SQL 故障重试、Worker 被强制终止后重启，以及 Worker 存活期间 PostgreSQL 突然停机后重连；最终搜索结果和版块计数一致。证据目录：`/tmp/gobbs-recovery-results.1xU5Z2`。本脚本目前单独执行，尚未纳入上述 GitHub 工作流，也不代表所有异步队列均已完成同等故障覆盖。
+修改搜索消费者后，另行复跑 `bash scripts/verify-worker-recovery.sh` 通过：迁移重放、SQL 故障重试、Worker 被强制终止后重启，以及 Worker 存活期间 PostgreSQL 突然停机后重连；最终搜索结果和版块计数一致。证据目录：`/tmp/gobbs-recovery-results.1xU5Z2`。该次历史运行只覆盖搜索/版块统计；新增覆盖见下一节。脚本仍独立执行，尚未纳入上述 GitHub 工作流。
+
+
+## 扩展 Worker 恢复演练（2026-09-27）
+
+`bash scripts/verify-worker-recovery.sh` 使用共享生产 Worker 启动入口，分别在搜索、版块统计、成长/积分、称号、订阅和邮件的提交前关键点注入进程强杀、数据库 immediate stop/start，共 12 项场景全部通过。每项覆盖回滚、自动恢复、源事件重放、最终停机后状态校验；确认经验、积分、称号及站内通知无重复业务结果。邮件使用独立本地 SMTP，确认两项「已收信、未标记成功」场景会按相同 Message-ID 再次投递，不承诺外部收件去重。
+
+证据：`/tmp/gobbs-recovery-results.T8l0s0`。前置迁移/SQL 重试/邮件 API/probe 夹具回归共 33 个顶层测试、36 项含子测试，均开启 race，无失败、无跳过；故障矩阵另有 36 次最终状态校验。probe 安全连接校验、SMTP 关闭防阻塞及 SMTP 既有回归均通过；定向 vet、shell 语法、gofmt 和 diff 检查通过。
+
+生产代码路径与 schema 未变，本阶段没有重跑 288 项完整门禁或持续压力曲线，没有部署业务服务或推送远端。邮件租约仅在临时库中显式推进到期，周期快照虽随共享入口启动但不属于本轮故障断言范围。完整方法和限制见 [Worker 恢复](WORKER_RECOVERY.md)。
