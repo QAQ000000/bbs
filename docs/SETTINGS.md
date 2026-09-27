@@ -59,6 +59,21 @@
 
 PUT/PATCH 只接受真实 JSON 布尔、整数或字符串，拒绝 null、数组、错误类型、未知字段、重复 JSON 字段和多个 JSON 对象。请求体上限 1 MiB。POST 表单布尔使用 1/0，POST JSON 布尔可以使用 true/false，经兼容适配后同样校验。
 
+## 前端接入与 OpenAPI
+
+六个操作的字段级契约已写入 [人工审核定义](openapi.overrides.json) 并生成到 [OpenAPI](openapi.json)，包含全部 20 项设置、三种保存方式、元数据、状态诊断及错误响应。`SiteSettings` 是完整返回，`SiteSettingsReplace` / `SiteSettingsPatch` 分别是 PUT / PATCH 请求；旧 JSON 与表单入口分别使用 `SiteSettingsLegacyJSON` / `SiteSettingsLegacyForm`。表单布尔为字符串 `"0"` / `"1"`，PUT/PATCH 使用 JSON 布尔。
+
+建议后台设置页按以下流程接入：
+
+1. 登录后读取 `GET /admin/settings/schema` 获取字段类型、范围、默认值及依赖；读取 `GET /admin/settings` 获取当前值和版本。元数据的默认版本不能用来保存当前配置。
+2. 保存优先使用 PATCH，仅携带修改字段和加载时的 `version`；请求头使用 `Content-Type: application/json` 和有效的 `X-CSRF-Token`。成功后用完整响应替换页面本地配置及版本，并清除已保存的修改标记。
+3. `409 SETTINGS_CONFLICT` 时保留用户输入、重新读取最新配置，展示冲突并由用户合并；不要直接替换版本号自动重试。网络超时可能发生在事务提交之后，也先重新读取确认。当前没有幂等键或强制覆盖入口。
+4. `428` 提示客户端补齐版本；`422` 保留表单并展示错误。错误返回为 `{ "error": { "code": "...", "message": "..." } }`，保存失败没有结构化的字段错误列表，不应解析 message 判断业务分支。需要定位存量配置问题时读取 `status.issues` 的 `field/message`。
+5. 配置非法时，配置 GET 为 `503`，但有权限的管理员通常仍可读取 schema/status；状态接口 `200` 不代表配置健康，须检查 `data.valid`。`valid=false` 时 `effective=null`，先修复再刷新状态。数据库或版本键不可读时，状态接口本身也会 `503`。
+6. `requiresRestart=false` 仅表示无需重启。报表时区在下一次成功刷新后体现在快照中，保留期在后续清理批次生效；页面应展示实际快照的 `timeZone/reportDate` 及过期状态，不将保存成功显示为后台任务完成。
+
+这些定义可用于前端类型生成；具体 SDK 和后台页面尚未生成。跨字段依赖、有效 IANA 时区等规则由后端最终校验，OpenAPI 的类型和范围不能代替业务校验。
+
 ## 字段约束
 
 字符串长度以 Unicode 字符数计算。站点名和 Logo 不能含控制字符；所有字符串不能含 NUL。条款和隐私正文保留原格式，其他文本去除首尾空白后校验。
@@ -113,11 +128,13 @@ PUT/PATCH 只接受真实 JSON 布尔、整数或字符串，拒绝 null、数�
 
 | HTTP | 错误码 | 含义 |
 | --- | --- | --- |
+| 401 | `UNAUTHENTICATED` | 缺少有效管理员会话 |
 | 428 | `SETTINGS_VERSION_REQUIRED` | 未提供配置版本 |
 | 409 | `SETTINGS_CONFLICT` | 请求版本已过期 |
 | 422 | `VALIDATION_FAILED` | 缺字段、未知字段、错误类型、越界或依赖不满足 |
 | 403 | `FORBIDDEN` / `CSRF_INVALID` | 权限或 CSRF 校验失败 |
-| 415 | `UNSUPPORTED_MEDIA_TYPE` | PUT/PATCH 未使用 JSON |
+| 415 | `UNSUPPORTED_MEDIA_TYPE` | 请求未使用该入口支持的媒体类型 |
+| 400 / 413 | `BAD_REQUEST` / `PAYLOAD_TOO_LARGE` | 旧 POST 的解析失败或请求体过大；PUT/PATCH 的非法或过大 JSON 使用 422 |
 | 503 | `SETTINGS_UNAVAILABLE` | 配置读取、保存或审计写入失败 |
 
 SMTP 地址、凭据、站点外部 URL、邮件密钥和 MFA 密钥仍属于部署配置，不从本接口返回。本批次不新增私信、订阅、设备或 2FA 的运营策略，角色权限矩阵的版本协议也未改造。

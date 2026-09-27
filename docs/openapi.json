@@ -271,6 +271,1053 @@
         ],
         "type": "object"
       },
+      "SettingField": {
+        "description": "整数 min/max 为取值范围，字符串为 Unicode 码点长度；布尔忽略 min/max。",
+        "properties": {
+          "legacyName": {
+            "type": "string"
+          },
+          "max": {
+            "type": "integer"
+          },
+          "min": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "string",
+              "integer",
+              "boolean"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "legacyName",
+          "type",
+          "min",
+          "max"
+        ],
+        "type": "object"
+      },
+      "SiteSettings": {
+        "description": "20 项业务设置和版本。默认值由 /admin/settings/schema 返回；字符串长度按 Unicode 码点计。",
+        "properties": {
+          "analyticsRetentionDays": {
+            "description": "默认 30 天，0 关闭清理。每批最多删除 500 条旧快照且保留每类最新结果；下一次清理时读取。",
+            "maximum": 3650,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "captchaEnabled": {
+            "type": "boolean"
+          },
+          "emailVerifyEnabled": {
+            "description": "开启前必须配置可用 SMTP。",
+            "type": "boolean"
+          },
+          "footerText": {
+            "maxLength": 2000,
+            "minLength": 0,
+            "type": "string"
+          },
+          "maxFileMB": {
+            "maximum": 1024,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "maxImageMB": {
+            "maximum": 1024,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "moderateEnabled": {
+            "type": "boolean"
+          },
+          "postsPerPage": {
+            "maximum": 100,
+            "minimum": 5,
+            "type": "integer"
+          },
+          "privacyContent": {
+            "maxLength": 30000,
+            "minLength": 0,
+            "type": "string"
+          },
+          "registerEnabled": {
+            "type": "boolean"
+          },
+          "reportTimeZone": {
+            "description": "有效 IANA 时区名，例如 UTC、Asia/Shanghai；拒绝 Local。仅控制后台站点报表，在下一次成功刷新时生效。",
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "requireConsent": {
+            "description": "为 true 时 termsContent 和 privacyContent 均须非空白。",
+            "type": "boolean"
+          },
+          "siteClosed": {
+            "type": "boolean"
+          },
+          "siteClosedReason": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "siteLogo": {
+            "description": "不得包含控制字符；空值时公共展示仍可能使用部署 Logo 回退。",
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          },
+          "siteName": {
+            "description": "不得包含控制字符。",
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "termsContent": {
+            "maxLength": 30000,
+            "minLength": 0,
+            "type": "string"
+          },
+          "threadsPerPage": {
+            "maximum": 100,
+            "minimum": 5,
+            "type": "integer"
+          },
+          "uploadEnabled": {
+            "type": "boolean"
+          },
+          "uploadMaxDiskGB": {
+            "maximum": 1024,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "version": {
+            "description": "当前配置版本。写入必须使用刚读取的版本；409 后先重新读取并合并，不能只替换版本号重试。",
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "siteName",
+          "threadsPerPage",
+          "postsPerPage",
+          "registerEnabled",
+          "siteClosed",
+          "siteClosedReason",
+          "moderateEnabled",
+          "uploadEnabled",
+          "maxImageMB",
+          "maxFileMB",
+          "uploadMaxDiskGB",
+          "captchaEnabled",
+          "emailVerifyEnabled",
+          "requireConsent",
+          "termsContent",
+          "privacyContent",
+          "siteLogo",
+          "footerText",
+          "analyticsRetentionDays",
+          "reportTimeZone"
+        ],
+        "type": "object"
+      },
+      "SiteSettingsIssue": {
+        "properties": {
+          "field": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "message"
+        ],
+        "type": "object"
+      },
+      "SiteSettingsLegacyForm": {
+        "additionalProperties": false,
+        "description": "旧表单入口，各字段必须恰好出现一次。布尔使用 1/0；version 和整数使用十进制文本。",
+        "properties": {
+          "_csrf": {
+            "type": "string"
+          },
+          "analytics_retention_days": {
+            "description": "按 analyticsRetentionDays 的类型和范围校验。",
+            "type": "string"
+          },
+          "captcha_enabled": {
+            "description": "按 captchaEnabled 的类型和范围校验。",
+            "enum": [
+              "0",
+              "1"
+            ],
+            "type": "string"
+          },
+          "email_verify_enabled": {
+            "description": "按 emailVerifyEnabled 的类型和范围校验。",
+            "enum": [
+              "0",
+              "1"
+            ],
+            "type": "string"
+          },
+          "footer_text": {
+            "description": "按 footerText 的类型和范围校验。",
+            "type": "string"
+          },
+          "max_file_mb": {
+            "description": "按 maxFileMB 的类型和范围校验。",
+            "type": "string"
+          },
+          "max_image_mb": {
+            "description": "按 maxImageMB 的类型和范围校验。",
+            "type": "string"
+          },
+          "moderate_enabled": {
+            "description": "按 moderateEnabled 的类型和范围校验。",
+            "enum": [
+              "0",
+              "1"
+            ],
+            "type": "string"
+          },
+          "posts_per_page": {
+            "description": "按 postsPerPage 的类型和范围校验。",
+            "type": "string"
+          },
+          "privacy_content": {
+            "description": "按 privacyContent 的类型和范围校验。",
+            "type": "string"
+          },
+          "register_enabled": {
+            "description": "按 registerEnabled 的类型和范围校验。",
+            "enum": [
+              "0",
+              "1"
+            ],
+            "type": "string"
+          },
+          "report_time_zone": {
+            "description": "按 reportTimeZone 的类型和范围校验。",
+            "type": "string"
+          },
+          "require_consent": {
+            "description": "按 requireConsent 的类型和范围校验。",
+            "enum": [
+              "0",
+              "1"
+            ],
+            "type": "string"
+          },
+          "site_closed": {
+            "description": "按 siteClosed 的类型和范围校验。",
+            "enum": [
+              "0",
+              "1"
+            ],
+            "type": "string"
+          },
+          "site_closed_reason": {
+            "description": "按 siteClosedReason 的类型和范围校验。",
+            "type": "string"
+          },
+          "site_logo": {
+            "description": "按 siteLogo 的类型和范围校验。",
+            "type": "string"
+          },
+          "site_name": {
+            "description": "按 siteName 的类型和范围校验。",
+            "type": "string"
+          },
+          "terms_content": {
+            "description": "按 termsContent 的类型和范围校验。",
+            "type": "string"
+          },
+          "threads_per_page": {
+            "description": "按 threadsPerPage 的类型和范围校验。",
+            "type": "string"
+          },
+          "upload_enabled": {
+            "description": "按 uploadEnabled 的类型和范围校验。",
+            "enum": [
+              "0",
+              "1"
+            ],
+            "type": "string"
+          },
+          "upload_max_disk_gb": {
+            "description": "按 uploadMaxDiskGB 的类型和范围校验。",
+            "type": "string"
+          },
+          "version": {
+            "description": "正整数版本号的十进制文本。",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "site_name",
+          "threads_per_page",
+          "posts_per_page",
+          "register_enabled",
+          "site_closed",
+          "site_closed_reason",
+          "moderate_enabled",
+          "upload_enabled",
+          "max_image_mb",
+          "max_file_mb",
+          "upload_max_disk_gb",
+          "captcha_enabled",
+          "email_verify_enabled",
+          "require_consent",
+          "terms_content",
+          "privacy_content",
+          "site_logo",
+          "footer_text",
+          "analytics_retention_days",
+          "report_time_zone"
+        ],
+        "type": "object"
+      },
+      "SiteSettingsLegacyJSON": {
+        "additionalProperties": false,
+        "description": "旧 snake_case 完整保存入口的规范标量输入。新客户端优先使用 PUT/PATCH。旧编码的宽松转换不适用于 PUT/PATCH。",
+        "properties": {
+          "_csrf": {
+            "description": "可选的兼容 CSRF 字段；推荐使用 X-CSRF-Token 请求头。",
+            "type": "string"
+          },
+          "analytics_retention_days": {
+            "description": "兼容适配器先转成文本，再按 analyticsRetentionDays 的 integer 规则及范围校验；布尔转换为 1/0。规范客户端应按实际业务类型传值。",
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "captcha_enabled": {
+            "description": "兼容适配器先转成文本，再按 captchaEnabled 的 boolean 规则及范围校验；布尔转换为 1/0。规范客户端应按实际业务类型传值。",
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "email_verify_enabled": {
+            "description": "兼容适配器先转成文本，再按 emailVerifyEnabled 的 boolean 规则及范围校验；布尔转换为 1/0。规范客户端应按实际业务类型传值。",
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "footer_text": {
+            "description": "兼容适配器先转成文本，再按 footerText 的 string 规则及范围校验；布尔转换为 1/0。规范客户端应按实际业务类型传值。",
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "max_file_mb": {
+            "description": "兼容适配器先转成文本，再按 maxFileMB 的 integer 规则及范围校验；布尔转换为 1/0。规范客户端应按实际业务类型传值。",
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "max_image_mb": {
+            "description": "兼容适配器先转成文本，再按 maxImageMB 的 integer 规则及范围校验；布尔转换为 1/0。规范客户端应按实际业务类型传值。",
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "moderate_enabled": {
+            "description": "兼容适配器先转成文本，再按 moderateEnabled 的 boolean 规则及范围校验；布尔转换为 1/0。规范客户端应按实际业务类型传值。",
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "posts_per_page": {
+            "description": "兼容适配器先转成文本，再按 postsPerPage 的 integer 规则及范围校验；布尔转换为 1/0。规范客户端应按实际业务类型传值。",
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "privacy_content": {
+            "description": "兼容适配器先转成文本，再按 privacyContent 的 string 规则及范围校验；布尔转换为 1/0。规范客户端应按实际业务类型传值。",
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "register_enabled": {
+            "description": "兼容适配器先转成文本，再按 registerEnabled 的 boolean 规则及范围校验；布尔转换为 1/0。规范客户端应按实际业务类型传值。",
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "report_time_zone": {
+            "description": "兼容适配器先转成文本，再按 reportTimeZone 的 string 规则及范围校验；布尔转换为 1/0。规范客户端应按实际业务类型传值。",
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "require_consent": {
+            "description": "兼容适配器先转成文本，再按 requireConsent 的 boolean 规则及范围校验；布尔转换为 1/0。规范客户端应按实际业务类型传值。",
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "site_closed": {
+            "description": "兼容适配器先转成文本，再按 siteClosed 的 boolean 规则及范围校验；布尔转换为 1/0。规范客户端应按实际业务类型传值。",
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "site_closed_reason": {
+            "description": "兼容适配器先转成文本，再按 siteClosedReason 的 string 规则及范围校验；布尔转换为 1/0。规范客户端应按实际业务类型传值。",
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "site_logo": {
+            "description": "兼容适配器先转成文本，再按 siteLogo 的 string 规则及范围校验；布尔转换为 1/0。规范客户端应按实际业务类型传值。",
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "site_name": {
+            "description": "兼容适配器先转成文本，再按 siteName 的 string 规则及范围校验；布尔转换为 1/0。规范客户端应按实际业务类型传值。",
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "terms_content": {
+            "description": "兼容适配器先转成文本，再按 termsContent 的 string 规则及范围校验；布尔转换为 1/0。规范客户端应按实际业务类型传值。",
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "threads_per_page": {
+            "description": "兼容适配器先转成文本，再按 threadsPerPage 的 integer 规则及范围校验；布尔转换为 1/0。规范客户端应按实际业务类型传值。",
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "upload_enabled": {
+            "description": "兼容适配器先转成文本，再按 uploadEnabled 的 boolean 规则及范围校验；布尔转换为 1/0。规范客户端应按实际业务类型传值。",
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "upload_max_disk_gb": {
+            "description": "兼容适配器先转成文本，再按 uploadMaxDiskGB 的 integer 规则及范围校验；布尔转换为 1/0。规范客户端应按实际业务类型传值。",
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "version": {
+            "oneOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "description": "正整数版本号的十进制文本。",
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "required": [
+          "version",
+          "site_name",
+          "threads_per_page",
+          "posts_per_page",
+          "register_enabled",
+          "site_closed",
+          "site_closed_reason",
+          "moderate_enabled",
+          "upload_enabled",
+          "max_image_mb",
+          "max_file_mb",
+          "upload_max_disk_gb",
+          "captcha_enabled",
+          "email_verify_enabled",
+          "require_consent",
+          "terms_content",
+          "privacy_content",
+          "site_logo",
+          "footer_text",
+          "analytics_retention_days",
+          "report_time_zone"
+        ],
+        "type": "object"
+      },
+      "SiteSettingsMetadata": {
+        "description": "defaults.version 是初始版本，不能用它代替当前配置版本提交。无需重启不等于后台任务立即刷新。",
+        "properties": {
+          "defaults": {
+            "$ref": "#/components/schemas/SiteSettings"
+          },
+          "dependencies": {
+            "properties": {
+              "emailVerifyEnabled": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "requireConsent": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "emailVerifyEnabled",
+              "requireConsent"
+            ],
+            "type": "object"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/SettingField"
+            },
+            "type": "array"
+          },
+          "permission": {
+            "enum": [
+              "settings.edit"
+            ],
+            "type": "string"
+          },
+          "requiresRestart": {
+            "enum": [
+              false
+            ],
+            "type": "boolean"
+          },
+          "stringLengthUnit": {
+            "enum": [
+              "unicodeCodePoints"
+            ],
+            "type": "string"
+          },
+          "versionRequired": {
+            "enum": [
+              true
+            ],
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "fields",
+          "defaults",
+          "permission",
+          "versionRequired",
+          "requiresRestart",
+          "stringLengthUnit",
+          "dependencies"
+        ],
+        "type": "object"
+      },
+      "SiteSettingsMetadataResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SiteSettingsMetadata"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
+      "SiteSettingsPatch": {
+        "additionalProperties": false,
+        "description": "至少一项业务字段加 version；未传字段保持原值。业务依赖按合并后的配置验证。",
+        "minProperties": 2,
+        "properties": {
+          "analyticsRetentionDays": {
+            "description": "默认 30 天，0 关闭清理。每批最多删除 500 条旧快照且保留每类最新结果；下一次清理时读取。",
+            "maximum": 3650,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "captchaEnabled": {
+            "type": "boolean"
+          },
+          "emailVerifyEnabled": {
+            "description": "开启前必须配置可用 SMTP。",
+            "type": "boolean"
+          },
+          "footerText": {
+            "maxLength": 2000,
+            "minLength": 0,
+            "type": "string"
+          },
+          "maxFileMB": {
+            "maximum": 1024,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "maxImageMB": {
+            "maximum": 1024,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "moderateEnabled": {
+            "type": "boolean"
+          },
+          "postsPerPage": {
+            "maximum": 100,
+            "minimum": 5,
+            "type": "integer"
+          },
+          "privacyContent": {
+            "maxLength": 30000,
+            "minLength": 0,
+            "type": "string"
+          },
+          "registerEnabled": {
+            "type": "boolean"
+          },
+          "reportTimeZone": {
+            "description": "有效 IANA 时区名，例如 UTC、Asia/Shanghai；拒绝 Local。仅控制后台站点报表，在下一次成功刷新时生效。",
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "requireConsent": {
+            "description": "为 true 时 termsContent 和 privacyContent 均须非空白。",
+            "type": "boolean"
+          },
+          "siteClosed": {
+            "type": "boolean"
+          },
+          "siteClosedReason": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "siteLogo": {
+            "description": "不得包含控制字符；空值时公共展示仍可能使用部署 Logo 回退。",
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          },
+          "siteName": {
+            "description": "不得包含控制字符。",
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "termsContent": {
+            "maxLength": 30000,
+            "minLength": 0,
+            "type": "string"
+          },
+          "threadsPerPage": {
+            "maximum": 100,
+            "minimum": 5,
+            "type": "integer"
+          },
+          "uploadEnabled": {
+            "type": "boolean"
+          },
+          "uploadMaxDiskGB": {
+            "maximum": 1024,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "version": {
+            "description": "当前配置版本。写入必须使用刚读取的版本；409 后先重新读取并合并，不能只替换版本号重试。",
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "type": "object"
+      },
+      "SiteSettingsReplace": {
+        "additionalProperties": false,
+        "description": "完整替换：20 项业务字段与 version 均必填。布尔与整数必须是 JSON 原生类型，拒绝 null、重复键及未知字段。",
+        "properties": {
+          "analyticsRetentionDays": {
+            "description": "默认 30 天，0 关闭清理。每批最多删除 500 条旧快照且保留每类最新结果；下一次清理时读取。",
+            "maximum": 3650,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "captchaEnabled": {
+            "type": "boolean"
+          },
+          "emailVerifyEnabled": {
+            "description": "开启前必须配置可用 SMTP。",
+            "type": "boolean"
+          },
+          "footerText": {
+            "maxLength": 2000,
+            "minLength": 0,
+            "type": "string"
+          },
+          "maxFileMB": {
+            "maximum": 1024,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "maxImageMB": {
+            "maximum": 1024,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "moderateEnabled": {
+            "type": "boolean"
+          },
+          "postsPerPage": {
+            "maximum": 100,
+            "minimum": 5,
+            "type": "integer"
+          },
+          "privacyContent": {
+            "maxLength": 30000,
+            "minLength": 0,
+            "type": "string"
+          },
+          "registerEnabled": {
+            "type": "boolean"
+          },
+          "reportTimeZone": {
+            "description": "有效 IANA 时区名，例如 UTC、Asia/Shanghai；拒绝 Local。仅控制后台站点报表，在下一次成功刷新时生效。",
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "requireConsent": {
+            "description": "为 true 时 termsContent 和 privacyContent 均须非空白。",
+            "type": "boolean"
+          },
+          "siteClosed": {
+            "type": "boolean"
+          },
+          "siteClosedReason": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "siteLogo": {
+            "description": "不得包含控制字符；空值时公共展示仍可能使用部署 Logo 回退。",
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          },
+          "siteName": {
+            "description": "不得包含控制字符。",
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "termsContent": {
+            "maxLength": 30000,
+            "minLength": 0,
+            "type": "string"
+          },
+          "threadsPerPage": {
+            "maximum": 100,
+            "minimum": 5,
+            "type": "integer"
+          },
+          "uploadEnabled": {
+            "type": "boolean"
+          },
+          "uploadMaxDiskGB": {
+            "maximum": 1024,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "version": {
+            "description": "当前配置版本。写入必须使用刚读取的版本；409 后先重新读取并合并，不能只替换版本号重试。",
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "siteName",
+          "threadsPerPage",
+          "postsPerPage",
+          "registerEnabled",
+          "siteClosed",
+          "siteClosedReason",
+          "moderateEnabled",
+          "uploadEnabled",
+          "maxImageMB",
+          "maxFileMB",
+          "uploadMaxDiskGB",
+          "captchaEnabled",
+          "emailVerifyEnabled",
+          "requireConsent",
+          "termsContent",
+          "privacyContent",
+          "siteLogo",
+          "footerText",
+          "analyticsRetentionDays",
+          "reportTimeZone"
+        ],
+        "type": "object"
+      },
+      "SiteSettingsResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SiteSettings"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
+      "SiteSettingsStatus": {
+        "description": "业务值非法时仍返回 200，valid=false、issues 非空、effective=null。版本键非法或数据库不可读时返回 503。该状态不是 Worker 执行完成确认。",
+        "properties": {
+          "effective": {
+            "nullable": true,
+            "properties": {
+              "emailVerificationInactiveReason": {
+                "enum": [
+                  "",
+                  "SMTP_DISABLED"
+                ],
+                "type": "string"
+              },
+              "emailVerificationRequired": {
+                "type": "boolean"
+              },
+              "mailSiteName": {
+                "type": "string"
+              },
+              "requiresRestart": {
+                "enum": [
+                  false
+                ],
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "emailVerificationRequired",
+              "emailVerificationInactiveReason",
+              "mailSiteName",
+              "requiresRestart"
+            ],
+            "type": "object"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/SiteSettingsIssue"
+            },
+            "type": "array"
+          },
+          "smtpEnabled": {
+            "type": "boolean"
+          },
+          "valid": {
+            "type": "boolean"
+          },
+          "version": {
+            "description": "当前配置版本。写入必须使用刚读取的版本；409 后先重新读取并合并，不能只替换版本号重试。",
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "valid",
+          "issues",
+          "smtpEnabled",
+          "effective"
+        ],
+        "type": "object"
+      },
+      "SiteSettingsStatusResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SiteSettingsStatus"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
       "Thread": {
         "properties": {
           "authorId": {
@@ -2524,22 +3571,59 @@
     },
     "/api/v1/admin/settings": {
       "get": {
-        "description": "已注册接口。路由级契约；详细业务字段及权限条件见 docs/API.md 及对应专题文档。未声明的字段不代表接口接受任意输入。",
+        "description": "要求登录、后台入口权限及 settings.edit，管理员必须已修改初始密码。读取当前 20 项业务配置与 version，配置非法时使用 status/schema 诊断和修复。",
         "operationId": "get_api_v1_admin_settings",
         "parameters": [],
         "responses": {
-          "2XX": {
+          "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Envelope"
+                  "$ref": "#/components/schemas/SiteSettingsResponse"
                 }
               }
             },
-            "description": "成功响应；具体状态码由业务决定。"
+            "description": "成功；返回完整数据。"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "UNAUTHENTICATED：缺少有效会话。"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "FORBIDDEN：无权限或必须先修改初始密码；写入也可能为 CSRF_INVALID。"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "配置不可读或写入失败时 SETTINGS_UNAVAILABLE；公共状态守卫也可能拒绝请求。"
           },
           "default": {
-            "$ref": "#/components/responses/APIError"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "其他错误；根据 error.code 判断，message 仅用于展示。"
           }
         },
         "security": [
@@ -2547,17 +3631,17 @@
             "sessionCookie": []
           }
         ],
-        "summary": "GET /api/v1/admin/settings",
+        "summary": "读取站点配置",
         "tags": [
           "admin"
         ],
-        "x-contract-level": "route",
+        "x-contract-level": "fields",
         "x-csrf-required": false,
         "x-handler": "adminSettings",
         "x-source": "internal/api/routes.go"
       },
       "patch": {
-        "description": "已注册接口。路由级契约；详细业务字段及权限条件见 docs/API.md 及对应专题文档。未声明的字段不代表接口接受任意输入。",
+        "description": "要求登录、后台入口权限及 settings.edit，管理员必须已修改初始密码。写入必须携带 CSRF 和当前 version。成功时配置、版本递增和审计在同一事务提交；相同值重复保存也会递增版本。409 后重新读取并由用户合并，网络超时可能已经提交，勿直接自动重试。 只接受 application/json，最大 1 MiB；禁止重复键、null 和未知字段。",
         "operationId": "patch_api_v1_admin_settings",
         "parameters": [
           {
@@ -2568,27 +3652,102 @@
           "content": {
             "application/json": {
               "schema": {
-                "additionalProperties": true,
-                "type": "object"
+                "$ref": "#/components/schemas/SiteSettingsPatch"
               }
             }
           },
-          "description": "业务字段见接口专题文档；路由级声明不替代字段契约。",
-          "required": false
+          "required": true
         },
         "responses": {
-          "2XX": {
+          "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Envelope"
+                  "$ref": "#/components/schemas/SiteSettingsResponse"
                 }
               }
             },
-            "description": "成功响应；具体状态码由业务决定。"
+            "description": "成功；返回完整数据。"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "UNAUTHENTICATED：缺少有效会话。"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "FORBIDDEN：无权限或必须先修改初始密码；写入也可能为 CSRF_INVALID。"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "SETTINGS_CONFLICT：版本已变化；重新 GET 后合并。"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "UNSUPPORTED_MEDIA_TYPE：请求媒体类型不受支持。"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "VALIDATION_FAILED：缺字段、类型/范围、未知字段或配置依赖不满足。PUT/PATCH 无效或过大 JSON 也采用此状态。"
+          },
+          "428": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "SETTINGS_VERSION_REQUIRED：没有提供 version。"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "配置不可读或写入失败时 SETTINGS_UNAVAILABLE；公共状态守卫也可能拒绝请求。"
           },
           "default": {
-            "$ref": "#/components/responses/APIError"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "其他错误；根据 error.code 判断，message 仅用于展示。"
           }
         },
         "security": [
@@ -2596,17 +3755,17 @@
             "sessionCookie": []
           }
         ],
-        "summary": "PATCH /api/v1/admin/settings",
+        "summary": "局部更新站点配置",
         "tags": [
           "admin"
         ],
-        "x-contract-level": "route",
+        "x-contract-level": "fields",
         "x-csrf-required": true,
         "x-handler": "settingsJSONSave",
         "x-source": "internal/api/routes.go"
       },
       "post": {
-        "description": "已注册接口。路由级契约；详细业务字段及权限条件见 docs/API.md 及对应专题文档。未声明的字段不代表接口接受任意输入。",
+        "description": "要求登录、后台入口权限及 settings.edit，管理员必须已修改初始密码。写入必须携带 CSRF 和当前 version。成功时配置、版本递增和审计在同一事务提交；相同值重复保存也会递增版本。409 后重新读取并由用户合并，网络超时可能已经提交，勿直接自动重试。 规范输入使用 snake_case 标量；响应仍为 camelCase。JSON 与表单均为完整保存，新客户端建议使用 PUT/PATCH。",
         "operationId": "post_api_v1_admin_settings",
         "parameters": [
           {
@@ -2617,27 +3776,127 @@
           "content": {
             "application/json": {
               "schema": {
-                "additionalProperties": true,
-                "type": "object"
+                "$ref": "#/components/schemas/SiteSettingsLegacyJSON"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/SiteSettingsLegacyForm"
               }
             }
           },
-          "description": "业务字段见接口专题文档；路由级声明不替代字段契约。",
-          "required": false
+          "required": true
         },
         "responses": {
-          "2XX": {
+          "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Envelope"
+                  "$ref": "#/components/schemas/SiteSettingsResponse"
                 }
               }
             },
-            "description": "成功响应；具体状态码由业务决定。"
+            "description": "成功；返回完整数据。"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "BAD_REQUEST：JSON 或表单不能解析、无效根对象或字段结构。"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "UNAUTHENTICATED：缺少有效会话。"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "FORBIDDEN：无权限或必须先修改初始密码；写入也可能为 CSRF_INVALID。"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "SETTINGS_CONFLICT：版本已变化；重新 GET 后合并。"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "PAYLOAD_TOO_LARGE：兼容 JSON 请求超过 1 MiB。"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "UNSUPPORTED_MEDIA_TYPE：请求媒体类型不受支持。"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "VALIDATION_FAILED：缺字段、类型/范围、未知字段或配置依赖不满足。PUT/PATCH 无效或过大 JSON 也采用此状态。"
+          },
+          "428": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "SETTINGS_VERSION_REQUIRED：没有提供 version。"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "配置不可读或写入失败时 SETTINGS_UNAVAILABLE；公共状态守卫也可能拒绝请求。"
           },
           "default": {
-            "$ref": "#/components/responses/APIError"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "其他错误；根据 error.code 判断，message 仅用于展示。"
           }
         },
         "security": [
@@ -2645,17 +3904,17 @@
             "sessionCookie": []
           }
         ],
-        "summary": "POST /api/v1/admin/settings",
+        "summary": "兼容旧字段完整保存站点配置",
         "tags": [
           "admin"
         ],
-        "x-contract-level": "route",
+        "x-contract-level": "fields",
         "x-csrf-required": true,
         "x-handler": "adminSettingsSave",
         "x-source": "internal/api/routes.go"
       },
       "put": {
-        "description": "已注册接口。路由级契约；详细业务字段及权限条件见 docs/API.md 及对应专题文档。未声明的字段不代表接口接受任意输入。",
+        "description": "要求登录、后台入口权限及 settings.edit，管理员必须已修改初始密码。写入必须携带 CSRF 和当前 version。成功时配置、版本递增和审计在同一事务提交；相同值重复保存也会递增版本。409 后重新读取并由用户合并，网络超时可能已经提交，勿直接自动重试。 只接受 application/json，最大 1 MiB；禁止重复键、null 和未知字段。",
         "operationId": "put_api_v1_admin_settings",
         "parameters": [
           {
@@ -2666,27 +3925,102 @@
           "content": {
             "application/json": {
               "schema": {
-                "additionalProperties": true,
-                "type": "object"
+                "$ref": "#/components/schemas/SiteSettingsReplace"
               }
             }
           },
-          "description": "业务字段见接口专题文档；路由级声明不替代字段契约。",
-          "required": false
+          "required": true
         },
         "responses": {
-          "2XX": {
+          "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Envelope"
+                  "$ref": "#/components/schemas/SiteSettingsResponse"
                 }
               }
             },
-            "description": "成功响应；具体状态码由业务决定。"
+            "description": "成功；返回完整数据。"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "UNAUTHENTICATED：缺少有效会话。"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "FORBIDDEN：无权限或必须先修改初始密码；写入也可能为 CSRF_INVALID。"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "SETTINGS_CONFLICT：版本已变化；重新 GET 后合并。"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "UNSUPPORTED_MEDIA_TYPE：请求媒体类型不受支持。"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "VALIDATION_FAILED：缺字段、类型/范围、未知字段或配置依赖不满足。PUT/PATCH 无效或过大 JSON 也采用此状态。"
+          },
+          "428": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "SETTINGS_VERSION_REQUIRED：没有提供 version。"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "配置不可读或写入失败时 SETTINGS_UNAVAILABLE；公共状态守卫也可能拒绝请求。"
           },
           "default": {
-            "$ref": "#/components/responses/APIError"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "其他错误；根据 error.code 判断，message 仅用于展示。"
           }
         },
         "security": [
@@ -2694,11 +4028,11 @@
             "sessionCookie": []
           }
         ],
-        "summary": "PUT /api/v1/admin/settings",
+        "summary": "完整替换站点配置",
         "tags": [
           "admin"
         ],
-        "x-contract-level": "route",
+        "x-contract-level": "fields",
         "x-csrf-required": true,
         "x-handler": "settingsJSONSave",
         "x-source": "internal/api/routes.go"
@@ -2706,22 +4040,59 @@
     },
     "/api/v1/admin/settings/schema": {
       "get": {
-        "description": "已注册接口。路由级契约；详细业务字段及权限条件见 docs/API.md 及对应专题文档。未声明的字段不代表接口接受任意输入。",
+        "description": "要求登录、后台入口权限及 settings.edit，管理员必须已修改初始密码。返回字段目录、初始默认值及依赖。defaults.version 不是当前版本；以 GET /admin/settings 的 version 提交。",
         "operationId": "get_api_v1_admin_settings_schema",
         "parameters": [],
         "responses": {
-          "2XX": {
+          "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Envelope"
+                  "$ref": "#/components/schemas/SiteSettingsMetadataResponse"
                 }
               }
             },
-            "description": "成功响应；具体状态码由业务决定。"
+            "description": "成功；返回完整数据。"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "UNAUTHENTICATED：缺少有效会话。"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "FORBIDDEN：无权限或必须先修改初始密码；写入也可能为 CSRF_INVALID。"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "配置不可读或写入失败时 SETTINGS_UNAVAILABLE；公共状态守卫也可能拒绝请求。"
           },
           "default": {
-            "$ref": "#/components/responses/APIError"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "其他错误；根据 error.code 判断，message 仅用于展示。"
           }
         },
         "security": [
@@ -2729,11 +4100,11 @@
             "sessionCookie": []
           }
         ],
-        "summary": "GET /api/v1/admin/settings/schema",
+        "summary": "读取站点配置字段元数据",
         "tags": [
           "admin"
         ],
-        "x-contract-level": "route",
+        "x-contract-level": "fields",
         "x-csrf-required": false,
         "x-handler": "settingsSchema",
         "x-source": "internal/api/routes.go"
@@ -2741,22 +4112,59 @@
     },
     "/api/v1/admin/settings/status": {
       "get": {
-        "description": "已注册接口。路由级契约；详细业务字段及权限条件见 docs/API.md 及对应专题文档。未声明的字段不代表接口接受任意输入。",
+        "description": "要求登录、后台入口权限及 settings.edit，管理员必须已修改初始密码。valid=false 是正常的诊断响应，HTTP 200；前端应展示 issues 并允许授权修复。effective 可为 null。",
         "operationId": "get_api_v1_admin_settings_status",
         "parameters": [],
         "responses": {
-          "2XX": {
+          "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Envelope"
+                  "$ref": "#/components/schemas/SiteSettingsStatusResponse"
                 }
               }
             },
-            "description": "成功响应；具体状态码由业务决定。"
+            "description": "成功；返回完整数据。"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "UNAUTHENTICATED：缺少有效会话。"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "FORBIDDEN：无权限或必须先修改初始密码；写入也可能为 CSRF_INVALID。"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "配置不可读或写入失败时 SETTINGS_UNAVAILABLE；公共状态守卫也可能拒绝请求。"
           },
           "default": {
-            "$ref": "#/components/responses/APIError"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "其他错误；根据 error.code 判断，message 仅用于展示。"
           }
         },
         "security": [
@@ -2764,11 +4172,11 @@
             "sessionCookie": []
           }
         ],
-        "summary": "GET /api/v1/admin/settings/status",
+        "summary": "诊断站点配置状态",
         "tags": [
           "admin"
         ],
-        "x-contract-level": "route",
+        "x-contract-level": "fields",
         "x-csrf-required": false,
         "x-handler": "settingsStatus",
         "x-source": "internal/api/routes.go"

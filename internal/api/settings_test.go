@@ -54,7 +54,7 @@ func settingsAPIFixture(t *testing.T) store.SiteSettings {
 
 func settingsAPIGet(t *testing.T) store.SiteSettings {
 	t.Helper()
-	data := checkJSON(t, smokeGet(t, "/api/v1/admin/settings", adminCookie), 200)
+	data := checkSettingsContract(t, "GET", "/api/v1/admin/settings", smokeGet(t, "/api/v1/admin/settings", adminCookie), 200)
 	var v store.SiteSettings
 	if err := json.Unmarshal(data["data"], &v); err != nil {
 		t.Fatal(err)
@@ -66,29 +66,29 @@ func TestSettingsAPIValidationAndPartialUpdates(t *testing.T) {
 	original := settingsAPIFixture(t)
 	path := "/api/v1/admin/settings"
 	before := settingsAPIGet(t)
-	checkJSON(t, memberJSON(t, "POST", path, map[string]any{"site_name": "only name"}, adminCSRF, adminCookie), 428)
-	checkJSON(t, memberJSON(t, "POST", path, map[string]any{"version": before.Version, "site_name": "only name"}, adminCSRF, adminCookie), 422)
-	checkJSON(t, memberJSON(t, "PUT", path, map[string]any{"version": before.Version, "siteName": "only name"}, adminCSRF, adminCookie), 422)
+	checkSettingsContract(t, "POST", path, memberJSON(t, "POST", path, map[string]any{"site_name": "only name"}, adminCSRF, adminCookie), 428)
+	checkSettingsContract(t, "POST", path, memberJSON(t, "POST", path, map[string]any{"version": before.Version, "site_name": "only name"}, adminCSRF, adminCookie), 422)
+	checkSettingsContract(t, "PUT", path, memberJSON(t, "PUT", path, map[string]any{"version": before.Version, "siteName": "only name"}, adminCSRF, adminCookie), 422)
 	for _, values := range []map[string]any{
 		{"version": before.Version, "threadsPerPage": 999999}, {"version": before.Version, "uploadEnabled": "false"},
 		{"version": before.Version, "siteName": nil}, {"version": before.Version, "typo": true},
 		{"version": before.Version, "termsContent": ""}, {"version": before.Version, "emailVerifyEnabled": true},
 	} {
-		checkJSON(t, memberJSON(t, "PATCH", path, values, adminCSRF, adminCookie), 422)
+		checkSettingsContract(t, "PATCH", path, memberJSON(t, "PATCH", path, values, adminCSRF, adminCookie), 422)
 	}
-	checkJSON(t, apiRequest(t, "PATCH", path, adminCSRF, fmt.Sprintf(`{"version":%d,"siteName":"first","siteName":"last"}`, before.Version), adminCookie), 422)
+	checkSettingsContract(t, "PATCH", path, apiRequest(t, "PATCH", path, adminCSRF, fmt.Sprintf(`{"version":%d,"siteName":"first","siteName":"last"}`, before.Version), adminCookie), 422)
 	if after := settingsAPIGet(t); after != original {
 		t.Fatal("invalid request changed settings", after)
 	}
-	checkJSON(t, memberJSON(t, "PATCH", path, map[string]any{"version": before.Version, "siteName": "new name"}, adminCSRF, adminCookie), 200)
+	checkSettingsContract(t, "PATCH", path, memberJSON(t, "PATCH", path, map[string]any{"version": before.Version, "siteName": "new name"}, adminCSRF, adminCookie), 200)
 	after := settingsAPIGet(t)
 	before.SiteName, before.Version = "new name", before.Version+1
 	if after != before {
 		t.Fatal("patch changed omitted fields", before, after)
 	}
-	checkJSON(t, memberJSON(t, "PATCH", path, map[string]any{"version": original.Version, "siteName": "stale"}, adminCSRF, adminCookie), 409)
+	checkSettingsContract(t, "PATCH", path, memberJSON(t, "PATCH", path, map[string]any{"version": original.Version, "siteName": "stale"}, adminCSRF, adminCookie), 409)
 	after.PostsPerPage = 25
-	checkJSON(t, memberJSON(t, "PUT", path, after, adminCSRF, adminCookie), 200)
+	checkSettingsContract(t, "PUT", path, memberJSON(t, "PUT", path, after, adminCSRF, adminCookie), 200)
 	after = settingsAPIGet(t)
 	if after.PostsPerPage != 25 {
 		t.Fatal(after)
@@ -101,7 +101,7 @@ func TestSettingsAPIValidationAndPartialUpdates(t *testing.T) {
 		legacy[f.LegacyName] = fields[f.Name]
 	}
 	legacy["footer_text"] = "legacy footer"
-	checkJSON(t, memberJSON(t, "POST", path, legacy, adminCSRF, adminCookie), 200)
+	checkSettingsContract(t, "POST", path, memberJSON(t, "POST", path, legacy, adminCSRF, adminCookie), 200)
 	if v := settingsAPIGet(t); v.FooterText != "legacy footer" || v.Version != after.Version+1 {
 		t.Fatal(v)
 	}
@@ -111,22 +111,23 @@ func TestSettingsAPIPermissionsAndMetadata(t *testing.T) {
 	v := settingsAPIFixture(t)
 	path := "/api/v1/admin/settings"
 	for _, suffix := range []string{"", "/schema", "/status"} {
-		checkJSON(t, smokeGet(t, path+suffix, userCookie), 403)
-		checkJSON(t, smokeGet(t, path+suffix, adminCookie), 200)
+		checkSettingsContract(t, "GET", path+suffix, smokeGet(t, path+suffix, nil), 401)
+		checkSettingsContract(t, "GET", path+suffix, smokeGet(t, path+suffix, userCookie), 403)
+		checkSettingsContract(t, "GET", path+suffix, smokeGet(t, path+suffix, adminCookie), 200)
 	}
 	for _, method := range []string{"PUT", "PATCH", "POST"} {
-		checkJSON(t, memberJSON(t, method, path, v, "", adminCookie), 403)
-		checkJSON(t, memberJSON(t, method, path, v, userCSRF, userCookie), 403)
+		checkSettingsContract(t, method, path, memberJSON(t, method, path, v, "", adminCookie), 403)
+		checkSettingsContract(t, method, path, memberJSON(t, method, path, v, userCSRF, userCookie), 403)
 	}
 	previous := perm.Matrix()
 	t.Cleanup(func() { perm.Load(previous) })
 	m := perm.Matrix()
 	m[perm.RoleAdmin][perm.SettingsEdit] = false
 	perm.Load(m)
-	checkJSON(t, smokeGet(t, path+"/schema", adminCookie), 403)
-	checkJSON(t, memberJSON(t, "PATCH", path, map[string]any{"version": v.Version, "siteName": "forbidden"}, adminCSRF, adminCookie), 403)
+	checkSettingsContract(t, "GET", path+"/schema", smokeGet(t, path+"/schema", adminCookie), 403)
+	checkSettingsContract(t, "PATCH", path, memberJSON(t, "PATCH", path, map[string]any{"version": v.Version, "siteName": "forbidden"}, adminCSRF, adminCookie), 403)
 	perm.Load(previous)
-	data := checkJSON(t, smokeGet(t, path+"/schema", adminCookie), 200)
+	data := checkSettingsContract(t, "GET", path+"/schema", smokeGet(t, path+"/schema", adminCookie), 200)
 	var schema struct {
 		Fields          []store.SettingField
 		Defaults        store.SiteSettings
@@ -147,13 +148,13 @@ func TestSettingsAPIUnavailableAndRecovery(t *testing.T) {
 		t.Fatal(err)
 	}
 	checkJSON(t, smokeGet(t, "/api/v1/site", nil), 503)
-	checkJSON(t, smokeGet(t, "/api/v1/admin/settings", adminCookie), 503)
-	status := checkJSON(t, smokeGet(t, "/api/v1/admin/settings/status", adminCookie), 200)
-	if !strings.Contains(string(status["data"]), `"valid":false`) || !strings.Contains(string(status["data"]), `threadsPerPage`) {
+	checkSettingsContract(t, "GET", "/api/v1/admin/settings", smokeGet(t, "/api/v1/admin/settings", adminCookie), 503)
+	status := checkSettingsContract(t, "GET", "/api/v1/admin/settings/status", smokeGet(t, "/api/v1/admin/settings/status", adminCookie), 200)
+	if !strings.Contains(string(status["data"]), `"valid":false`) || !strings.Contains(string(status["data"]), `threadsPerPage`) || !strings.Contains(string(status["data"]), `"effective":null`) {
 		t.Fatal(string(status["data"]))
 	}
-	checkJSON(t, smokeGet(t, "/api/v1/admin/settings/schema", adminCookie), 200)
-	checkJSON(t, memberJSON(t, "PATCH", "/api/v1/admin/settings", map[string]any{"version": v.Version, "threadsPerPage": 30}, adminCSRF, adminCookie), 200)
+	checkSettingsContract(t, "GET", "/api/v1/admin/settings/schema", smokeGet(t, "/api/v1/admin/settings/schema", adminCookie), 200)
+	checkSettingsContract(t, "PATCH", "/api/v1/admin/settings", memberJSON(t, "PATCH", "/api/v1/admin/settings", map[string]any{"version": v.Version, "threadsPerPage": 30}, adminCSRF, adminCookie), 200)
 	checkJSON(t, smokeGet(t, "/api/v1/site", nil), 200)
 	if after := settingsAPIGet(t); after.ThreadsPerPage != 30 {
 		t.Fatal(after)
@@ -167,7 +168,7 @@ func TestSettingsAPIUnavailableAndRecovery(t *testing.T) {
 		}
 	})
 	checkJSON(t, smokeGet(t, "/api/v1/site", nil), 503)
-	checkJSON(t, smokeGet(t, "/api/v1/admin/settings/status", adminCookie), 503)
+	checkSettingsContract(t, "GET", "/api/v1/admin/settings/status", smokeGet(t, "/api/v1/admin/settings/status", adminCookie), 503)
 	checkJSON(t, smokeGet(t, "/api/v1/health/live", nil), 200)
 }
 
