@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // forumd — GoBBS 论坛服务。
 //
-// 用法：forumd [-addr 127.0.0.1:8080] [-seed]
+// 用法：forumd [-seed | -migrate | -enqueue-derived-repair]
 // -seed 启动前灌入演示数据。
 package main
 
@@ -36,9 +36,16 @@ func main() {
 	}
 	flagSeed := flag.Bool("seed", false, "灌入演示数据后启动")
 	flagCheck := flag.Bool("check-backup", false, "上线检查：DSN 可写、pg_dump 在 PATH、数据目录可写，然后退出")
+	flagMigrate := flag.Bool("migrate", false, "迁移数据库后退出，不启动 HTTP 或 Worker")
+	flagRepair := flag.Bool("enqueue-derived-repair", false, "排入搜索和版块统计修复任务后退出；由服务 Worker 消费")
+	flagMigrationTimeout := flag.Duration("migration-timeout", 5*time.Minute, "迁移和等待迁移锁的总时限")
 	flagImport := flag.String("import-smileys", "", "从指定目录导入图片表情包（结构：<包名>/<图片文件>），导入后退出")
 	flagCodes := flag.String("codes", "", "可选：表情代码映射 JSON（配合 -import-smileys）")
 	flag.Parse()
+	if err := validateStartupFlags(*flagSeed, *flagCheck, *flagMigrate, *flagRepair, *flagImport != "", *flagMigrationTimeout); err != nil {
+		slog.Error("启动参数无效", "err", err)
+		os.Exit(2)
+	}
 
 	if *flagCheck {
 		os.Exit(runCheckBackup(cfg))
@@ -65,9 +72,27 @@ func main() {
 	}
 	defer pool.Close()
 
-	if err := db.Migrate(ctx, pool); err != nil {
+	migrationCtx, cancelMigration := context.WithTimeout(ctx, *flagMigrationTimeout)
+	err = db.Migrate(migrationCtx, pool)
+	cancelMigration()
+	if err != nil {
 		logger.Error("数据库迁移失败", "err", err)
 		os.Exit(1)
+	}
+	if *flagMigrate {
+		logger.Info("数据库迁移完成")
+		return
+	}
+	if *flagRepair {
+		repairCtx, cancel := context.WithTimeout(ctx, *flagMigrationTimeout)
+		result, err := store.New(pool).QueueDerivedRepair(repairCtx)
+		cancel()
+		if err != nil {
+			logger.Error("派生数据修复入队失败", "err", err)
+			os.Exit(1)
+		}
+		logger.Info("派生数据修复已入队", "searchJobs", result.SearchJobs, "forumJobs", result.ForumJobs)
+		return
 	}
 	monitorDone := make(chan struct{})
 	go func() { defer close(monitorDone); db.Monitor(ctx, pool, logger) }()
@@ -104,18 +129,6 @@ func main() {
 	}
 	if err := smiley.LoadCustom(cfg.SmileyDir); err != nil {
 		logger.Info("未加载自定义表情包", "dir", cfg.SmileyDir)
-	}
-
-	// 存量帖子补齐搜索索引（分词器升级或新装数据）
-	if n, err := st.ReindexSearch(ctx); err != nil {
-		logger.Warn("搜索索引重建失败", "err", err)
-	} else if n > 0 {
-		logger.Info("已补齐搜索索引", "posts", n)
-	}
-
-	// 版块公开口径统计全量重算（修复历史漂移：删除未回补、测试残留等）
-	if err := st.RecomputeAllForumStats(ctx); err != nil {
-		logger.Warn("版块统计重算失败", "err", err)
 	}
 
 	if *flagSeed {

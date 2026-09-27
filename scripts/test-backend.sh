@@ -3,6 +3,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 test_results=${FORUM_TEST_RESULTS_DIR:-$(mktemp -d /tmp/gobbs-tests.XXXXXX)}
 mkdir -p "$test_results"
+go run ./scripts/api-contract -check
 go run ./scripts/test-report validate-databases
 export FORUM_REQUIRE_TEST_DB=1
 unset FORUM_TEST_ASYNC

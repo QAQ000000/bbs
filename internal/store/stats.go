@@ -68,7 +68,7 @@ func recomputeForumStats(ctx context.Context, db statsDB, forumID int64) error {
 	return err
 }
 
-// RecomputeAllForumStats 启动时对全部版块执行一次口径重算
+// RecomputeAllForumStats 同步重算全部版块；服务启动不再调用。
 // （修复历史漂移：删除未回补、测试残留等）。
 func (s *Store) RecomputeAllForumStats(ctx context.Context) error {
 	rows, err := s.pool.Query(ctx, `SELECT id FROM forums`)

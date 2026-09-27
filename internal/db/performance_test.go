@@ -30,7 +30,7 @@ func TestPerformanceTraceRedactsSensitiveData(t *testing.T) {
 
 func TestPerformancePoolSizeValidation(t *testing.T) {
 	for _, bounds := range [][2]int{{0, 0}, {20, 21}, {1001, 0}, {20, -1}} {
-		if pool, err := OpenWithPoolSize(context.Background(), "", bounds[0], bounds[1]); err == nil || pool != nil {
+		if pool, err := OpenWithPoolSize(context.Background(), "host=localhost dbname=gobbs_test_pool", bounds[0], bounds[1]); err == nil || pool != nil || !strings.Contains(err.Error(), "invalid database pool size") {
 			t.Fatal("accepted invalid pool size", bounds)
 		}
 	}

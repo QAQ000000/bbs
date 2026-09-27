@@ -2,7 +2,7 @@
 
 2026-09-07。本文记录标签、订阅、关注/粉丝、私信、积分悬赏、签到排行榜、设备会话、2FA 和持久邮件队列的已确认规则。实现按阶段推进，所有写入使用 API 和数据库事务，Nuxt 只负责展示。
 
-实施进度：schema 9 已接入标签、关注/粉丝、三类订阅分发、私信首条限制/屏蔽/已读；schema 10 已实现持久邮件队列；schema 11 已实现设备会话管理；schema 13 已实现积分账户、奖励、流水、后台配置/调账和只读对账；schema 14 已完成 TOTP 2FA 专项安全修复。实际接口见 [COMMUNITY_API.md](COMMUNITY_API.md)、[EMAIL_QUEUE.md](EMAIL_QUEUE.md)、[DEVICE_SESSIONS.md](DEVICE_SESSIONS.md)、[POINTS.md](POINTS.md) 和 [MFA.md](MFA.md)。下面未单独标为已实现的模型与奖励建议仍属于目标方案。投票、悬赏、签到/排行榜尚未实现。
+实施进度：schema 9 已接入标签、关注/粉丝、三类订阅分发、私信首条限制/屏蔽/已读；schema 10 已实现持久邮件队列；schema 11 已实现设备会话管理；schema 13 已实现积分账户、奖励、流水、后台配置/调账和只读对账；schema 14 已完成 TOTP 2FA 专项安全修复。实际接口见 [COMMUNITY_API.md](COMMUNITY_API.md)、[EMAIL_QUEUE.md](EMAIL_QUEUE.md)、[DEVICE_SESSIONS.md](DEVICE_SESSIONS.md)、[POINTS.md](POINTS.md) 和 [MFA.md](MFA.md)。下面未单独标为已实现的模型与奖励建议仍属于目标方案。当前 schema 17 已增加积分 Top 100 和站点报表快照、管理员读取 API；投票、悬赏、签到及面向用户的多维排行榜尚未实现。最新交付状态见 [功能矩阵](FEATURE_STATUS.md)。
 
 ## 已确认产品规则
 
@@ -41,7 +41,7 @@
 
 ## 阶段二：积分、悬赏、签到、排行榜
 
-schema 13 已完成积分基础部分，实际默认奖励数值、冲回欠额、历史基线和 API 以 [积分账本](POINTS.md) 为准。冻结业务、悬赏、签到和排行榜不在本阶段实现中。
+schema 13 已完成积分基础部分，实际默认奖励数值、冲回欠额、历史基线和 API 以 [积分账本](POINTS.md) 为准。冻结业务、悬赏和签到未实现；schema 17 已有后台积分排行快照，下面的多维公开榜仍是目标方案。
 
 积分单独使用账户和流水账本：余额可重算，冻结余额用于悬赏。禁止直接修改余额；扣减、冻结、发奖、退款都必须在同一事务中完成，并使用业务幂等键。
 

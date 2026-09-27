@@ -79,7 +79,7 @@ CREATE ROLE gobbs LOGIN PASSWORD '强密码';
 CREATE DATABASE forum OWNER gobbs;
 ```
 
-schema 由程序启动时自动增量迁移（幂等），无需手工执行 SQL。
+`FORUM_DSN` 必须显式设置。程序仍自动迁移，也可先用 `forumd -migrate` 独立完成迁移后退出。同库迁移器通过事务级 advisory lock 串行执行，DDL 与版本记录一次提交；正常重启不再重放完整 schema。超时、回滚、旧库和维护命令说明见 [迁移与维护](MIGRATIONS.md)。
 
 当前 schema 17 通过 `017_async_workers.sql` 登记版块统计队列、搜索索引队列和分析快照结构。已有任务和快照在重放时保留，健康接口应返回 `schema: 17`。开发环境恢复演练见 [Worker 恢复验证](WORKER_RECOVERY.md)。
 
@@ -176,14 +176,14 @@ systemctl start gobbs
 ```
 
 - schema 迁移全部幂等，随启动自动执行；`gobbsctl` 可回滚二进制，数据库迁移不自动回滚
-- schema.sql 幂等重放之外，破坏性变更走 `db/migrations/NNN_*.sql` 编号迁移，
+- 新库初始化完整 schema；已有版本的库只执行缺失的 `assets/db/migrations/NNN_*.sql` 编号迁移，
   启动日志出现「已应用编号迁移 version=N」即表示存量库完成升级
-- 分词器/渲染逻辑升级时，启动日志会显示"已补齐搜索索引 N 条"自动重建
-- 模板与静态资源已 embed 进二进制，无需同步文件
+- 需要全量重分词或修复版块统计时，显式执行 `forumd -enqueue-derived-repair`，再由普通服务 Worker 消费；命令成功只表示入队，不表示修复已经完成
+- 当前 API 二进制只 embed 数据库结构；页面和前端静态资源需要独立前端部署
 
 ## 7. 监控与健康检查
 
-- `GET /api/status` → `{"ok":true,"db":"up","schema":5,"pending":{...},"ts":"..."}`，可接入拨测：
+- `GET /api/status` → `{"ok":true,"db":"up","schema":17,"pending":{...},"ts":"..."}`，可接入拨测：
   - `db` 数据库可达性；`schema` 为 `schema_migrations` 迁移版本（与发布版本核对）
   - `pending` 为治理队列积压（待审主题/回复/待处理举报），持续增长说明该去后台处理了
 - `forumd -check-backup`：上线检查单（DSN 可写、schema 版本、pg_dump 在 PATH、

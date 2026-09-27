@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Package config 提供服务配置：环境变量优先，均带合理默认值。
+// Package config 提供服务配置；FORUM_DSN 必须显式设置。
 package config
 
 import (
@@ -59,7 +59,7 @@ func getint(key string, def int) int {
 func FromEnv() Config {
 	return Config{
 		Addr:                 getenv("FORUM_ADDR", "127.0.0.1:8080"),
-		DSN:                  getenv("FORUM_DSN", "postgres://123456:123456@127.0.0.1:5432/forum"),
+		DSN:                  os.Getenv("FORUM_DSN"),
 		APIRequestTimeout:    time.Duration(getint("FORUM_API_TIMEOUT_SECONDS", 15)) * time.Second,
 		UploadRequestTimeout: time.Duration(getint("FORUM_UPLOAD_TIMEOUT_SECONDS", 60)) * time.Second,
 		DBMaxConnections:     getint("FORUM_DB_MAX_CONNS", 20),

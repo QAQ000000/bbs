@@ -1,8 +1,8 @@
 # 当前后端 API（前端剥离版本）
 
-2026-09-06：本工作区已移除 Go 页面渲染，HTTP 实现在 `internal/api`。Nuxt 前端尚未创建；当前源码构建的服务不能直接作为旧版完整网站使用，现有线上二进制本次未替换。
+2026-09-27：Go 页面渲染已移除，HTTP 实现在 `internal/api`。本文对应当前源码；Nuxt 前端尚未创建，不能将纯 API 二进制当作包含页面的旧版网站。当前功能状态见 [功能矩阵](FEATURE_STATUS.md)。
 
-本文件描述本轮已实现的接口。完整目标见 [前后端分离方案](FRONTEND_BACKEND_SEPARATION.md)。本轮先保留既有业务处理与部分动作式接口；OpenAPI、统一写入字段命名、幂等写入及完整前端仍待后续阶段完成。
+本文件描述本轮已实现的接口。完整目标见 [前后端分离方案](FRONTEND_BACKEND_SEPARATION.md)。本轮先保留既有业务处理与部分动作式接口；OpenAPI 路由基线已建立；完整字段契约、统一写入字段命名、通用幂等写入及完整前端仍待后续阶段完成。
 
 会员等级、成长规则、经验流水、徽章、版块访问限制及 12 个新增接口见 [会员 API 文档](MEMBERSHIP.md)。该文档定义配置预览、人工调整幂等和等级额度语义。
 
@@ -116,118 +116,30 @@ TOTP 绑定、验证登录、关闭和恢复码更新见 [二次验证](MFA.md)�
 - `GET /api/v1/admin/diagnostics` 返回连接池、数据库事务累计数、块读取/缓存命中累计数与命中率、锁等待、版块统计队列和搜索索引队列指标；仅管理员可读。块读取不等于物理磁盘 I/O，此接口不提供进程 CPU 或磁盘写入量。
 - `GET /api/v1/admin/analytics/{name}` 读取指定排行榜或报表的最新 JSON 快照；仅管理员可读。
 
-## 已注册路由清单
+## OpenAPI 与已注册路由
 
-以下清单对应本轮实际路由；不包含 Nginx/Nuxt 页面：
+[openapi.json](openapi.json) 是当前 178 个 API 操作的机器可读索引，由源码路由和 [openapi.overrides.json](openapi.overrides.json) 中的人工审核定义生成。查看一个操作的 `x-source`、`x-handler` 可定位实现。媒体 URL `/uploads/`、`/avatar/{uid}`、`/smiley/{pkg}/{file}`、`/captcha/{id}` 另由受控媒体处理器提供。
 
-| 方法 | 路径 |
+```bash
+go run ./scripts/api-contract         # 更新生成文件
+go run ./scripts/api-contract -check  # 检查路由/审核定义与生成文件一致
+```
+
+每个操作使用 `x-contract-level` 区分完成度：
+
+| 标记 | 含义 |
 | --- | --- |
-| GET | `/api/v1/session` |
-| GET | `/api/v1/site` |
-| GET | `/api/v1/home` |
-| GET | `/api/v1/forums` |
-| GET | `/api/v1/forums/{fid}` |
-| GET | `/api/v1/threads` |
-| GET | `/api/v1/threads/{tid}` |
-| GET | `/api/v1/threads/{tid}/posts` |
-| GET | `/api/v1/posts/{pid}` |
-| GET | `/api/v1/search` |
-| GET | `/api/v1/users/{id}` |
-| GET | `/api/v1/me` |
-| GET | `/api/v1/me/favorites` |
-| GET | `/api/v1/me/drafts` |
-| GET | `/api/v1/me/draft` |
-| GET | `/api/v1/me/notifications` |
-| GET | `/api/v1/me/notifications/summary` |
-| GET | `/api/v1/me/notification-preferences` |
-| GET | `/api/v1/me/content` |
-| GET | `/api/v1/posts/{pid}/position` |
-| GET | `/api/v1/posts/{pid}/history` |
-| GET | `/api/v1/me/export` |
-| GET | `/api/v1/smileys` |
-| GET | `/api/v1/setup` |
-| GET | `/api/v1/auth/captcha` |
-| GET | `/api/v1/events` |
-| GET | `/api/v1/posts/{pid}/likes` |
-| POST | `/api/v1/auth/login` |
-| POST | `/api/v1/auth/register` |
-| POST | `/api/v1/auth/logout` |
-| POST | `/api/v1/auth/password/forgot` |
-| POST | `/api/v1/auth/password/reset` |
-| POST | `/api/v1/auth/email/verify` |
-| POST | `/api/v1/me/email/verify-resend` |
-| POST | `/api/v1/me/email/change` |
-| POST | `/api/v1/me/email/confirm` |
-| POST | `/api/v1/setup` |
-| PATCH | `/api/v1/me` |
-| POST | `/api/v1/me/password` |
-| POST | `/api/v1/me/avatar` |
-| DELETE | `/api/v1/me/avatar` |
-| DELETE | `/api/v1/me` |
-| POST | `/api/v1/threads` |
-| POST | `/api/v1/threads/{tid}/posts` |
-| PATCH | `/api/v1/posts/{pid}` |
-| DELETE | `/api/v1/posts/{pid}` |
-| POST | `/api/v1/posts/{pid}/like` |
-| POST | `/api/v1/threads/{tid}/favorite` |
-| POST | `/api/v1/me/draft` |
-| DELETE | `/api/v1/me/draft` |
-| POST | `/api/v1/me/notifications/read` |
-| PUT | `/api/v1/me/notification-preferences` |
-| POST | `/api/v1/threads/{tid}/read` |
-| POST | `/api/v1/uploads` |
-| POST | `/api/v1/posts/{pid}/reports` |
-| GET | `/api/v1/admin` |
-| GET | `/api/v1/admin/forums` |
-| GET | `/api/v1/admin/threads` |
-| GET | `/api/v1/admin/users` |
-| GET | `/api/v1/admin/settings` |
-| GET | `/api/v1/admin/settings/schema` |
-| GET | `/api/v1/admin/settings/status` |
-| PUT | `/api/v1/admin/settings` |
-| PATCH | `/api/v1/admin/settings` |
-| GET | `/api/v1/admin/perms` |
-| GET | `/api/v1/admin/logs` |
-| GET | `/api/v1/admin/recyclebin` |
-| GET | `/api/v1/admin/censor` |
-| GET | `/api/v1/admin/announcements` |
-| GET | `/api/v1/admin/moderate` |
-| POST | `/api/v1/admin/forums/save` |
-| POST | `/api/v1/admin/forums/delete` |
-| POST | `/api/v1/admin/forums/move` |
-| POST | `/api/v1/admin/cats/save` |
-| POST | `/api/v1/admin/cats/delete` |
-| POST | `/api/v1/admin/threads/action` |
-| POST | `/api/v1/admin/users/ban` |
-| POST | `/api/v1/admin/users/unban` |
-| POST | `/api/v1/admin/users/group` |
-| POST | `/api/v1/admin/users/delete` |
-| POST | `/api/v1/admin/users/block` |
-| POST | `/api/v1/admin/users/unblock` |
-| POST | `/api/v1/admin/settings` |
-| POST | `/api/v1/admin/perms/save` |
-| POST | `/api/v1/admin/recyclebin/restore` |
-| POST | `/api/v1/admin/recyclebin/purge` |
-| POST | `/api/v1/admin/recyclebin/purgeall` |
-| POST | `/api/v1/admin/censor/add` |
-| POST | `/api/v1/admin/censor/delete` |
-| POST | `/api/v1/admin/moderate/thread` |
-| POST | `/api/v1/admin/moderate/post` |
-| POST | `/api/v1/admin/report/handle` |
-| POST | `/api/v1/admin/prune/execute` |
-| POST | `/api/v1/admin/announcements/add` |
-| POST | `/api/v1/admin/announcements/toggle` |
-| POST | `/api/v1/admin/announcements/delete` |
-| GET | `/uploads/` |
-| GET | `/smiley/{pkg}/{file}` |
-| GET | `/avatar/{uid}` |
-| GET | `/captcha/{id}` |
-| GET | `/api/status` |
-| GET | `/api/v1/health/ready` |
-| GET | `/api/v1/health/live` |
+| fields | 已审核主要输入和核心返回字段，仍允许额外字段；权限条件和部分错误分支继续见专题文档 |
+| request | 已审核主要请求字段，返回使用通用结构 |
+| transport | SSE、原始下载或监控等非标准 envelope 传输 |
+| route | 路由、基础鉴权提示和通用占位；尚未完成字段审核，不可据此生成完整业务类型 |
+
+当前 35 个操作有人工覆盖，其余为路由级定义。角色、版块、会员、会话和站点状态共同决定访问结果；`security` 声明登录要求不等于授予业务权限。所有写入要求 CSRF，首选请求头，过渡期兼容表单字段。
+
+测试同时检查生成文件未漂移、引用可解析、operationId 唯一、路径参数、实际 ServeMux 注册，以及核心读写响应（会话、主题/楼层、列表/游标、搜索、发帖/编辑/回复）的字段形态。此阶段不是完整 OpenAPI 形式化校验器或全接口 SDK；新增字段和错误分支仍需逐组补齐。
 
 ## 运维与尚未完成项
 
 `/api/status` 和 `/api/v1/health/ready` 保留 `{ok, db, schema, pending, ts}` 监控结构；数据库不可用时返回 503。`/api/v1/health/live` 仅检查进程 HTTP 服务。
 
-本次完成后端展示层剥离和业务接口化，不表示分离方案全部完成。后续需要 Nuxt SSR/交互、HTML 与 Markdown 出口、SEO/旧页面 URL、OpenAPI/生成类型、请求幂等、前后端发布编排。部分动作式接口与字段将在契约阶段规范化，联调前应锁定版本。
+本次完成后端展示层剥离和业务接口化，不表示分离方案全部完成。后续需要 Nuxt SSR/交互、HTML 与 Markdown 出口、SEO/旧页面 URL、完整字段契约/生成类型、请求幂等、前后端发布编排。部分动作式接口与字段将在契约阶段规范化，联调前应锁定版本。
