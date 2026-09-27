@@ -2155,7 +2155,7 @@
       "get": {
         "summary": "读取后台最新分析快照",
         "x-contract-level": "fields",
-        "description": "当前生成 points 和 site；仅后台有权用户可读，生成时间不等同于实时数据。",
+        "description": "当前生成 points 和 site；仅管理员可读。刷新失败时保留旧快照，超过 65 分钟标记 stale，不在请求中触发重算。periodStart 为 UTC 存储桶，generatedAt 为成功保存时间，均不是源数据实时一致性水位；未生成时返回 404。",
         "responses": {
           "200": {
             "description": "成功",
@@ -2179,12 +2179,39 @@
                               "type": "string",
                               "format": "date-time"
                             },
-                            "payload": {}
+                            "payload": {},
+                            "periodStart": {
+                              "type": "string",
+                              "format": "date-time",
+                              "description": "UTC 存储桶起点：积分按小时、站点按日；不是历史期间汇总的保证。"
+                            },
+                            "ageSeconds": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "description": "距成功保存的秒数，时钟差导致负值时按零返回。"
+                            },
+                            "stale": {
+                              "type": "boolean",
+                              "description": "age 达到 staleAfterSeconds 后为 true；旧 payload 仍可读取。"
+                            },
+                            "refreshIntervalSeconds": {
+                              "type": "integer",
+                              "description": "成功后下一次刷新间隔，当前 3600 秒。"
+                            },
+                            "staleAfterSeconds": {
+                              "type": "integer",
+                              "description": "过期阈值，当前 3900 秒（65 分钟）。"
+                            }
                           },
                           "required": [
                             "name",
                             "generatedAt",
-                            "payload"
+                            "payload",
+                            "periodStart",
+                            "ageSeconds",
+                            "stale",
+                            "refreshIntervalSeconds",
+                            "staleAfterSeconds"
                           ]
                         }
                       }

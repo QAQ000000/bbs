@@ -19,11 +19,18 @@ func (s *Server) adminAnalyticsSnapshot(w http.ResponseWriter, r *http.Request) 
 		s.respond(w, 422, map[string]any{"error": "invalid snapshot name"})
 		return
 	}
-	raw, generated, err := s.st.LatestAnalyticsSnapshot(r.Context(), name)
+	snapshot, err := s.st.LatestAnalyticsSnapshot(r.Context(), name)
 	if s.readError(w, r, err) {
 		return
 	}
-	s.respond(w, 200, map[string]any{"name": name, "generatedAt": generated, "payload": raw})
+	age := max(time.Since(snapshot.GeneratedAt), 0)
+	s.respond(w, 200, map[string]any{
+		"name": snapshot.Name, "generatedAt": snapshot.GeneratedAt, "payload": snapshot.Payload,
+		"periodStart": snapshot.PeriodStart, "ageSeconds": int64(age / time.Second),
+		"stale":                  age >= analyticsStaleAfter,
+		"refreshIntervalSeconds": int64(analyticsRefreshInterval / time.Second),
+		"staleAfterSeconds":      int64(analyticsStaleAfter / time.Second),
+	})
 }
 
 func (s *Server) adminDash(w http.ResponseWriter, r *http.Request) {

@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"sync"
-	"time"
 )
 
 // RunBackgroundWorkers is shared by forumd and the HTTP load fixture. It returns
@@ -20,24 +19,4 @@ func (s *Server) RunBackgroundWorkers(ctx context.Context) {
 		go func() { defer wg.Done(); work(ctx) }()
 	}
 	wg.Wait()
-}
-
-func (s *Server) runAnalytics(ctx context.Context) {
-	tick := time.NewTicker(time.Hour)
-	defer tick.Stop()
-	for {
-		job, cancel := context.WithTimeout(ctx, 30*time.Second)
-		if err := s.st.RefreshPointsLeaderboard(job, time.Now().Truncate(time.Hour), 100); err != nil && ctx.Err() == nil {
-			s.log.Warn("leaderboard snapshot failed", "err", err)
-		}
-		if err := s.st.RefreshSiteReport(job, time.Now().Truncate(24*time.Hour)); err != nil && ctx.Err() == nil {
-			s.log.Warn("site snapshot failed", "err", err)
-		}
-		cancel()
-		select {
-		case <-ctx.Done():
-			return
-		case <-tick.C:
-		}
-	}
 }

@@ -19,7 +19,7 @@
 | 任务称号 | 已实现 | 发帖、回复、获赞、精华、采纳等条件，补发/授予/撤销/佩戴/审计；称号不授予权限 | [称号](TITLES.md) |
 | 积分账本 | 已实现 | 独立账户、行为奖励、冲回、后台调账与只读对账；冻结字段存在不代表悬赏已完成 | [积分](POINTS.md) |
 | 投票、悬赏、签到 | 未实现 | 无完整创建/投票、冻结/结算/退款或签到日历/连续奖励业务；每日活跃不等于签到 | [扩展方案](COMMUNITY_FEATURES_PLAN.md) |
-| 排行榜与报表 | 部分实现 | Worker 启动及每小时生成积分 Top 100 和站点统计快照；只有管理员读取接口，没有公开榜、多维榜、榜单配置及前端 | [analytics_snapshots.go](../internal/store/analytics_snapshots.go)、[workers.go](../internal/api/workers.go) |
+| 排行榜与报表 | 部分实现 | 积分 Top 100 和站点统计快照，启动/每小时刷新；独立超时及失败退避，保留旧结果并标记过期；仅管理员可读，没有公开榜、多维榜、榜单配置及前端 | [快照说明](ANALYTICS_SNAPSHOTS.md)、[analytics.go](../internal/api/analytics.go) |
 | 内容治理与后台 | 已实现 | 审核、举报、版主管辖、封禁、回收站、敏感词、公告、角色权限、站点配置和审计；后台页面未开发 | [配置](SETTINGS.md)、[路由](../internal/api/routes.go) |
 | 搜索 | 已实现，有容量边界 | PostgreSQL tsvector + 中文 bigram，异步索引；top-400 候选按主题去重，仅加载当前页展示字段；total 不是无限制全量命中数 | [search.go](../internal/store/search.go)、[数据库性能](DATABASE_PERFORMANCE.md) |
 | 数据导出/注销 | 部分实现 | 本人导出与受限删除已有；有业务关联的账号不支持通用匿名化注销 | [handler_profile.go](../internal/api/handler_profile.go)、[积分](POINTS.md) |

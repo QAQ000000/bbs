@@ -3,7 +3,10 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 )
 
 type LeaderboardEntry struct {
@@ -53,9 +56,18 @@ func (s *Store) SaveAnalyticsSnapshot(ctx context.Context, name string, periodSt
 	return err
 }
 
-func (s *Store) LatestAnalyticsSnapshot(ctx context.Context, name string) (json.RawMessage, time.Time, error) {
-	var raw json.RawMessage
-	var generated time.Time
-	err := s.pool.QueryRow(ctx, `SELECT payload,generated_at FROM analytics_snapshots WHERE name=$1 ORDER BY period_start DESC LIMIT 1`, name).Scan(&raw, &generated)
-	return raw, generated, err
+type AnalyticsSnapshot struct {
+	Name        string          `json:"name"`
+	PeriodStart time.Time       `json:"periodStart"`
+	GeneratedAt time.Time       `json:"generatedAt"`
+	Payload     json.RawMessage `json:"payload"`
+}
+
+func (s *Store) LatestAnalyticsSnapshot(ctx context.Context, name string) (AnalyticsSnapshot, error) {
+	v := AnalyticsSnapshot{Name: name}
+	err := s.pool.QueryRow(ctx, `SELECT payload,period_start,generated_at FROM analytics_snapshots WHERE name=$1 ORDER BY period_start DESC LIMIT 1`, name).Scan(&v.Payload, &v.PeriodStart, &v.GeneratedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		err = ErrNotFound
+	}
+	return v, err
 }
