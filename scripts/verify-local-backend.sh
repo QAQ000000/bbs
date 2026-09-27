@@ -3,7 +3,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 local_mode=${1:-test}
-case "$local_mode" in test|load|soak|perf) ;; *) echo 'usage: verify-local-backend.sh test|load|soak|perf'; exit 1;; esac
+case "$local_mode" in test|load|soak|perf|backlog) ;; *) echo 'usage: verify-local-backend.sh test|load|soak|perf|backlog'; exit 1;; esac
 local_pg_bin=${RECOVERY_PG_BIN:-/www/server/pgsql/bin}
 local_results=$(mktemp -d /tmp/gobbs-backend-results.XXXXXX)
 local_cluster=$(mktemp -d /tmp/gobbs-backend-cluster.XXXXXX)
@@ -44,6 +44,14 @@ if [[ $local_mode == soak ]]; then
 fi
 if [[ $local_mode == test ]]; then
   bash scripts/test-backend.sh
+elif [[ $local_mode == backlog ]]; then
+  # A new test process resets the isolated schema for each scheduling variant,
+  # avoiding previous deliveries/dead tuples biasing the second measurement.
+  for local_variant in fixed_tick bounded_catchup; do
+    FORUM_REQUIRE_TEST_DB=1 FORUM_TEST_DSN="$FORUM_API_TEST_DSN" \
+      go test ./internal/api -run '^$' -bench "^BenchmarkSubscriptionBacklog/${local_variant}$" -benchtime=1x -count=1 -timeout=8m -v > "$local_results/backlog-$local_variant.log" 2>&1
+    rg 'BACKLOG|Benchmark.*ns/op|PASS|FAIL' "$local_results/backlog-$local_variant.log"
+  done
 elif [[ $local_mode == perf ]]; then
   FORUM_REQUIRE_TEST_DB=1 FORUM_TEST_DSN="$FORUM_STORE_TEST_DSN" \
     go test ./internal/store -run '^$' -bench '^BenchmarkSearchPage$' -benchtime=20x -count=1 -timeout=6m -v > "$local_results/search-benchmark.log" 2>&1

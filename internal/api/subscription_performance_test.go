@@ -15,28 +15,28 @@ import (
 func TestSubscriptionBurstLimitsAndStops(t *testing.T) {
 	ctx := context.Background()
 	calls := 0
-	n, err := processSubscriptionBurst(ctx, func(context.Context) (int64, error) { calls++; return 1, nil })
-	if err != nil || n <= 20 || n > 100 || calls != n {
+	n, err := processSubscriptionBurst(ctx, func(context.Context) (int64, error) { calls++; return 1, nil }, func() bool { return false })
+	if err != nil || n.batches <= 20 || n.batches > 100 || calls != n.batches {
 		t.Fatal(n, calls, err)
 	}
 	calls = 0
-	n, err = processSubscriptionBurst(ctx, func(context.Context) (int64, error) { calls++; return 0, nil })
-	if err != nil || n != 0 || calls != 1 {
+	n, err = processSubscriptionBurst(ctx, func(context.Context) (int64, error) { calls++; return 0, nil }, func() bool { return false })
+	if err != nil || n.batches != 0 || calls != 1 {
 		t.Fatal(n, calls, err)
 	}
 	failure := errors.New("failed delivery")
-	n, err = processSubscriptionBurst(ctx, func(context.Context) (int64, error) { return 1, failure })
-	if n != 0 || !errors.Is(err, failure) {
+	n, err = processSubscriptionBurst(ctx, func(context.Context) (int64, error) { return 1, failure }, func() bool { return false })
+	if n.batches != 0 || !errors.Is(err, failure) {
 		t.Fatal(n, err)
 	}
 	canceled, cancel := context.WithCancel(ctx)
 	cancel()
-	n, err = processSubscriptionBurst(canceled, func(context.Context) (int64, error) { t.Fatal("called with canceled context"); return 0, nil })
-	if n != 0 || !errors.Is(err, context.Canceled) {
+	n, err = processSubscriptionBurst(canceled, func(context.Context) (int64, error) { t.Fatal("called with canceled context"); return 0, nil }, func() bool { return false })
+	if n.batches != 0 || !errors.Is(err, context.Canceled) {
 		t.Fatal(n, err)
 	}
-	n, err = processSubscriptionBurst(ctx, func(context.Context) (int64, error) { time.Sleep(260 * time.Millisecond); return 1, nil })
-	if n != 1 || err != nil {
+	n, err = processSubscriptionBurst(ctx, func(context.Context) (int64, error) { time.Sleep(260 * time.Millisecond); return 1, nil }, func() bool { return false })
+	if n.batches != 1 || err != nil {
 		t.Fatal("soft budget split or repeated a completed transaction", n, err)
 	}
 }
@@ -229,7 +229,7 @@ func TestSubscriptionBurstCoalescesCommittedNotifications(t *testing.T) {
 	sub, cancel := s.hub.Subscribe(4, "u:"+idString(u.ID))
 	defer cancel()
 	n, err := s.processSubscriptionWork(ctx)
-	if err != nil || n != 3 {
+	if err != nil || n.batches != 3 {
 		t.Fatal("burst", n, err)
 	}
 	select {
@@ -293,7 +293,7 @@ func TestSubscriptionBurstPublishesEarlierCommitsOnFailure(t *testing.T) {
 	sub, cancel := s.hub.Subscribe(4, "u:"+idString(u.ID))
 	defer cancel()
 	n, err := s.processSubscriptionWork(ctx)
-	if err == nil || n != 1 {
+	if err == nil || n.batches != 1 {
 		t.Fatal("failed burst", n, err)
 	}
 	check := func(want int) {
@@ -315,7 +315,7 @@ func TestSubscriptionBurstPublishesEarlierCommitsOnFailure(t *testing.T) {
 	}
 	cleanup()
 	n, err = s.processSubscriptionWork(ctx)
-	if err != nil || n != 1 {
+	if err != nil || n.batches != 1 {
 		t.Fatal("retry", n, err)
 	}
 	check(2)
