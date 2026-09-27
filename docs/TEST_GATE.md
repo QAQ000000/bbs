@@ -71,3 +71,13 @@ CI 在完整回归后另跑 `BenchmarkForumTraffic` 一次，启用真实异步�
 证据：`/tmp/gobbs-recovery-results.T8l0s0`。前置迁移/SQL 重试/邮件 API/probe 夹具回归共 33 个顶层测试、36 项含子测试，均开启 race，无失败、无跳过；故障矩阵另有 36 次最终状态校验。probe 安全连接校验、SMTP 关闭防阻塞及 SMTP 既有回归均通过；定向 vet、shell 语法、gofmt 和 diff 检查通过。
 
 生产代码路径与 schema 未变，本阶段没有重跑 288 项完整门禁或持续压力曲线，没有部署业务服务或推送远端。邮件租约仅在临时库中显式推进到期，周期快照虽随共享入口启动但不属于本轮故障断言范围。完整方法和限制见 [Worker 恢复](WORKER_RECOVERY.md)。
+
+## 完整持续复测（2026-09-27）
+
+提交 `2fb3d91` 上运行 `FORUM_DB_MAX_CONNS=20 FORUM_DB_MIN_CONNS=2 FORUM_SOAK_STAGE_DURATION=10m bash scripts/verify-local-backend.sh soak`，三档各 10 分钟及自然排空全部结束。证据 `/tmp/gobbs-backend-results.wZ6KN1`，含 `soak.jsonl`、`summary.json`、`load.log`、`postgres.log` 和 `run-context.json`。
+
+200/5、400/15 两档无漏发、无 HTTP 错误；600/30 档完成 358,409 次读取及全部 18,000 次回帖，但漏发 1,591 次读取，订阅持续积压，**整体容量门禁按预期返回 1**。全程实际执行 748,409 次 HTTP 请求，无 HTTP 错误，不能因此忽略未发出的请求或下游延迟。
+
+停压后 543.4 秒自然排空，**最终一致性检查通过**：30,000 条成功新增回帖全部可索引，帖子总数 80,000，订阅通知 600,000，版块计数一致，两类快照存在，被检查队列和未索引写入均为零，监控错误为零。临时数据库日志无长锁等待或死锁记录，累计死锁/临时文件写入为零；测试集群和进程已清理。
+
+本次为热缓存英文合成数据与 20 人订阅扇出，SMTP 关闭；没有执行完整 race 门禁、持续 SSE、真实邮件发送或生产部署。详细 CPU/I/O、短暂锁等待、搜索收敛和边界见 [持续负载验收](SUSTAINED_LOAD.md)，下一项调度试验见 [Worker 背压方案](WORKER_PRESSURE.md)。这次测量未改变生产代码或 schema。
