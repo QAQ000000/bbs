@@ -8,6 +8,8 @@ func (s *Server) routes() http.Handler {
 	m := s.mux
 	s.membershipRoutes()
 	s.pointsRoutes()
+	s.engagementRoutes()
+	s.checkinRoutes()
 	s.titleRoutes()
 	m.HandleFunc("GET /api/v1/session", s.sessionGet)
 	m.HandleFunc("GET /api/v1/site", s.siteGet)

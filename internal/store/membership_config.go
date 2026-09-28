@@ -11,7 +11,7 @@ import (
 )
 
 // Membership is independent of staff roles. No management permission is accepted here.
-var MemberActions = []string{"forum.read", "thread.create", "post.reply", "post.edit", "post.delete", "post.like", "thread.favorite", "post.report", "upload.image", "upload.file", "attachment.download", "post.link.direct", "post.skip.moderate"}
+var MemberActions = []string{"poll.create", "poll.vote", "bounty.create", "checkin.claim", "forum.read", "thread.create", "post.reply", "post.edit", "post.delete", "post.like", "thread.favorite", "post.report", "upload.image", "upload.file", "attachment.download", "post.link.direct", "post.skip.moderate"}
 
 type LevelBadge struct {
 	Label      string `json:"label"`

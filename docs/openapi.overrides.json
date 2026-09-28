@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "GoBBS Backend API",
-    "version": "v1-contract-2026-09-27",
+    "version": "v1-contract-2026-09-28",
     "description": "当前 API 契约基线。由实际注册路由与人工核对的覆盖项生成。x-contract-level=fields 为已核对字段；request 为主要请求字段；transport 为特殊传输；route 仅覆盖路由、会话和通用响应，尚不可当作完整 SDK 字段定义。专题业务规则见 docs/API.md。"
   },
   "servers": [
@@ -2930,6 +2930,1940 @@
           }
         }
       }
+    },
+    "/api/v1/threads/{tid}/poll": {
+      "get": {
+        "summary": "读取投票和匿名汇总",
+        "x-contract-level": "fields",
+        "description": "沿用主题和版块可见性。pending/rejected 仅作者或同时拥有 admin.panel 与 polls.manage 者可见。myChoices 只含当前用户选择，游客为空；不返回投票者身份。",
+        "responses": {
+          "200": {
+            "description": "成功；字段位于 data。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/Poll"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：权限不足、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND：资源不存在或当前用户不可见。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ENGAGEMENT_UNAVAILABLE：读取或事务失败；也可能 REQUEST_TIMEOUT 或站点状态守卫拒绝。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "为主题创建投票",
+        "x-contract-level": "fields",
+        "description": "仅公开未锁定主题作者，要求 poll.create；问题/选项经过敏感词和审核规则。每主题一次，重复创建 409；失败或超时先 GET 确认。maxChoices 不超过选项数，durationHours 不超过后台 maxDays×24。 写入要求已登录、已完成初始改密、CSRF 请求头及 application/json（最多 1 MiB，拒绝未知字段）。",
+        "responses": {
+          "201": {
+            "description": "成功；字段位于 data。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/Poll"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：缺少有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：权限不足、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND：资源不存在或当前用户不可见。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ENGAGEMENT_CONFLICT：业务状态或版本冲突；ENGAGEMENT_CLOSED：功能停用或活动已结束；悬赏可返回 POINTS_INSUFFICIENT。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_MEDIA_TYPE：写入只接受 application/json。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ENGAGEMENT_INVALID：业务字段或配置无效；VALIDATION_FAILED：JSON 类型、大小或未知字段无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED：操作过于频繁。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ENGAGEMENT_UNAVAILABLE：读取或事务失败；也可能 REQUEST_TIMEOUT 或站点状态守卫拒绝。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PollCreate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/threads/{tid}/poll/vote": {
+      "put": {
+        "summary": "提交投票",
+        "x-contract-level": "fields",
+        "description": "要求 poll.vote。单次选择不超过 maxChoices；选项必须有效且互不重复。相同选项重放（顺序可不同）不重复计数，改投 409；幂等重放仍受当前权限、功能开关和截止状态校验。 写入要求已登录、已完成初始改密、CSRF 请求头及 application/json（最多 1 MiB，拒绝未知字段）。",
+        "responses": {
+          "200": {
+            "description": "成功；字段位于 data。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/Poll"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：缺少有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：权限不足、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND：资源不存在或当前用户不可见。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ENGAGEMENT_CONFLICT：业务状态或版本冲突；ENGAGEMENT_CLOSED：功能停用或活动已结束；悬赏可返回 POINTS_INSUFFICIENT。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_MEDIA_TYPE：写入只接受 application/json。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ENGAGEMENT_INVALID：业务字段或配置无效；VALIDATION_FAILED：JSON 类型、大小或未知字段无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED：操作过于频繁。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ENGAGEMENT_UNAVAILABLE：读取或事务失败；也可能 REQUEST_TIMEOUT 或站点状态守卫拒绝。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PollVote"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/threads/{tid}/poll/close": {
+      "post": {
+        "summary": "作者提前关闭投票",
+        "x-contract-level": "fields",
+        "description": "仅主题作者。published 转 closed；pending 转 rejected，不会公开未审内容；已在目标状态时重放成功。无法重新开放。 写入要求已登录、已完成初始改密、CSRF 请求头及 application/json（最多 1 MiB，拒绝未知字段）。",
+        "responses": {
+          "200": {
+            "description": "成功；字段位于 data。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/Poll"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：缺少有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：权限不足、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND：资源不存在或当前用户不可见。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ENGAGEMENT_CONFLICT：业务状态或版本冲突；ENGAGEMENT_CLOSED：功能停用或活动已结束；悬赏可返回 POINTS_INSUFFICIENT。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_MEDIA_TYPE：写入只接受 application/json。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ENGAGEMENT_INVALID：业务字段或配置无效；VALIDATION_FAILED：JSON 类型、大小或未知字段无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED：操作过于频繁。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ENGAGEMENT_UNAVAILABLE：读取或事务失败；也可能 REQUEST_TIMEOUT 或站点状态守卫拒绝。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EngagementEmpty"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/polls": {
+      "get": {
+        "summary": "待审核投票列表",
+        "x-contract-level": "fields",
+        "description": "要求 admin.panel 与 polls.manage。每页最多 50 条。items 为摘要，options/myChoices 为空、voters 为零；审核前通过主题投票 GET 获取详情。满页时返回游标，下一页可能为空。",
+        "responses": {
+          "200": {
+            "description": "成功；字段位于 data。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/PollPage"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：缺少有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：权限不足、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ENGAGEMENT_INVALID：业务字段或配置无效；VALIDATION_FAILED：JSON 类型、大小或未知字段无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ENGAGEMENT_UNAVAILABLE：读取或事务失败；也可能 REQUEST_TIMEOUT 或站点状态守卫拒绝。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*$"
+            },
+            "description": "排除本游标及之后的记录，按日期/主题 ID 降序；首次省略。"
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/polls/{tid}/moderation": {
+      "post": {
+        "summary": "审核或关闭投票",
+        "x-contract-level": "fields",
+        "description": "要求 admin.panel 与 polls.manage。approve/reject 仅适用于 pending，close 可关闭已发布或拒绝待审投票；同目标状态重放成功，其他转换 409。原因最多 500 字，变更写审计。 写入要求已登录、已完成初始改密、CSRF 请求头及 application/json（最多 1 MiB，拒绝未知字段）。",
+        "responses": {
+          "200": {
+            "description": "成功；字段位于 data。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/Poll"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：缺少有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：权限不足、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND：资源不存在或当前用户不可见。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ENGAGEMENT_CONFLICT：业务状态或版本冲突；ENGAGEMENT_CLOSED：功能停用或活动已结束；悬赏可返回 POINTS_INSUFFICIENT。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_MEDIA_TYPE：写入只接受 application/json。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ENGAGEMENT_INVALID：业务字段或配置无效；VALIDATION_FAILED：JSON 类型、大小或未知字段无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED：操作过于频繁。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ENGAGEMENT_UNAVAILABLE：读取或事务失败；也可能 REQUEST_TIMEOUT 或站点状态守卫拒绝。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PollModeration"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/threads/{tid}/bounty": {
+      "get": {
+        "summary": "读取主题悬赏",
+        "x-contract-level": "fields",
+        "description": "沿用主题和版块可见性。无悬赏 404；返回持久状态，超时到退款 Worker 提交前可能仍为 active，应结合 closesAt 判断截止。未结算 recipientId/postId 为字符串 0，settledAt 为 null。",
+        "responses": {
+          "200": {
+            "description": "成功；字段位于 data。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/Bounty"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：权限不足、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND：资源不存在或当前用户不可见。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ENGAGEMENT_UNAVAILABLE：读取或事务失败；也可能 REQUEST_TIMEOUT 或站点状态守卫拒绝。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "创建并冻结悬赏积分",
+        "x-contract-level": "fields",
+        "description": "仅公开未锁定且尚未采纳的主题作者，要求 bounty.create。金额/时长受后台限制。相同 amount/durationHours 重放返回原悬赏（包括终态），不再次冻结；不同参数 409。创建和重放均返回 200，每主题最多一笔，取消后不重新创建。 写入要求已登录、已完成初始改密、CSRF 请求头及 application/json（最多 1 MiB，拒绝未知字段）。",
+        "responses": {
+          "200": {
+            "description": "成功；字段位于 data。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/Bounty"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：缺少有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：权限不足、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND：资源不存在或当前用户不可见。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ENGAGEMENT_CONFLICT：业务状态或版本冲突；ENGAGEMENT_CLOSED：功能停用或活动已结束；悬赏可返回 POINTS_INSUFFICIENT。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_MEDIA_TYPE：写入只接受 application/json。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ENGAGEMENT_INVALID：业务字段或配置无效；VALIDATION_FAILED：JSON 类型、大小或未知字段无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED：操作过于频繁。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ENGAGEMENT_UNAVAILABLE：读取或事务失败；也可能 REQUEST_TIMEOUT 或站点状态守卫拒绝。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BountyCreate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/threads/{tid}/bounty/cancel": {
+      "post": {
+        "summary": "作者取消或领取到期退款",
+        "x-contract-level": "fields",
+        "description": "仅作者；未到期且存在公开有效回复时不能取消。到期或删除由 Worker 退款；已退款重放成功，已支付 409。解除冻结与账本同事务，不增加 balance。 写入要求已登录、已完成初始改密、CSRF 请求头及 application/json（最多 1 MiB，拒绝未知字段）。",
+        "responses": {
+          "200": {
+            "description": "成功；字段位于 data。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/Bounty"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：缺少有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：权限不足、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND：资源不存在或当前用户不可见。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ENGAGEMENT_CONFLICT：业务状态或版本冲突；ENGAGEMENT_CLOSED：功能停用或活动已结束；悬赏可返回 POINTS_INSUFFICIENT。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_MEDIA_TYPE：写入只接受 application/json。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ENGAGEMENT_INVALID：业务字段或配置无效；VALIDATION_FAILED：JSON 类型、大小或未知字段无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED：操作过于频繁。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ENGAGEMENT_UNAVAILABLE：读取或事务失败；也可能 REQUEST_TIMEOUT 或站点状态守卫拒绝。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EngagementEmpty"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/bounties": {
+      "get": {
+        "summary": "活动悬赏列表",
+        "x-contract-level": "fields",
+        "description": "要求 admin.panel 与 bounties.manage。每页最多 50 条 active 记录，包含等待退款的过期/删除主题；不是全状态历史检索。满页时返回游标，下一页可能为空。",
+        "responses": {
+          "200": {
+            "description": "成功；字段位于 data。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/BountyPage"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：缺少有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：权限不足、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ENGAGEMENT_INVALID：业务字段或配置无效；VALIDATION_FAILED：JSON 类型、大小或未知字段无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ENGAGEMENT_UNAVAILABLE：读取或事务失败；也可能 REQUEST_TIMEOUT 或站点状态守卫拒绝。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*$"
+            },
+            "description": "排除本游标及之后的记录，按日期/主题 ID 降序；首次省略。"
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/bounties/{tid}/cancel": {
+      "post": {
+        "summary": "管理员取消悬赏并退款",
+        "x-contract-level": "fields",
+        "description": "要求 admin.panel 与 bounties.manage。必须给出非空 reason，最多 500 字。仅 active 可变更，已退款重放成功，已支付 409；退款与审计同事务。 写入要求已登录、已完成初始改密、CSRF 请求头及 application/json（最多 1 MiB，拒绝未知字段）。",
+        "responses": {
+          "200": {
+            "description": "成功；字段位于 data。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/Bounty"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：缺少有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：权限不足、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND：资源不存在或当前用户不可见。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ENGAGEMENT_CONFLICT：业务状态或版本冲突；ENGAGEMENT_CLOSED：功能停用或活动已结束；悬赏可返回 POINTS_INSUFFICIENT。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_MEDIA_TYPE：写入只接受 application/json。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ENGAGEMENT_INVALID：业务字段或配置无效；VALIDATION_FAILED：JSON 类型、大小或未知字段无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED：操作过于频繁。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ENGAGEMENT_UNAVAILABLE：读取或事务失败；也可能 REQUEST_TIMEOUT 或站点状态守卫拒绝。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BountyCancel"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/engagement/config": {
+      "get": {
+        "summary": "读取互动功能配置",
+        "x-contract-level": "fields",
+        "description": "要求 admin.panel 与 engagement.view。投票、悬赏和签到分别控制，返回当前 version；此配置独立于站点 settings 和行为积分配置。",
+        "responses": {
+          "200": {
+            "description": "成功；字段位于 data。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/EngagementConfig"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：缺少有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：权限不足、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ENGAGEMENT_UNAVAILABLE：读取或事务失败；也可能 REQUEST_TIMEOUT 或站点状态守卫拒绝。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "保存互动功能配置",
+        "x-contract-level": "fields",
+        "description": "要求 admin.panel 与 engagement.configure。提交完整配置及原 version；成功版本加一并写审计。版本冲突或已有签到记录时变更时区返回 409；先重新 GET 合并。minPoints≤maxPoints。停用悬赏只阻止新建，已有悬赏仍可结算/退款；停用投票阻止创建/投票；停用签到阻止新领取。 写入要求已登录、已完成初始改密、CSRF 请求头及 application/json（最多 1 MiB，拒绝未知字段）。",
+        "responses": {
+          "200": {
+            "description": "成功；字段位于 data。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/EngagementConfig"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：缺少有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：权限不足、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ENGAGEMENT_CONFLICT：业务状态或版本冲突；ENGAGEMENT_CLOSED：功能停用或活动已结束；悬赏可返回 POINTS_INSUFFICIENT。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_MEDIA_TYPE：写入只接受 application/json。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ENGAGEMENT_INVALID：业务字段或配置无效；VALIDATION_FAILED：JSON 类型、大小或未知字段无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ENGAGEMENT_UNAVAILABLE：读取或事务失败；也可能 REQUEST_TIMEOUT 或站点状态守卫拒绝。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EngagementConfig"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/checkin": {
+      "get": {
+        "summary": "读取本人签到状态",
+        "x-contract-level": "fields",
+        "description": "需登录；签到日由数据库时钟按配置时区计算。checkin 仅今日已签时非空；streak 为今日或昨日连续天数，已中断为 0。enabled 不代表当前用户有签到权限。",
+        "responses": {
+          "200": {
+            "description": "成功；字段位于 data。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/CheckinStatus"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：缺少有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：权限不足、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ENGAGEMENT_UNAVAILABLE：读取或事务失败；也可能 REQUEST_TIMEOUT 或站点状态守卫拒绝。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "领取每日签到奖励",
+        "x-contract-level": "fields",
+        "description": "要求 checkin.claim。每个用户每自然日一条记录。签到、经验、积分和会员升级同事务；重复/并发请求返回当日原奖励，规则变更不重发。前一日签到则 streak+1，否则从 1 开始；没有补签和额外连续奖励。 写入要求已登录、已完成初始改密、CSRF 请求头及 application/json（最多 1 MiB，拒绝未知字段）。",
+        "responses": {
+          "200": {
+            "description": "成功；字段位于 data。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/Checkin"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：缺少有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：权限不足、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ENGAGEMENT_CONFLICT：业务状态或版本冲突；ENGAGEMENT_CLOSED：功能停用或活动已结束；悬赏可返回 POINTS_INSUFFICIENT。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_MEDIA_TYPE：写入只接受 application/json。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ENGAGEMENT_INVALID：业务字段或配置无效；VALIDATION_FAILED：JSON 类型、大小或未知字段无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED：操作过于频繁。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ENGAGEMENT_UNAVAILABLE：读取或事务失败；也可能 REQUEST_TIMEOUT 或站点状态守卫拒绝。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EngagementEmpty"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/checkins": {
+      "get": {
+        "summary": "读取本人签到记录",
+        "x-contract-level": "fields",
+        "description": "需登录；每页 30 条，按签到日降序。before 为严格 YYYY-MM-DD 日期，不可读取他人记录。",
+        "responses": {
+          "200": {
+            "description": "成功；字段位于 data。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/CheckinPage"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：缺少有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：权限不足、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ENGAGEMENT_INVALID：业务字段或配置无效；VALIDATION_FAILED：JSON 类型、大小或未知字段无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ENGAGEMENT_UNAVAILABLE：读取或事务失败；也可能 REQUEST_TIMEOUT 或站点状态守卫拒绝。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "排除本游标及之后的记录，按日期/主题 ID 降序；首次省略。"
+          }
+        ]
+      }
+    },
+    "/api/v1/posts/{pid}/acceptance": {
+      "put": {
+        "summary": "采纳回复并结算悬赏",
+        "x-contract-level": "fields",
+        "description": "要求 reply.accept，仅主题作者可采纳他人的公开非首楼回复；主题须公开且未锁定。普通采纳语义不变；活动悬赏同时扣除作者余额/冻结并转入答主账户，任一失败全部回滚。相同回复重复采纳不重复支付，已采纳其他回复 409；未退款的过期悬赏暂时拒绝结算，等待退款后可普通采纳。 写入要求已登录、已完成初始改密、CSRF 请求头及 application/json（最多 1 MiB，拒绝未知字段）。",
+        "responses": {
+          "200": {
+            "description": "成功；字段位于 data。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "accepted": {
+                              "type": "boolean",
+                              "enum": [
+                                true
+                              ]
+                            }
+                          },
+                          "required": [
+                            "accepted"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：缺少有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：权限不足、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND：资源不存在或当前用户不可见。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ENGAGEMENT_CONFLICT：业务状态或版本冲突；ENGAGEMENT_CLOSED：功能停用或活动已结束；悬赏可返回 POINTS_INSUFFICIENT。 普通采纳冲突使用 TITLE_CONFLICT。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_MEDIA_TYPE：写入只接受 application/json。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ENGAGEMENT_INVALID：业务字段或配置无效；VALIDATION_FAILED：JSON 类型、大小或未知字段无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED：操作过于频繁。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "REQUEST_TIMEOUT 或站点状态守卫拒绝；超时后先读取确认实际状态。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：采纳事务失败，事务未提交时积分和采纳均回滚。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EngagementEmpty"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "撤销普通采纳",
+        "x-contract-level": "fields",
+        "description": "要求 reply.accept，仅主题作者可采纳他人的公开非首楼回复；主题须公开且未锁定。已支付悬赏的主题不能撤销采纳，返回 409 ENGAGEMENT_CONFLICT；未支付悬赏的普通采纳沿用原有撤销规则。 写入要求已登录、已完成初始改密、CSRF 请求头及 application/json（最多 1 MiB，拒绝未知字段）。",
+        "responses": {
+          "200": {
+            "description": "成功；字段位于 data。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "accepted": {
+                              "type": "boolean",
+                              "enum": [
+                                false
+                              ]
+                            }
+                          },
+                          "required": [
+                            "accepted"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：缺少有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：权限不足、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND：资源不存在或当前用户不可见。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ENGAGEMENT_CONFLICT：业务状态或版本冲突；ENGAGEMENT_CLOSED：功能停用或活动已结束；悬赏可返回 POINTS_INSUFFICIENT。 普通采纳冲突使用 TITLE_CONFLICT。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_MEDIA_TYPE：写入只接受 application/json。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ENGAGEMENT_INVALID：业务字段或配置无效；VALIDATION_FAILED：JSON 类型、大小或未知字段无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED：操作过于频繁。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "REQUEST_TIMEOUT 或站点状态守卫拒绝；超时后先读取确认实际状态。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：采纳事务失败，事务未提交时积分和采纳均回滚。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EngagementEmpty"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -4315,6 +6249,574 @@
         },
         "required": [
           "data"
+        ]
+      },
+      "PollOption": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "去除首尾空白后校验长度，不能包含 NUL。"
+          },
+          "votes": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "id",
+          "text",
+          "votes"
+        ]
+      },
+      "Poll": {
+        "type": "object",
+        "properties": {
+          "threadId": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "question": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "去除首尾空白后校验长度，不能包含 NUL。"
+          },
+          "maxChoices": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "published",
+              "closed",
+              "rejected"
+            ]
+          },
+          "closesAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "closed": {
+            "type": "boolean",
+            "description": "当前状态、截止时间或主题状态禁止投票；功能全局开关独立判断，不包含在本字段内。"
+          },
+          "voters": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PollOption"
+            }
+          },
+          "myChoices": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20
+            }
+          }
+        },
+        "required": [
+          "threadId",
+          "question",
+          "maxChoices",
+          "state",
+          "closesAt",
+          "createdAt",
+          "closed",
+          "voters",
+          "options",
+          "myChoices"
+        ]
+      },
+      "PollCreate": {
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "去除首尾空白后校验长度，不能包含 NUL。"
+          },
+          "options": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 20,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "description": "去除首尾空白后校验长度，不能包含 NUL。"
+            },
+            "description": "去首尾空白、忽略大小写后唯一；数量还受后台 maxOptions 约束。"
+          },
+          "maxChoices": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20
+          },
+          "durationHours": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 8760
+          }
+        },
+        "required": [
+          "question",
+          "options",
+          "maxChoices",
+          "durationHours"
+        ],
+        "additionalProperties": false
+      },
+      "PollVote": {
+        "type": "object",
+        "properties": {
+          "optionIds": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 20,
+            "uniqueItems": true,
+            "items": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20
+            }
+          }
+        },
+        "required": [
+          "optionIds"
+        ],
+        "additionalProperties": false
+      },
+      "PollModeration": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "approve",
+              "reject",
+              "close"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "additionalProperties": false
+      },
+      "BountyCreate": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000000
+          },
+          "durationHours": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 8760
+          }
+        },
+        "required": [
+          "amount",
+          "durationHours"
+        ],
+        "additionalProperties": false
+      },
+      "Bounty": {
+        "type": "object",
+        "properties": {
+          "threadId": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "ownerId": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000000
+          },
+          "durationHours": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 8760
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "active",
+              "awarded",
+              "canceled",
+              "expired"
+            ]
+          },
+          "closesAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "settledAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "recipientId": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "postId": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "ruleVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "threadId",
+          "ownerId",
+          "amount",
+          "durationHours",
+          "state",
+          "closesAt",
+          "createdAt",
+          "settledAt",
+          "recipientId",
+          "postId",
+          "ruleVersion",
+          "note"
+        ]
+      },
+      "BountyCancel": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "description": "管理员退款必须提供非空原因，写入审计。"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "Checkin": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "day": {
+            "type": "string",
+            "format": "date"
+          },
+          "streak": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "experience": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          },
+          "points": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          },
+          "ruleVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "timeZone": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "userId",
+          "day",
+          "streak",
+          "experience",
+          "points",
+          "ruleVersion",
+          "timeZone",
+          "createdAt"
+        ]
+      },
+      "CheckinStatus": {
+        "type": "object",
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date"
+          },
+          "timeZone": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "checkedIn": {
+            "type": "boolean"
+          },
+          "streak": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "checkin": {
+            "type": "object",
+            "properties": {
+              "userId": {
+                "$ref": "#/components/schemas/ID"
+              },
+              "day": {
+                "type": "string",
+                "format": "date"
+              },
+              "streak": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "experience": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000
+              },
+              "points": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000
+              },
+              "ruleVersion": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "timeZone": {
+                "type": "string"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "userId",
+              "day",
+              "streak",
+              "experience",
+              "points",
+              "ruleVersion",
+              "timeZone",
+              "createdAt"
+            ],
+            "nullable": true
+          }
+        },
+        "required": [
+          "day",
+          "timeZone",
+          "enabled",
+          "checkedIn",
+          "streak",
+          "checkin"
+        ]
+      },
+      "EngagementConfig": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "poll": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "maxOptions": {
+                "type": "integer",
+                "minimum": 2,
+                "maximum": 20
+              },
+              "maxDays": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 365
+              }
+            },
+            "required": [
+              "enabled",
+              "maxOptions",
+              "maxDays"
+            ],
+            "additionalProperties": false
+          },
+          "bounty": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "minPoints": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1000000
+              },
+              "maxPoints": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1000000
+              },
+              "maxDays": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 365
+              }
+            },
+            "required": [
+              "enabled",
+              "minPoints",
+              "maxPoints",
+              "maxDays"
+            ],
+            "additionalProperties": false
+          },
+          "checkin": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "experience": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000
+              },
+              "points": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000
+              },
+              "timeZone": {
+                "type": "string",
+                "description": "有效 IANA 时区，默认 Asia/Shanghai，不接受 Local；存在签到记录后禁止更换。"
+              }
+            },
+            "required": [
+              "enabled",
+              "experience",
+              "points",
+              "timeZone"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "version",
+          "poll",
+          "bounty",
+          "checkin"
+        ],
+        "additionalProperties": false
+      },
+      "EngagementEmpty": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "PollPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Poll"
+            }
+          },
+          "nextBefore": {
+            "type": "string",
+            "description": "下一页 before，空字符串表示无后续游标；签到使用日期，其他使用主题 ID。"
+          }
+        },
+        "required": [
+          "items",
+          "nextBefore"
+        ]
+      },
+      "BountyPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Bounty"
+            }
+          },
+          "nextBefore": {
+            "type": "string",
+            "description": "下一页 before，空字符串表示无后续游标；签到使用日期，其他使用主题 ID。"
+          }
+        },
+        "required": [
+          "items",
+          "nextBefore"
+        ]
+      },
+      "CheckinPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Checkin"
+            }
+          },
+          "nextBefore": {
+            "type": "string",
+            "description": "下一页 before，空字符串表示无后续游标；签到使用日期，其他使用主题 ID。"
+          }
+        },
+        "required": [
+          "items",
+          "nextBefore"
         ]
       }
     }

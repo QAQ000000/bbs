@@ -92,7 +92,7 @@ func TestMembershipMigrationReplacesLegacyTrust(t *testing.T) {
 	if lid != 4 || !locked || xp != 5000 || name != "自定义新人" || version != 2 {
 		t.Fatal("restart reset membership configuration or state")
 	}
-	if err = pool.QueryRow(ctx, `SELECT max(version) FROM schema_migrations`).Scan(&version); err != nil || version != 17 {
+	if err = pool.QueryRow(ctx, `SELECT max(version) FROM schema_migrations`).Scan(&version); err != nil || version != latestSchemaVersion() {
 		t.Fatal("schema version was not advanced", err, version)
 	}
 }

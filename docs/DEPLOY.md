@@ -81,7 +81,7 @@ CREATE DATABASE forum OWNER gobbs;
 
 `FORUM_DSN` 必须显式设置。程序仍自动迁移，也可先用 `forumd -migrate` 独立完成迁移后退出。同库迁移器通过事务级 advisory lock 串行执行，DDL 与版本记录一次提交；正常重启不再重放完整 schema。超时、回滚、旧库和维护命令说明见 [迁移与维护](MIGRATIONS.md)。
 
-当前 schema 17 通过 `017_async_workers.sql` 登记版块统计队列、搜索索引队列和分析快照结构。已有任务和快照在重放时保留，健康接口应返回 `schema: 17`。开发环境恢复演练见 [Worker 恢复验证](WORKER_RECOVERY.md)。
+当前 schema 20；`017_async_workers.sql` 登记版块统计队列、搜索索引队列和分析快照结构，018–020 增加投票、悬赏和签到。已有任务、快照和配置在升级/重启时保留，健康接口应返回 `schema: 20`。开发环境恢复演练见 [Worker 恢复验证](WORKER_RECOVERY.md)。
 
 schema 16 增加读取索引。当前迁移使用普通 `CREATE INDEX`，存量大表建索引期间会阻塞相应表的写入，应在维护窗口升级；尚不支持无停机在线建索引迁移。
 

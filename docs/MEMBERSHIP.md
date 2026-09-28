@@ -27,12 +27,16 @@
 
 ## 2. 会员权限与额度
 
-等级权限必须完整提供下列 13 个布尔项，不接受任意权限名：
+等级权限必须完整提供下列 17 个布尔项，不接受任意权限名：
 
 | 权限 | 含义 |
 | --- | --- |
 | `forum.read` | 阅读版块及其中主题 |
 | `thread.create` | 创建主题 |
+| `poll.create` | 为本人主题创建投票 |
+| `poll.vote` | 参与投票 |
+| `bounty.create` | 创建积分悬赏 |
+| `checkin.claim` | 领取每日签到奖励 |
 | `post.reply` | 回复主题 |
 | `post.edit` | 编辑本人内容，另检查角色及编辑时限 |
 | `post.delete` | 删除本人内容，另检查角色权限 |
@@ -44,6 +48,8 @@
 | `attachment.download` | 访问已挂载的附件 |
 | `post.link.direct` | 外链不触发新用户审核；邮箱验证要求仍适用 |
 | `post.skip.moderate` | 免常规发帖审核 |
+
+schema 18 迁移保留已有权限值并补齐缺失动作：投票/悬赏创建继承 `thread.create`，投票参与继承 `post.reply`，签到默认开启。签到奖励参与现有升级事务，规则见 [互动 API](ENGAGEMENT_FEATURES.md)。
 
 游客单独使用 `guestPermissions`，只包含 `forum.read` 和 `attachment.download`。默认允许游客访问公开内容。限制某个会员等级不会自动改变游客规则；需要仅会员可见时，配置版块的 `membersOnly` 或提高 `minimumLevel`。
 
@@ -195,7 +201,7 @@ GET /api/v1/admin/membership/diagnose?userId=18&postId=42&action=post.edit
 
 ## 7. 数据迁移与运行
 
-新增编号迁移 `006_membership.sql`，当前 schema 为 6：
+初版通过编号迁移 `006_membership.sql` 引入 schema 6；当前 schema 20，新增互动权限见本文第 2 节。原迁移内容：
 
 | 表 | 职责 |
 | --- | --- |

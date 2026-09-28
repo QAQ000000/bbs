@@ -20,48 +20,53 @@ const (
 type Point string
 
 const (
-	AdminPanel       Point = "admin.panel"        // 进入管理后台
-	ForumManage      Point = "forum.manage"       // 版块与分类管理
-	ContentModerate  Point = "content.moderate"   // 内容治理（版主限其管辖版块）
-	ContentEditOwn   Point = "content.edit.own"   // 编辑自己的楼层
-	ContentEditAny   Point = "content.edit.any"   // 编辑任何人的楼层
-	ContentDeleteOwn Point = "content.delete.own" // 删除自己的楼层
-	ContentDeleteAny Point = "content.delete.any" // 删除任何人的楼层
-	UserBan          Point = "user.ban"           // 禁言/解禁
-	UserDelete       Point = "user.delete"        // 删号
-	UserSetGroup     Point = "user.group"         // 调整用户组
-	SettingsEdit     Point = "settings.edit"      // 站点设置
-	CensorManage     Point = "censor.manage"      // 敏感词管理
-	AnnounceManage   Point = "announce.manage"    // 公告管理
-	LogsView         Point = "logs.view"          // 管理日志查看
-	RecycleBin       Point = "recycle.bin"        // 回收站管理
-	PruneRun         Point = "prune.run"          // 批量删帖
-	ModerateQueue    Point = "moderate.queue"     // 审核队列
-	PermissionsEdit  Point = "permissions.edit"
-	UsersView        Point = "users.view"
-	MemberView       Point = "membership.view"
-	MemberConfigure  Point = "membership.configure"
-	MemberAdjust     Point = "membership.adjust"
-	ExperienceAdjust Point = "experience.adjust"
-	MemberLogs       Point = "membership.logs"
-	TitleView        Point = "titles.view"
-	TitleConfigure   Point = "titles.configure"
-	TitleGrant       Point = "titles.grant"
-	TitleRevoke      Point = "titles.revoke"
-	TitleLogs        Point = "titles.logs"
-	TagsConfigure    Point = "tags.configure"
-	EmailManage      Point = "email.manage"
-	PointsView       Point = "points.view"
-	PointsConfigure  Point = "points.configure"
-	PointsAdjust     Point = "points.adjust"
-	ReplyAccept      Point = "reply.accept"
-	UploadUse        Point = "upload.use" // 使用本站上传
+	EngagementView      Point = "engagement.view"
+	EngagementConfigure Point = "engagement.configure"
+	PollManage          Point = "polls.manage"
+	BountyManage        Point = "bounties.manage"
+	AdminPanel          Point = "admin.panel"        // 进入管理后台
+	ForumManage         Point = "forum.manage"       // 版块与分类管理
+	ContentModerate     Point = "content.moderate"   // 内容治理（版主限其管辖版块）
+	ContentEditOwn      Point = "content.edit.own"   // 编辑自己的楼层
+	ContentEditAny      Point = "content.edit.any"   // 编辑任何人的楼层
+	ContentDeleteOwn    Point = "content.delete.own" // 删除自己的楼层
+	ContentDeleteAny    Point = "content.delete.any" // 删除任何人的楼层
+	UserBan             Point = "user.ban"           // 禁言/解禁
+	UserDelete          Point = "user.delete"        // 删号
+	UserSetGroup        Point = "user.group"         // 调整用户组
+	SettingsEdit        Point = "settings.edit"      // 站点设置
+	CensorManage        Point = "censor.manage"      // 敏感词管理
+	AnnounceManage      Point = "announce.manage"    // 公告管理
+	LogsView            Point = "logs.view"          // 管理日志查看
+	RecycleBin          Point = "recycle.bin"        // 回收站管理
+	PruneRun            Point = "prune.run"          // 批量删帖
+	ModerateQueue       Point = "moderate.queue"     // 审核队列
+	PermissionsEdit     Point = "permissions.edit"
+	UsersView           Point = "users.view"
+	MemberView          Point = "membership.view"
+	MemberConfigure     Point = "membership.configure"
+	MemberAdjust        Point = "membership.adjust"
+	ExperienceAdjust    Point = "experience.adjust"
+	MemberLogs          Point = "membership.logs"
+	TitleView           Point = "titles.view"
+	TitleConfigure      Point = "titles.configure"
+	TitleGrant          Point = "titles.grant"
+	TitleRevoke         Point = "titles.revoke"
+	TitleLogs           Point = "titles.logs"
+	TagsConfigure       Point = "tags.configure"
+	EmailManage         Point = "email.manage"
+	PointsView          Point = "points.view"
+	PointsConfigure     Point = "points.configure"
+	PointsAdjust        Point = "points.adjust"
+	ReplyAccept         Point = "reply.accept"
+	UploadUse           Point = "upload.use" // 使用本站上传
 )
 
 // rolePerms 角色 → 权限点映射（唯一权威清单）。
 // 管理员拥有全部权限点；版主拥有内容治理面；会员拥有基础面。
 var rolePerms = map[Role]map[Point]bool{
 	RoleAdmin: {
+		EngagementView: true, EngagementConfigure: true, PollManage: true, BountyManage: true,
 		PointsView: true, PointsConfigure: true, PointsAdjust: true,
 		EmailManage:   true,
 		TagsConfigure: true,
@@ -142,6 +147,7 @@ func Matrix() map[Role]map[Point]bool {
 // AllPoints 全部命名权限点（矩阵页按此顺序渲染）。
 func AllPoints() []Point {
 	return []Point{
+		EngagementView, EngagementConfigure, PollManage, BountyManage,
 		PointsView, PointsConfigure, PointsAdjust,
 		EmailManage,
 		TagsConfigure,

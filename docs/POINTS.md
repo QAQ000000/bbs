@@ -1,6 +1,6 @@
 # 积分账户与账本
 
-schema 13，后端 API 已实现。积分与会员经验分别记账；现有等级、升级与权限仍使用经验。冻结字段为后续悬赏预留，本阶段不开放用户转账、购买、冻结、悬赏或签到接口。
+schema 13 建立账户与账本，schema 19–20 已接入悬赏和签到。积分与会员经验分别记账；等级、升级与权限仍使用经验。用户任意转账及购买未开放，悬赏转账只由作者采纳结算。
 
 ## 奖励规则
 
@@ -12,6 +12,7 @@ schema 13，后端 API 已实现。积分与会员经验分别记账；现有等
 | 设为精华 | 5 | 25 | 沿用会员配置，默认 20 |
 | 回复被作者采纳 | 10 | 50 | 新增默认 30，每日 150 |
 | 每日活跃 | 默认关闭 | 0 | 沿用会员配置，默认 1 |
+| 每日签到 | 1 | 每天一次 | 默认 5，独立互动配置 |
 
 此前讨论的发帖 10 经验、回复 3 经验是建议值。本次保留已有经验配置，管理员可以继续在会员配置中调整；新增采纳经验在积分配置的 `acceptedExperience` 中调整。每日活跃是已有 `/me/activity` 记录，不是签到。
 
@@ -25,7 +26,7 @@ schema 13，后端 API 已实现。积分与会员经验分别记账；现有等
 
 ## 账户与流水
 
-`balance` 是净余额，`frozen` 是冻结额，`available=max(balance-frozen,0)`，`debt=max(frozen-balance,0)`。本阶段没有冻结业务，`frozen` 通常为 0。业务冲回可以产生欠额：例如先得到 1 积分，管理员扣除该积分后帖子又被删除，余额变为 -1；以后赚取 2 积分，净余额回到 1。人工扣减禁止超过可用余额。
+`balance` 是净余额，`frozen` 是冻结额，`available=max(balance-frozen,0)`，`debt=max(frozen-balance,0)`。悬赏创建增加 `frozen`；退款只释放冻结；结算同时减少作者 `balance/frozen` 并增加答主 `balance`。业务冲回可以产生欠额：例如先得到 1 积分，管理员扣除该积分后帖子又被删除，余额变为 -1；以后赚取 2 积分，净余额回到 1。人工扣减禁止超过可用余额。
 
 账户行锁串行化同一用户的调账和发奖，账户写入与流水、审计同事务提交。流水保存业务来源、增减额、变更后余额、规则版本、操作方、原因及业务/入账时间，数据库触发器拒绝 UPDATE 和 DELETE。修正采用新的调整流水，不覆盖历史记录。
 
@@ -38,7 +39,7 @@ schema 13，后端 API 已实现。积分与会员经验分别记账；现有等
 - `GET /api/v1/me/points`：返回字符串 `userId`、整数 `balance`、`frozen`、`available`、`debt`、`version`。尚未发生积分事件的用户返回 0 和版本 1，不因 GET 创建账户。
 - `GET /api/v1/me/points/ledger?before=123`：按流水 ID 降序，每页 50 条，返回 `items`、`nextBefore`；无下一页时游标为空字符串。隐藏迁移零额基线，保留业务零奖励记录。
 
-流水 ID 与 userId/actorId 使用字符串。`kind` 为 `thread`、`reply`、`like`、`digest`、`accepted`、`active`、`admin`；冲回来源为 `reverse:<原来源>`，`ruleVersion` 保留原奖励版本。`createdAt` 是入账时间，`eventAt` 是业务发生时间。
+流水 ID 与 userId/actorId 使用字符串。`kind` 为 `thread`、`reply`、`like`、`digest`、`accepted`、`active`、`admin`、`bounty`、`checkin`；冲回来源为 `reverse:<原来源>`，`ruleVersion` 保留原奖励版本。`createdAt` 是入账时间，`eventAt` 是业务发生时间。
 
 ## 后台 API
 
@@ -65,6 +66,12 @@ schema 13，后端 API 已实现。积分与会员经验分别记账；现有等
 
 错误码：`POINTS_INVALID`（422）、`POINTS_CONFLICT`（409）、`POINTS_INSUFFICIENT`（409）、`NOT_FOUND`（404）、`POINTS_UNAVAILABLE`（503）。
 
+## 悬赏与签到账本
+
+`bounty:<tid>:freeze/award/receive/refund` 为悬赏唯一业务来源，`ruleVersion` 来自创建时互动配置；冻结/退款只改变 `frozenDelta`，结算双方 `delta` 合计为零。采纳与转账同事务，退款重复执行不重复入账。后续删帖不自动冲回已支付赏金。
+
+签到来源 `checkin:<日期>`（唯一键包括用户），类型 `checkin`。记录、经验、积分和升级同事务，保存原奖励和互动规则版本，零额也有回执。签到配置位于 `/admin/engagement/config`，不加入六类异步行为奖励 `rules`；首次记录之后不可换时区。
+
 ## 后续范围
 
-schema 17 已有积分 Top 100 小时快照和管理员读取接口 `/api/v1/admin/analytics/points`；目前不是公开排行产品，尚无多维榜单、用户排名查询或榜单配置。悬赏的冻结、结算、退款和超时任务；签到记录、连续签到和补签；积分交易和用户转账均未实现。前端账户、流水和后台配置页面也未开发。
+schema 17 已有积分 Top 100 小时快照和管理员读取接口 `/api/v1/admin/analytics/points`；目前不是公开排行产品，尚无多维榜单、用户排名查询或榜单配置。悬赏冻结/结算/退款和超时任务、每日签到记录/连续天数/经验积分奖励已实现，详见 [互动 API](ENGAGEMENT_FEATURES.md)。补签、连续额外奖励、积分交易和用户任意转账仍未实现。前端账户、流水和后台配置页面也未开发。

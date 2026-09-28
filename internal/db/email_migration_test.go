@@ -57,7 +57,7 @@ func TestEmailMigrationFromNineAndRestart(t *testing.T) {
 	}
 	var version, count int
 	var sealed string
-	if err = pool.QueryRow(ctx, `SELECT (SELECT max(version) FROM schema_migrations),(SELECT count(*) FROM email_jobs),sealed_token FROM email_jobs WHERE dedup_key='migration-test'`).Scan(&version, &count, &sealed); err != nil || version != 17 || count != 1 || sealed != "encrypted" {
+	if err = pool.QueryRow(ctx, `SELECT (SELECT max(version) FROM schema_migrations),(SELECT count(*) FROM email_jobs),sealed_token FROM email_jobs WHERE dedup_key='migration-test'`).Scan(&version, &count, &sealed); err != nil || version != latestSchemaVersion() || count != 1 || sealed != "encrypted" {
 		t.Fatal(version, count, sealed, err)
 	}
 }

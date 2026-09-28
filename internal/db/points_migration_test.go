@@ -63,7 +63,7 @@ func TestPointsMigrationBaselineSnapshotsAndRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	var version, amount, snapshot, balance int
-	if err = pool.QueryRow(ctx, `SELECT (SELECT max(version) FROM schema_migrations),(body->'rules'->'thread'->>'points')::int,(SELECT (points_rule->>'points')::int FROM member_events WHERE source='new-event'),(SELECT balance FROM points_accounts WHERE user_id=1) FROM points_config WHERE id`).Scan(&version, &amount, &snapshot, &balance); err != nil || version != 17 || amount != 3 || snapshot != 1 || balance != 9 {
+	if err = pool.QueryRow(ctx, `SELECT (SELECT max(version) FROM schema_migrations),(body->'rules'->'thread'->>'points')::int,(SELECT (points_rule->>'points')::int FROM member_events WHERE source='new-event'),(SELECT balance FROM points_accounts WHERE user_id=1) FROM points_config WHERE id`).Scan(&version, &amount, &snapshot, &balance); err != nil || version != latestSchemaVersion() || amount != 3 || snapshot != 1 || balance != 9 {
 		t.Fatal(version, amount, snapshot, balance, err)
 	}
 }

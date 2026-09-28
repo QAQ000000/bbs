@@ -66,7 +66,7 @@ func TestWorkflowsMigrationPreservesLegacyDraftsAndNotifications(t *testing.T) {
 	var content, subject, excerpt, scope string
 	var read bool
 	var version int
-	if err = pool.QueryRow(ctx, `SELECT d.content,d.subject,n.excerpt,n.scope,n.read,(SELECT max(version) FROM schema_migrations) FROM drafts d JOIN notifications n ON n.uid=d.user_id WHERE d.user_id=$1`, uid).Scan(&content, &subject, &excerpt, &scope, &read, &version); err != nil || content != "legacy draft" || subject != "" || excerpt != "legacy notification" || scope != "content" || !read || version != 17 {
+	if err = pool.QueryRow(ctx, `SELECT d.content,d.subject,n.excerpt,n.scope,n.read,(SELECT max(version) FROM schema_migrations) FROM drafts d JOIN notifications n ON n.uid=d.user_id WHERE d.user_id=$1`, uid).Scan(&content, &subject, &excerpt, &scope, &read, &version); err != nil || content != "legacy draft" || subject != "" || excerpt != "legacy notification" || scope != "content" || !read || version != latestSchemaVersion() {
 		t.Fatal(content, subject, excerpt, scope, read, version, err)
 	}
 	var triggers int

@@ -186,7 +186,12 @@ func (s *Server) acceptReply(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, 429, "RATE_LIMITED", "操作过于频繁")
 		return
 	}
-	if s.titleError(w, r, s.st.SetAcceptedReply(r.Context(), th.ID, p.ID, User(r).ID, r.Method == http.MethodPut)) {
+	err := s.st.SetAcceptedReply(r.Context(), th.ID, p.ID, User(r).ID, r.Method == http.MethodPut)
+	if errors.Is(err, store.ErrEngagementConflict) || errors.Is(err, store.ErrEngagementClosed) || errors.Is(err, store.ErrEngagementForbidden) {
+		s.engagementError(w, r, err)
+		return
+	}
+	if s.titleError(w, r, err) {
 		return
 	}
 	s.respond(w, 200, map[string]bool{"accepted": r.Method == http.MethodPut})

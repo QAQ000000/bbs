@@ -117,3 +117,29 @@ CI 在完整回归后另跑 `BenchmarkForumTraffic` 一次，启用真实异步�
 仅运行 4 项定向 API 测试（含 5 个契约子项，共 9 项，开启 race），无失败或跳过，API 包耗时 4.647 秒；API 契约生成检查及 `go build ./...` 通过。证据：`/tmp/gobbs-backend-results.Yn7Ift`，含 `settings-contract.log`、`contract.log`、`build.log` 和本轮源文件指纹。临时数据库已清理。
 
 没有重跑完整门禁或长压测；旧 POST 表单编码、外部服务和前端生成 SDK 不属于本轮新增实测范围。OpenAPI 描述不代表已引入运行时通用请求校验器，本轮未部署或推送。
+
+
+## 2026-09-28：投票、悬赏、签到定向验证
+
+当前代码新增 schema 18–20，完成三项第一版后端及 16 个新 API。新增接口及原有采纳/撤销 2 个操作均已补齐字段契约；总操作 194 个，人工覆盖 59 个（43 fields、12 request、4 transport）。
+
+按本轮约定，仅做必要回归，没有重跑完整门禁或持续压测，没有连接业务数据库、部署或推送。
+
+- 一次性 PostgreSQL 私有 socket 集群，仅使用 `gobbs_test_*` 库，测试结束自动清理集群。
+- API 定向 `-race`：9 个顶层测试通过、无失败/跳过，含 6 个新功能测试及路由注册/契约检查。投票覆盖审核/访问权限、选项校验、重复/并发、防改投、截止和投票用户删除；匿名票数不被删除账号改写。
+- 悬赏覆盖重复冻结/重复采纳、双账户转账和只读对账、已支付拒绝撤销、采纳写入故障时全部回滚、作者/管理员取消、超时/删除退款和重复 Worker 消费。
+- 签到覆盖当日重复/并发只奖励一次、昨日连续天数、奖励写入失败时记录/经验/积分全部回滚、时区变更拒绝及本人历史读取。
+- 数据库与迁移包 20 个顶层测试通过、无失败/跳过；含 17→20 自定义会员权限保留、互动配置保留及重启幂等。原迁移测试的最新版本断言已从硬编码 17 改为实际最新编号。
+- 权限包、API 契约生成器测试、`go build ./...`、`go vet ./...`、gofmt 与 `git diff --check` 通过；源码注册与 OpenAPI 的 194 个操作一致。
+
+证据：API/race/权限 `/tmp/gobbs-backend-results.NYVDm0`；数据库/迁移 `/tmp/gobbs-backend-results.JN0vPr`。这些是本地临时证据目录，不是仓库附件或生产部署证明。
+
+复跑时先准备隔离数据库，保持 API 与迁移 DSN 指向不同的 `gobbs_test_*` 库：
+
+```bash
+FORUM_REQUIRE_TEST_DB=1 FORUM_TEST_DSN="$FORUM_API_TEST_DSN" go test -race ./internal/api -run '^(Test(Poll|Bounty|Checkin).*|TestOpenAPIRegisteredOperations|TestSettingsContractCatalog|TestContractShapeRejectsIDAndRequiredFieldDrift)$' -count=1 -timeout=90s
+FORUM_MIGRATION_TEST_DSN="$FORUM_MIGRATION_TEST_DSN" go test ./internal/db -count=1 -timeout=90s
+go test ./internal/perm ./scripts/api-contract -count=1
+```
+
+退款持久状态及重放已验证，但本轮没有对新增退款 Worker 做真实进程强杀/数据库断连演练；没有验证生产数据量升级耗时、长期积压、前端联调或公开排行榜。实现边界见 [互动功能 API](ENGAGEMENT_FEATURES.md)。

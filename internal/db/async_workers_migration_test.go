@@ -62,10 +62,10 @@ INSERT INTO analytics_snapshots(name,period_start,payload) VALUES('points',now()
 		}
 		var valid bool
 		if err := pool.QueryRow(ctx, `SELECT
-(SELECT max(version) FROM schema_migrations)=17 AND
+(SELECT max(version) FROM schema_migrations)=$1 AND
 (SELECT count(*) FROM forum_stat_events WHERE attempts=3 AND last_sqlstate='P0001')=1 AND
 (SELECT count(*) FROM search_index_events WHERE attempts=4 AND last_sqlstate='P0001')=1 AND
-(SELECT payload->0->>'score' FROM analytics_snapshots WHERE name='points')='42'`).Scan(&valid); err != nil || !valid {
+(SELECT payload->0->>'score' FROM analytics_snapshots WHERE name='points')='42'`, latestSchemaVersion()).Scan(&valid); err != nil || !valid {
 			t.Fatalf("migration lost durable data: %v", err)
 		}
 	}

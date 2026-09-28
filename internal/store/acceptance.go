@@ -59,8 +59,14 @@ func (s *Store) SetAcceptedReply(ctx context.Context, tid, pid, actor int64, acc
 		if old != 0 {
 			return ErrTitleConflict
 		}
+		if err = awardBounty(ctx, tx, tid, pid, actor, author); err != nil {
+			return err
+		}
 		_, err = tx.Exec(ctx, `INSERT INTO accepted_replies(thread_id,post_id) VALUES($1,$2)`, tid, pid)
 	} else {
+		if err = preventBountyUnaccept(ctx, tx, tid); err != nil {
+			return err
+		}
 		if old == 0 {
 			return nil
 		}

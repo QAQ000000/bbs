@@ -13,7 +13,7 @@ func (s *Server) RunBackgroundWorkers(ctx context.Context) {
 		func(ctx context.Context) { s.st.RunMemberWork(ctx, s.log) },
 		func(ctx context.Context) { s.st.RunForumStats(ctx, s.log) },
 		func(ctx context.Context) { s.st.RunSearchIndex(ctx, s.log) },
-		s.RunSubscriptions, s.RunEmails, s.runAnalytics,
+		s.RunSubscriptions, s.RunEmails, s.runAnalytics, s.runBountyRefunds,
 	} {
 		wg.Add(1)
 		go func() { defer wg.Done(); work(ctx) }()
