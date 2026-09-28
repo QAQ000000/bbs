@@ -42,7 +42,7 @@ func (s *Server) requireStaff(w http.ResponseWriter, r *http.Request) bool {
 		s.fail(w, r, http.StatusForbidden, "无权访问", "该区域仅管理员与版主可访问。")
 		return false
 	}
-	return true
+	return s.checkMustChangePassword(w, r)
 }
 
 // staffForumScope 当前管理人员可管理的版块范围；管理员为空（不限）。

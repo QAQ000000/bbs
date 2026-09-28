@@ -2,7 +2,7 @@
 
 Go + PostgreSQL 论坛 API 后端，当前数据库 schema 21。Go 提供 JSON API、SSE 与受控媒体；浏览器页面、HTML/Markdown 出口及 SEO 由独立前端承担，Nuxt 工程尚未实现。旧版 Release 可能仍包含整站页面，部署前须核对版本说明。
 
-开发入口：[当前功能状态](docs/FEATURE_STATUS.md) · [API 契约](docs/API.md) · [OpenAPI](docs/openapi.json) · [迁移与维护](docs/MIGRATIONS.md) · [测试门禁](docs/TEST_GATE.md) · [前后端分离方案](docs/FRONTEND_BACKEND_SEPARATION.md)。
+开发入口：[当前功能状态](docs/FEATURE_STATUS.md) · [API 契约](docs/API.md) · [内容接入](docs/FRONTEND_CONTENT_INTEGRATION.md) · [OpenAPI](docs/openapi.json) · [迁移与维护](docs/MIGRATIONS.md) · [测试门禁](docs/TEST_GATE.md) · [前后端分离方案](docs/FRONTEND_BACKEND_SEPARATION.md)。
 
 ## 已实现的后端能力
 
