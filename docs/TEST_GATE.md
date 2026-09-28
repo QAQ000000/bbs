@@ -143,3 +143,25 @@ go test ./internal/perm ./scripts/api-contract -count=1
 ```
 
 退款持久状态及重放已验证，但本轮没有对新增退款 Worker 做真实进程强杀/数据库断连演练；没有验证生产数据量升级耗时、长期积压、前端联调或公开排行榜。实现边界见 [互动功能 API](ENGAGEMENT_FEATURES.md)。
+
+
+## 2026-09-28：发布恢复、退款运维与前端契约
+
+当前增量为 schema 21。OpenAPI 从 194 增至 198 个操作，人工覆盖 63 个（47 fields、12 request、4 transport），仍有 135 个路由级定义。此处是定向验证，不替代完整门禁或真实生产部署验收。
+
+- `gobbsctl`：临时文件和本地 HTTP 服务下验证升级成功、首次重启失败恢复、新版健康失败恢复、旧版同样不健康时明确失败；检查备份保留、恢复后的健康请求及每个服务命令携带期限。HTTP 单次请求及整体等待均有超时。服务执行器使用注入桩，未调用真实 systemd。
+- API `-race`：12 个顶层测试全部通过，含现有投票/悬赏/签到、核心响应契约，以及新增退款失败隔离和主题摘要展示测试。持续失败的一笔不会阻断后一笔；退避时间持久化、后台重试受权限/CSRF/原因约束、重复排队不重复退款，积分流水对账保持一致。
+- 展示验证覆盖游客看不到待审投票文本、作者可见、页码/游标列表摘要、公开规则投影、重复投票及功能停用后的能力值、活动悬赏过期禁付、已支付后楼层详情与列表均不提供撤销、受限版块不可见。
+- 迁移定向验证 17→21；自定义会员规则、互动配置和退款失败/下次重试时间在重复启动后保留。API 夹具同时验证新库初始化到 21。
+- 权限包、契约生成器、`go build ./...`、`go vet ./...`、格式及差异检查通过。
+
+本地证据：`/tmp/gobbs-backend-results.MK4mIo/engagement.log`（12 项顶层 API，含 race）、`migrations.log`（1 项迁移定向验证）；CLI 定向命令如下。临时 PostgreSQL 私有 socket 集群只含 `gobbs_test_*` 库，已自动清理。
+
+```bash
+go test -race ./cmd/gobbsctl -count=1 -timeout=15s
+# 先提供隔离 API 与迁移数据库，禁止指向业务库：
+FORUM_REQUIRE_TEST_DB=1 FORUM_TEST_DSN="$FORUM_API_TEST_DSN" go test -race ./internal/api -run '^(Test(Poll|Bounty|Checkin).*|TestEngagementThreadPresentation|TestOpenAPICoreResponses|TestOpenAPIRegisteredOperations|TestSettingsContractCatalog|TestContractShapeRejectsIDAndRequiredFieldDrift)$' -count=1 -timeout=90s
+FORUM_MIGRATION_TEST_DSN="$FORUM_MIGRATION_TEST_DSN" go test ./internal/db -run '^TestEngagementMigrationPreservesRulesAndRestart$' -count=1 -timeout=90s
+```
+
+未运行长压测、完整业务门禁或真实退款 Worker 强杀/断连场景，也未操作业务数据库、调用实际 systemd、创建前端工程、提交、推送或部署。二进制恢复不撤销数据库迁移；跨 schema 恢复仍需部署环境演练。

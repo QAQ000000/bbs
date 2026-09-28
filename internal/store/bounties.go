@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type BountyInput struct {
@@ -31,9 +32,12 @@ type Bounty struct {
 
 const bountySelect = `SELECT thread_id,owner_id,amount,duration_hours,state,closes_at,created_at,settled_at,coalesce(recipient_id,0),coalesce(post_id,0),rule_version,note FROM thread_bounties`
 
+func bountyFields(b *Bounty) []any {
+	return []any{&b.ThreadID, &b.OwnerID, &b.Amount, &b.DurationHours, &b.State, &b.ClosesAt, &b.CreatedAt, &b.SettledAt, &b.RecipientID, &b.PostID, &b.RuleVersion, &b.Note}
+}
 func scanBounty(row pgx.Row) (Bounty, error) {
 	var b Bounty
-	err := row.Scan(&b.ThreadID, &b.OwnerID, &b.Amount, &b.DurationHours, &b.State, &b.ClosesAt, &b.CreatedAt, &b.SettledAt, &b.RecipientID, &b.PostID, &b.RuleVersion, &b.Note)
+	err := row.Scan(bountyFields(&b)...)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return b, ErrNotFound
 	}
@@ -166,7 +170,7 @@ func awardBounty(ctx context.Context, tx pgx.Tx, tid, pid, owner, recipient int6
 	if err = appendPoints(ctx, tx, payee, PointsEntry{Source: fmt.Sprintf("bounty:%d:receive", tid), Kind: "bounty", Delta: b.Amount, RuleVersion: b.RuleVersion, Reason: "回复被采纳，获得悬赏", ActorID: owner, EventAt: now}); err != nil {
 		return err
 	}
-	_, err = tx.Exec(ctx, `UPDATE thread_bounties SET state='awarded',recipient_id=$2,post_id=$3,settled_at=$4 WHERE thread_id=$1`, tid, recipient, pid, now)
+	_, err = tx.Exec(ctx, `UPDATE thread_bounties SET state='awarded',recipient_id=$2,post_id=$3,settled_at=$4,refund_error_code='',refund_failed_at=NULL,refund_next_attempt_at=NULL WHERE thread_id=$1`, tid, recipient, pid, now)
 	return err
 }
 func preventBountyUnaccept(ctx context.Context, tx pgx.Tx, tid int64) error {
@@ -191,6 +195,12 @@ func (s *Store) RefundBounty(ctx context.Context, tid, actor int64, admin, autom
 		return false, err
 	}
 	defer tx.Rollback(ctx)
+	if automatic {
+		if _, err = tx.Exec(ctx, `SET LOCAL lock_timeout='2s'`); err != nil {
+			return false, err
+		}
+	}
+
 	threadSQL := `SELECT deleted FROM threads WHERE id=$1 FOR UPDATE`
 	if automatic {
 		threadSQL += " SKIP LOCKED"
@@ -210,7 +220,11 @@ func (s *Store) RefundBounty(ctx context.Context, tid, actor int64, admin, autom
 		}
 		deleted = true
 	}
-	sql := bountySelect + ` WHERE thread_id=$1 FOR UPDATE`
+	sql := bountySelect + ` WHERE thread_id=$1`
+	if automatic {
+		sql += ` AND (refund_next_attempt_at IS NULL OR refund_next_attempt_at<=clock_timestamp())`
+	}
+	sql += ` FOR UPDATE`
 	if automatic {
 		sql += " SKIP LOCKED"
 	}
@@ -276,7 +290,7 @@ func (s *Store) RefundBounty(ctx context.Context, tid, actor int64, admin, autom
 	if err = appendPoints(ctx, tx, a, PointsEntry{Source: fmt.Sprintf("bounty:%d:refund", tid), Kind: "bounty", FrozenDelta: -b.Amount, RuleVersion: b.RuleVersion, Reason: reason, ActorID: actor, EventAt: now}); err != nil {
 		return false, err
 	}
-	if _, err = tx.Exec(ctx, `UPDATE thread_bounties SET state=$2,settled_at=$3,note=$4 WHERE thread_id=$1`, tid, state, now, reason); err != nil {
+	if _, err = tx.Exec(ctx, `UPDATE thread_bounties SET state=$2,settled_at=$3,note=$4,refund_error_code='',refund_failed_at=NULL,refund_next_attempt_at=NULL WHERE thread_id=$1`, tid, state, now, reason); err != nil {
 		return false, err
 	}
 	if admin && !automatic {
@@ -287,7 +301,7 @@ func (s *Store) RefundBounty(ctx context.Context, tid, actor int64, admin, autom
 	return true, tx.Commit(ctx)
 }
 func (s *Store) ProcessBountyRefunds(ctx context.Context) (int, error) {
-	rows, err := s.pool.Query(ctx, `SELECT b.thread_id FROM thread_bounties b LEFT JOIN threads t ON t.id=b.thread_id WHERE b.state='active' AND (b.closes_at<=now() OR t.id IS NULL OR t.deleted) ORDER BY b.closes_at,b.thread_id LIMIT 100`)
+	rows, err := s.pool.Query(ctx, `SELECT b.thread_id FROM thread_bounties b LEFT JOIN threads t ON t.id=b.thread_id WHERE b.state='active' AND (b.refund_next_attempt_at IS NULL OR b.refund_next_attempt_at<=now()) AND (b.closes_at<=now() OR t.id IS NULL OR t.deleted) ORDER BY b.closes_at,b.thread_id LIMIT 100`)
 	if err != nil {
 		return 0, err
 	}
@@ -299,7 +313,16 @@ func (s *Store) ProcessBountyRefunds(ctx context.Context) (int, error) {
 	for _, tid := range ids {
 		changed, err := s.RefundBounty(ctx, tid, 0, false, true, "")
 		if err != nil {
-			return n, err
+			code := bountyRefundErrorCode(err)
+			if code == "" || ctx.Err() != nil {
+				return n, err
+			}
+			// Preserve only stable diagnostic codes, never raw SQL or user data.
+			_, recordErr := s.pool.Exec(ctx, `UPDATE thread_bounties SET refund_attempts=LEAST(refund_attempts+1,1000000),refund_error_code=$2,refund_failed_at=clock_timestamp(),refund_next_attempt_at=clock_timestamp()+make_interval(secs=>LEAST(3600,30*power(2,LEAST(refund_attempts,7)))::double precision) WHERE thread_id=$1 AND state='active' AND (refund_next_attempt_at IS NULL OR refund_next_attempt_at<=clock_timestamp())`, tid, code)
+			if recordErr != nil {
+				return n, recordErr
+			}
+			continue
 		}
 		if changed {
 			n++
@@ -307,19 +330,116 @@ func (s *Store) ProcessBountyRefunds(ctx context.Context) (int, error) {
 	}
 	return n, nil
 }
-func (s *Store) ActiveBounties(ctx context.Context, before int64) ([]Bounty, error) {
-	rows, err := s.pool.Query(ctx, bountySelect+` WHERE state='active' AND ($1::bigint=0 OR thread_id<$1) ORDER BY thread_id DESC LIMIT 50`, before)
+
+// Connectivity, cancellation, capacity and unknown errors stop the batch. Known
+// transaction/business failures are isolated and retried with bounded backoff.
+func bountyRefundErrorCode(err error) string {
+	if errors.Is(err, ErrEngagementConflict) {
+		return "FROZEN_BALANCE_MISMATCH"
+	}
+	var pgerr *pgconn.PgError
+	if errors.As(err, &pgerr) && len(pgerr.Code) >= 2 {
+		switch pgerr.Code[:2] {
+		case "23", "P0":
+			return "REFUND_TRANSACTION_FAILED"
+		case "40", "55":
+			return "REFUND_RETRYABLE_CONFLICT"
+		}
+	}
+	return ""
+}
+
+type AdminBounty struct {
+	Bounty
+	RefundAttempts      int        `json:"refundAttempts"`
+	RefundErrorCode     string     `json:"refundErrorCode"`
+	RefundFailedAt      *time.Time `json:"refundFailedAt"`
+	RefundNextAttemptAt *time.Time `json:"refundNextAttemptAt"`
+}
+
+var adminBountySelect = strings.Replace(bountySelect, " FROM thread_bounties", ",refund_attempts,refund_error_code,refund_failed_at,refund_next_attempt_at FROM thread_bounties", 1)
+
+func scanAdminBounty(row pgx.Row) (AdminBounty, error) {
+	var b AdminBounty
+	err := row.Scan(append(bountyFields(&b.Bounty), &b.RefundAttempts, &b.RefundErrorCode, &b.RefundFailedAt, &b.RefundNextAttemptAt)...)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return b, ErrNotFound
+	}
+	return b, err
+}
+func (s *Store) AdminBounty(ctx context.Context, tid int64) (AdminBounty, error) {
+	return scanAdminBounty(s.pool.QueryRow(ctx, adminBountySelect+` WHERE thread_id=$1`, tid))
+}
+func (s *Store) AdminBounties(ctx context.Context, before int64, state string, failed bool) ([]AdminBounty, error) {
+	switch state {
+	case "active", "awarded", "canceled", "expired", "all":
+	default:
+		return nil, ErrEngagementInvalid
+	}
+	rows, err := s.pool.Query(ctx, adminBountySelect+` WHERE ($1::bigint=0 OR thread_id<$1) AND ($2='all' OR state=$2) AND (NOT $3::boolean OR refund_error_code<>'') ORDER BY thread_id DESC LIMIT 50`, before, state, failed)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	out := []Bounty{}
+	out := []AdminBounty{}
 	for rows.Next() {
-		b, err := scanBounty(rows)
+		b, err := scanAdminBounty(rows)
 		if err != nil {
 			return nil, err
 		}
 		out = append(out, b)
 	}
 	return out, rows.Err()
+}
+
+type BountyRefundDiagnostics struct {
+	Active      int64      `json:"active"`
+	Due         int64      `json:"due"`
+	Failed      int64      `json:"failed"`
+	Scheduled   int64      `json:"scheduled"`
+	OldestDueAt *time.Time `json:"oldestDueAt"`
+}
+
+func (s *Store) BountyRefundDiagnostics(ctx context.Context) (BountyRefundDiagnostics, error) {
+	var d BountyRefundDiagnostics
+	err := s.pool.QueryRow(ctx, `WITH q AS (SELECT b.*,b.closes_at<=now() OR t.id IS NULL OR t.deleted AS due FROM thread_bounties b LEFT JOIN threads t ON t.id=b.thread_id WHERE b.state='active') SELECT count(*),count(*) FILTER(WHERE due),count(*) FILTER(WHERE refund_error_code<>''),count(*) FILTER(WHERE due AND refund_next_attempt_at>now()),min(closes_at) FILTER(WHERE due) FROM q`).Scan(&d.Active, &d.Due, &d.Failed, &d.Scheduled, &d.OldestDueAt)
+	return d, err
+}
+
+// Queue a failed refund for the ordinary worker. It never bypasses settlement
+// conditions or changes money; the audit and scheduling update are atomic.
+func (s *Store) RetryBountyRefund(ctx context.Context, tid, actor int64, reason string) error {
+	reason = strings.TrimSpace(reason)
+	if !engagementText(reason, 500) {
+		return ErrEngagementInvalid
+	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	if err = engagementActor(ctx, tx, actor); err != nil {
+		return err
+	}
+	b, err := scanAdminBounty(tx.QueryRow(ctx, adminBountySelect+` WHERE thread_id=$1 FOR UPDATE`, tid))
+	if err != nil {
+		return err
+	}
+	if b.State != "active" || b.RefundErrorCode == "" {
+		return ErrEngagementConflict
+	}
+	var now time.Time
+	if err = tx.QueryRow(ctx, `SELECT clock_timestamp()`).Scan(&now); err != nil {
+		return err
+	}
+	if b.RefundNextAttemptAt != nil && !b.RefundNextAttemptAt.After(now) {
+		return nil
+	}
+	if _, err = tx.Exec(ctx, `UPDATE thread_bounties SET refund_next_attempt_at=clock_timestamp() WHERE thread_id=$1`, tid); err != nil {
+		return err
+	}
+	if err = pointsAudit(ctx, tx, actor, "bounty.refund.retry", fmt.Sprintf("thread=%d reason=%s", tid, reason)); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }

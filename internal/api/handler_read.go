@@ -146,28 +146,11 @@ func (s *Server) threadGet(w http.ResponseWriter, r *http.Request) {
 	if th == nil {
 		return
 	}
-	m := threadDTO(th)
-	tags, err := s.st.ThreadTags(r.Context(), []int64{th.ID})
+	rows, err := s.memberThreadRows(r, []*store.Thread{th})
 	if s.readError(w, r, err) {
 		return
 	}
-	m["tags"] = tags[th.ID]
-	badges, err := s.st.MemberSummaries(r.Context(), []int64{th.AuthorID})
-	if s.readError(w, r, err) {
-		return
-	}
-	m["authorLevel"] = badges[th.AuthorID]
-	titles, err := s.st.EquippedTitles(r.Context(), []int64{th.AuthorID})
-	if s.readError(w, r, err) {
-		return
-	}
-	accepted, err := s.st.AcceptedReply(r.Context(), th.ID)
-	if s.readError(w, r, err) {
-		return
-	}
-	m["equippedTitle"] = titles[th.AuthorID]
-	m["acceptedPostId"] = idString(accepted)
-	m["capabilities"] = map[string]bool{"canModerate": s.canModerateThread(r, th), "canReply": s.memberDecision(r, "post.reply", th.ForumID, nil, th).Allowed}
+	m := rows[0]
 	if User(r) != nil {
 		m["favorite"] = s.st.IsFavorite(r.Context(), User(r).ID, th.ID)
 	}
@@ -219,16 +202,15 @@ func (s *Server) postsGet(w http.ResponseWriter, r *http.Request) {
 	if s.readError(w, r, err) {
 		return
 	}
-	accepted, err := s.st.AcceptedReply(r.Context(), th.ID)
+	engagement, err := s.engagementMetadata(r, []int64{th.ID})
 	if s.readError(w, r, err) {
 		return
 	}
 	for i, p := range rows {
 		out[i]["equippedTitle"] = titles[p.AuthorID]
-		out[i]["accepted"] = accepted == p.ID
+		out[i]["accepted"] = engagement[th.ID].AcceptedPostID == p.ID
 		caps := out[i]["capabilities"].(map[string]bool)
-		caps["canAccept"] = s.canAcceptReply(r, p, th) && accepted == 0
-		caps["canUnaccept"] = s.canAcceptReply(r, p, th) && accepted == p.ID
+		s.acceptanceCapabilities(r, p, th, caps, engagement[th.ID])
 	}
 	s.list(w, out, page, size, total)
 }
@@ -266,15 +248,14 @@ func (s *Server) postGet(w http.ResponseWriter, r *http.Request) {
 	if s.readError(w, r, err) {
 		return
 	}
-	accepted, err := s.st.AcceptedReply(r.Context(), th.ID)
+	engagement, err := s.engagementMetadata(r, []int64{th.ID})
 	if s.readError(w, r, err) {
 		return
 	}
 	m["equippedTitle"] = titles[p.AuthorID]
-	m["accepted"] = accepted == p.ID
+	m["accepted"] = engagement[th.ID].AcceptedPostID == p.ID
 	caps := m["capabilities"].(map[string]bool)
-	caps["canAccept"] = s.canAcceptReply(r, p, th) && accepted == 0
-	caps["canUnaccept"] = s.canAcceptReply(r, p, th) && accepted == p.ID
+	s.acceptanceCapabilities(r, p, th, caps, engagement[th.ID])
 	m["attachments"] = mapRows(atts[p.ID], uploadDTO)
 	uid := int64(0)
 	if User(r) != nil {

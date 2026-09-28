@@ -6,7 +6,7 @@
 
 会员等级、成长规则、经验流水、徽章、版块访问限制及 12 个新增接口见 [会员 API 文档](MEMBERSHIP.md)。该文档定义配置预览、人工调整幂等和等级额度语义。
 
-任务称号、自动补发、佩戴、作者采纳及 13 个新增接口见 [称号 API 文档](TITLES.md)。当前数据库 schema 为 20；schema 18–20 的投票、积分悬赏、签到新增 16 个 API，配置和第一版规则见 [互动 API](ENGAGEMENT_FEATURES.md)；Nuxt 管理和展示页面仍待开发。通知、楼层回复及定位、草稿标题和本人内容状态见 [基础流程 API](FORUM_WORKFLOWS.md)。标签、关注/粉丝、订阅投递和私信接口见 [社区 API](COMMUNITY_API.md)，该文档补充下方基础路由清单。邮箱换绑及旧恢复链接撤销见 [安全邮箱换绑](EMAIL_CHANGE.md)。数据库读取优化、主题游标分页、超时和连接池诊断见 [数据库性能](DATABASE_PERFORMANCE.md)。
+任务称号、自动补发、佩戴、作者采纳及 13 个新增接口见 [称号 API 文档](TITLES.md)。当前数据库 schema 为 21；schema 18–20 的投票、积分悬赏、签到新增 16 个 API，配置和第一版规则见 [互动 API](ENGAGEMENT_FEATURES.md)；schema 21 补齐退款后台全状态查询、诊断与重试，另提供公开互动规则和主题摘要；Nuxt 管理和展示页面仍待开发。通知、楼层回复及定位、草稿标题和本人内容状态见 [基础流程 API](FORUM_WORKFLOWS.md)。标签、关注/粉丝、订阅投递和私信接口见 [社区 API](COMMUNITY_API.md)，该文档补充下方基础路由清单。邮箱换绑及旧恢复链接撤销见 [安全邮箱换绑](EMAIL_CHANGE.md)。数据库读取优化、主题游标分页、超时和连接池诊断见 [数据库性能](DATABASE_PERFORMANCE.md)。
 
 ## 请求与响应
 
@@ -118,7 +118,7 @@ TOTP 绑定、验证登录、关闭和恢复码更新见 [二次验证](MFA.md)�
 
 ## OpenAPI 与已注册路由
 
-[openapi.json](openapi.json) 是当前 194 个 API 操作的机器可读索引，由源码路由和 [openapi.overrides.json](openapi.overrides.json) 中的人工审核定义生成。查看一个操作的 `x-source`、`x-handler` 可定位实现。媒体 URL `/uploads/`、`/avatar/{uid}`、`/smiley/{pkg}/{file}`、`/captcha/{id}` 另由受控媒体处理器提供。
+[openapi.json](openapi.json) 是当前 198 个 API 操作的机器可读索引，由源码路由和 [openapi.overrides.json](openapi.overrides.json) 中的人工审核定义生成。查看一个操作的 `x-source`、`x-handler` 可定位实现。媒体 URL `/uploads/`、`/avatar/{uid}`、`/smiley/{pkg}/{file}`、`/captcha/{id}` 另由受控媒体处理器提供。
 
 ```bash
 go run ./scripts/api-contract         # 更新生成文件
@@ -134,7 +134,7 @@ go run ./scripts/api-contract -check  # 检查路由/审核定义与生成文件
 | transport | SSE、原始下载或监控等非标准 envelope 传输 |
 | route | 路由、基础鉴权提示和通用占位；尚未完成字段审核，不可据此生成完整业务类型 |
 
-当前 59 个操作有人工覆盖（43 fields、12 request、4 transport），包含新增互动功能和采纳结算契约，其余为路由级定义。角色、版块、会员、会话和站点状态共同决定访问结果；`security` 声明登录要求不等于授予业务权限。所有写入要求 CSRF，首选请求头，过渡期兼容表单字段。
+当前 63 个操作有人工覆盖（47 fields、12 request、4 transport），包含新增互动功能、退款运维、公开规则、主题摘要和采纳结算契约，其余为路由级定义。角色、版块、会员、会话和站点状态共同决定访问结果；`security` 声明登录要求不等于授予业务权限。所有写入要求 CSRF，首选请求头，过渡期兼容表单字段。
 
 测试同时检查生成文件未漂移、引用可解析、operationId 唯一、路径参数、实际 ServeMux 注册，以及核心读写响应（会话、主题/楼层、列表/游标、搜索、发帖/编辑/回复）的字段形态。此阶段不是完整 OpenAPI 形式化校验器或全接口 SDK；新增字段和错误分支仍需逐组补齐。
 

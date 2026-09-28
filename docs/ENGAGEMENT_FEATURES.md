@@ -1,6 +1,6 @@
 # 投票、积分悬赏、签到 API
 
-2026-09-28，schema 18–20。第一版后端、会员权限、后台配置、退款 Worker 和 OpenAPI 已实现。前端页面、生产部署和容量验收不包含在本次交付中。
+2026-09-28，schema 18–21。第一版后端、会员权限、后台配置、退款 Worker 和 OpenAPI 已实现。前端页面、生产部署和容量验收不包含在本次交付中。
 
 沿用纯 API 架构与独立积分账本；投票 → 悬赏 → 签到三项已完成，以下为实际代码规则。
 
@@ -37,7 +37,7 @@
 - 沿用作者采纳接口，不能采纳本人或首楼回复。采纳标记、冻结释放、作者扣款、答主入账同事务；按用户 ID 顺序锁定双方账户。
 - 同一答案重放不重复支付。已支付后不可撤回或改付；后续删帖、审核不自动追回赏金。采纳获得的额外行为经验/积分仍走既有异步奖励，不等同于赏金。
 - 作者仅在尚无公开有效回复时可提前取消。有回复则等待采纳、超时或后台取消；管理员需要 1–500 字非空原因并写审计。已退款重放成功，已支付退款返回 409。
-- 超时或主题删除/物理清理后由 Worker 退款，只释放冻结。状态持久保存，启动后继续扫描，每分钟处理至多 100 条，失败退避；进程暂停期间不保证准时退款。停用功能仍处理存量结算/退款。
+- 超时或主题删除/物理清理后由 Worker 退款，只释放冻结。状态持久保存，启动后继续扫描，每轮最多扫描 100 条，正常每分钟运行，单条失败持久退避（见下文）；进程暂停期间不保证准时退款。停用功能仍处理存量结算/退款。
 - `thread_bounties` 保留主题 ID，不级联删除金融记录。到期且尚未退款时拒绝支付；退款后仍可普通采纳。
 
 | 方法 | 路径 | 输入 / 返回 |
@@ -47,10 +47,13 @@
 | POST | `/threads/{tid}/bounty/cancel` | `{}`；作者取消/领取到期退款 |
 | PUT | `/posts/{pid}/acceptance` | `{}`；已有接口，现同时结算活动悬赏 |
 | DELETE | `/posts/{pid}/acceptance` | `{}`；普通采纳可撤销，已支付悬赏 409 |
-| GET | `/admin/bounties?before=123` | 活动悬赏，50 条/页，包括等待退款记录 |
+| GET | `/admin/bounties?state=all&refundFailed=true&before=123` | 全状态/失败筛选，50 条/页，默认 state=active |
+| GET | `/admin/bounties/{tid}` | 单条记录及退款诊断，原主题已删除仍可管理 |
+| GET | `/admin/bounties/diagnostics` | 活动/待退款/失败/退避数量 |
+| POST | `/admin/bounties/{tid}/retry` | `reason`；202 表示排队，非退款完成 |
 | POST | `/admin/bounties/{tid}/cancel` | `reason`；退款与审计同事务 |
 
-详情字段：`threadId, ownerId, amount, durationHours, state, closesAt, createdAt, settledAt, recipientId, postId, ruleVersion, note`。状态为 `active/awarded/canceled/expired`；未结算 `settledAt=null`、`recipientId/postId="0"`。退款扫描前可能仍为 `active`，界面还应检查 `closesAt`。后台列表目前不是全状态检索。
+详情字段：`threadId, ownerId, amount, durationHours, state, closesAt, createdAt, settledAt, recipientId, postId, ruleVersion, note`。状态为 `active/awarded/canceled/expired`；未结算 `settledAt=null`、`recipientId/postId="0"`。退款扫描前可能仍为 `active`，界面还应检查 `closesAt`。后台支持 `state=active/awarded/canceled/expired/all`，`refundFailed=true` 仅选当前仍有失败标记的记录；省略或 false 不限制失败状态。
 
 账本来源为 `bounty:<tid>:freeze/award/receive/refund`，类型 `bounty`。转账不改变总积分，冻结/退款仅改变冻结额。既有奖励冲回可产生欠额，结算沿用该债务模型；人工扣款仍不能突破可用余额。
 
@@ -87,7 +90,7 @@
 - 停用投票阻止新建/参与；停用悬赏只阻止新建；停用签到阻止新领取。历史读取、关闭、审核、退款保留。
 - 会员动作：`poll.create`、`poll.vote`、`bounty.create`、`checkin.claim`。迁移补齐缺失项：创建类继承 `thread.create`、投票参与继承 `post.reply`、签到默认开启；已有明确布尔值保留。
 - 后台权限：读取 `engagement.view`、保存 `engagement.configure`、投票管理 `polls.manage`、悬赏管理 `bounties.manage`；还须 `admin.panel`。默认管理员拥有，普通会员/版主不拥有，可用角色矩阵配置。
-- 会员矩阵现在需完整 17 项权限。互动配置独立版本化，不混入站点 settings 或行为积分 rules。当前没有公开互动配置接口，前端通过自身权限、详情/状态及操作结果判断，不能调用管理员接口作为公开配置入口。
+- 会员矩阵现在需完整 17 项权限。互动配置独立版本化，不混入站点 settings 或行为积分 rules。公开规则使用 `GET /engagement/rules`，只投影三个功能的开关、上限、奖励与时区，不含管理版本或权限矩阵。前端不能调用管理员接口作为公开配置入口。
 
 ## 错误与分页
 
@@ -99,4 +102,28 @@
 
 只在一次性 `gobbs_test_` 集群定向回归：投票权限/审核/并发幂等，悬赏冻结/支付/退款/故障回滚/对账，签到并发/连续天数/回滚/时区限制均通过。历史迁移、新库、schema 17→20 配置保留及重复启动已验证；证据见 [测试门禁](TEST_GATE.md)。
 
-本轮没有全套业务门禁、持续压测、生产库迁移或部署；事务回滚验证不等同于真实 Worker 强杀/数据库断连演练。没有改投、赏金追加/分摊/仲裁、补签/连续额外奖励、全状态后台检索、对应前端页面或公开多维排行榜。
+本轮没有全套业务门禁、持续压测、生产库迁移或部署；事务回滚验证不等同于真实 Worker 强杀/数据库断连演练。没有改投、赏金追加/分摊/仲裁、补签/连续额外奖励、对应前端页面或公开多维排行榜。
+
+## 退款异常运维（schema 21）
+
+自动退款继续使用现有积分流水和唯一来源键。冻结额不足或可识别的事务失败会回滚本条资金操作，再单独保存稳定错误码，后续退款继续执行。数据库断连、取消、资源不足或未知基础设施错误则终止本轮，沿用 Worker 的整体退避；不会将断连伪装成某条业务坏账。
+
+- 每条失败记录保存 `refundAttempts`（累计失败次数）、`refundErrorCode`、`refundFailedAt`、`refundNextAttemptAt`。业务状态仍为 `active`，不会通过改成终态或删除记录来消除告警。
+- 稳定码为 `FROZEN_BALANCE_MISMATCH`、`REFUND_TRANSACTION_FAILED`、`REFUND_RETRYABLE_CONFLICT`，不返回原始 SQL/异常文本。先对账或排除数据库/业务故障，再重试；接口不会修平账本。
+- 单条退避从 30 秒开始倍增，封顶 1 小时；Worker 每分钟调度，因此这是最早可重试时间，不保证到点完成。自动退款账户锁等待最多 2 秒，避免单个繁忙账户占满本轮期限。
+- 主题/悬赏行使用 `SKIP LOCKED`；持久重试时间在锁内复核。退款成功或采纳支付后清除当前失败码和重试时间，保留累计失败次数。迁移和正常重启不重置退避。
+- 后台列表、单条诊断、汇总和重试都需要 `admin.panel + bounties.manage`。重试还需 Cookie、CSRF 和 1–500 字原因，排队与审计同事务。已排队的相同记录再次请求不追加审计；已支付、已退款或从未失败的记录返回 409。
+- `202` 只把下一次时间提前到现在，既不同步退款，也不跳过到期/删除、账本和锁校验。Worker 正常运行后处理，再读取状态确认 `expired/canceled`。功能停用不会停止存量退款。
+- 汇总 `active` 为全部活动记录，`due` 为到期或主题已删/清理的待退款记录，`failed` 为尚未清除失败标记数，`scheduled` 为待退款中仍在退避的记录数；这些数量相互重叠。`oldestDueAt` 是待退款候选的最早原截止时间，删除触发的提前退款可能仍未到该日期，不等同于入队年龄。
+
+## 前端接入顺序
+
+1. 初始读取 `GET /engagement/rules` 显示可用功能、输入限制与签到奖励；使用 `GET /session` 获取会话和 CSRF。规则是展示快照，保存前仍以服务端校验为准。
+2. `GET /threads`（页码/游标）、`GET /threads/{tid}` 返回 `poll`、`bounty`、`acceptedPostId` 与 `capabilities`；首页及通过同一主题列表投影的用户主题也附带这些字段。暂无记录或投票不可见时摘要为 `null`。摘要在整页批量查询，不逐主题加载详情。
+3. 投票摘要含 `question,state,maxChoices,voters,closesAt,closed,hasVoted`，待审/拒绝文本仅作者和投票管理员可见；`hasVoted` 只表示当前用户。需要选项与计票细节时再读 `/threads/{tid}/poll`。
+4. 悬赏摘要含 `amount,state,closesAt,expired,postId`，没有后台退款错误或私有余额。截止与状态分别判断；`active+expired` 表示不能支付但可能还在等待退款。
+5. 主题能力为 `canModerate,canReply,canCreatePoll,canVote,canClosePoll,canCreateBounty,canCancelBounty`。结合账号、会员/版块权限、所有权、功能开关和当前状态计算；不能替代写接口鉴权。余额是否覆盖具体金额、输入参数、限流和并发变化仍可能使提交失败。
+6. 楼层详情/列表的 `canAccept/canUnaccept` 已结合悬赏：到期未退款时不能采纳支付，已支付后不能撤销，普通采纳和已退款主题遵守原有规则。按返回能力显示入口，不自行推断“作者都能撤销”。
+7. 发主题与创建投票/悬赏仍是分开的操作；附加失败应保留已成功创建的主题并展示错误。任何写入后重新读取对应资源；超时先查询结果，再按各接口的幂等语义决定重试。
+
+这些接口可供独立前端开发；本次未创建 Nuxt 工程或完成浏览器端联调。

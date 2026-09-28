@@ -322,6 +322,9 @@ func memberSignatureAllowed(r *http.Request, value string) bool {
 	return m != nil && m.Member != nil && (m.Member.Level.Limits.SignatureLength < 0 || int64(utf8.RuneCountInString(value)) <= m.Member.Level.Limits.SignatureLength)
 }
 func (s *Server) memberThreadRows(r *http.Request, rows []*store.Thread) ([]map[string]any, error) {
+	if len(rows) == 0 {
+		return []map[string]any{}, nil
+	}
 	tids := []int64{}
 	for _, v := range rows {
 		tids = append(tids, v.ID)
@@ -342,11 +345,20 @@ func (s *Server) memberThreadRows(r *http.Request, rows []*store.Thread) ([]map[
 	if err != nil {
 		return nil, err
 	}
+	engagement, err := s.engagementMetadata(r, tids)
+	if err != nil {
+		return nil, err
+	}
+	rules, err := s.st.EngagementConfig(r.Context())
+	if err != nil {
+		return nil, err
+	}
 	return mapRows(rows, func(t *store.Thread) map[string]any {
 		v := threadDTO(t)
 		v["authorLevel"] = badges[t.AuthorID]
 		v["equippedTitle"] = titles[t.AuthorID]
 		v["tags"] = tags[t.ID]
+		s.threadEngagementResponse(r, t, v, engagement[t.ID], rules)
 		return v
 	}), nil
 }

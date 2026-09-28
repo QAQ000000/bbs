@@ -47,6 +47,10 @@ func TestEngagementMigrationPreservesRulesAndRestart(t *testing.T) {
 	if _, err := pool.Exec(ctx, `UPDATE engagement_config SET version=3,body=jsonb_set(body,'{poll,enabled}','false') WHERE id`); err != nil {
 		t.Fatal(err)
 	}
+
+	if _, err := pool.Exec(ctx, `INSERT INTO users(username,password_hash) VALUES('retry-migration','hash'); INSERT INTO thread_bounties(thread_id,owner_id,amount,duration_hours,closes_at,rule_version,refund_attempts,refund_error_code,refund_failed_at,refund_next_attempt_at) SELECT 123,id,5,24,now(),1,2,'REFUND_TRANSACTION_FAILED',now(),now()+interval '1 hour' FROM users WHERE username='retry-migration'`); err != nil {
+		t.Fatal(err)
+	}
 	for range 2 {
 		if err := Migrate(ctx, pool); err != nil {
 			t.Fatal(err)
@@ -55,4 +59,9 @@ func TestEngagementMigrationPreservesRulesAndRestart(t *testing.T) {
 	if err := pool.QueryRow(ctx, `SELECT (SELECT max(version) FROM schema_migrations),version=3 AND (body#>>'{poll,enabled}')::boolean=false AND (SELECT version=8 FROM membership_config WHERE id) FROM engagement_config WHERE id`).Scan(&version, &preserved); err != nil || version != latestSchemaVersion() || !preserved {
 		t.Fatal(version, preserved, err)
 	}
+	var retryPreserved bool
+	if err := pool.QueryRow(ctx, `SELECT refund_attempts=2 AND refund_error_code='REFUND_TRANSACTION_FAILED' AND refund_next_attempt_at>now() AND state='active' AND amount=5 FROM thread_bounties WHERE thread_id=123`).Scan(&retryPreserved); err != nil || !retryPreserved {
+		t.Fatal("retry metadata reset", retryPreserved, err)
+	}
+
 }

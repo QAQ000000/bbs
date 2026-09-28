@@ -176,6 +176,7 @@ func (s *Server) adminPolls(w http.ResponseWriter, r *http.Request) {
 	s.respond(w, 200, map[string]any{"items": rows, "nextBefore": next})
 }
 func (s *Server) engagementRoutes() {
+	s.mux.HandleFunc("GET /api/v1/engagement/rules", s.engagementRules)
 	s.mux.HandleFunc("GET /api/v1/threads/{tid}/bounty", s.bountyGet)
 	s.mux.HandleFunc("POST /api/v1/threads/{tid}/bounty", s.bountyCreate)
 	s.mux.HandleFunc("POST /api/v1/threads/{tid}/bounty/cancel", s.bountyCancel)
@@ -184,6 +185,9 @@ func (s *Server) engagementRoutes() {
 	s.mux.HandleFunc("PUT /api/v1/threads/{tid}/poll/vote", s.pollVote)
 	s.mux.HandleFunc("POST /api/v1/threads/{tid}/poll/close", s.pollClose)
 	for route, h := range map[string]http.HandlerFunc{
+		"GET /api/v1/admin/bounties/diagnostics":    s.adminBountyDiagnostics,
+		"GET /api/v1/admin/bounties/{tid}":          s.adminBountyGet,
+		"POST /api/v1/admin/bounties/{tid}/retry":   s.adminBountyRetry,
 		"GET /api/v1/admin/bounties":                s.adminBounties,
 		"POST /api/v1/admin/bounties/{tid}/cancel":  s.adminBountyCancel,
 		"GET /api/v1/admin/engagement/config":       s.engagementConfigGet,

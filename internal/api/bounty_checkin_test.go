@@ -2,9 +2,11 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sync"
 	"testing"
+	"time"
 
 	"dzforum/internal/store"
 )
@@ -214,4 +216,74 @@ func TestCheckinConcurrentRewardsRollbackAndStreak(t *testing.T) {
 	if err = smokePool.QueryRow(ctx, `SELECT experience FROM member_states WHERE user_id=$1`, u.ID).Scan(&xp); err != nil || xp != initialXP+5 {
 		t.Fatal("duplicate XP", xp, err)
 	}
+}
+
+func TestBountyRefundFailureIsolationAndRetry(t *testing.T) {
+	engagementAPIFixture(t)
+	ctx := context.Background()
+	u, cookie, csrf := memberTestUser(t)
+	if err := smokeSrv.st.AdjustPoints(ctx, u.ID, 1, store.PointsAdjustment{Version: 1, Delta: 30, Reason: "seed", Key: "retry-seed"}); err != nil {
+		t.Fatal(err)
+	}
+	var ids []int64
+	for i := 0; i < 2; i++ {
+		th, _, err := smokeSrv.st.CreateThread(ctx, 1, u.ID, u.Username, "refund isolation", "body", "", false, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err = smokeSrv.st.CreateBounty(ctx, th.ID, u.ID, store.BountyInput{Amount: 10, DurationHours: 24}); err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, th.ID)
+	}
+	flowSQL(t, `UPDATE thread_bounties SET closes_at=now()-interval '1 second' WHERE thread_id=ANY($1)`, ids)
+	flowSQL(t, fmt.Sprintf(`CREATE FUNCTION refund_fail_one() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.source='bounty:%d:refund' THEN RAISE EXCEPTION 'private injected failure'; END IF; RETURN NEW; END $$; CREATE TRIGGER refund_fail_one BEFORE INSERT ON points_ledger FOR EACH ROW EXECUTE FUNCTION refund_fail_one()`, ids[0]))
+	t.Cleanup(func() { flowSQL(t, `DROP TRIGGER refund_fail_one ON points_ledger; DROP FUNCTION refund_fail_one()`) })
+	n, err := smokeSrv.st.ProcessBountyRefunds(ctx)
+	if err != nil || n != 1 {
+		t.Fatal("later refund blocked", n, err)
+	}
+	b, err := smokeSrv.st.AdminBounty(ctx, ids[0])
+	if err != nil || b.RefundAttempts != 1 || b.RefundErrorCode != "REFUND_TRANSACTION_FAILED" || b.RefundNextAttemptAt == nil || !b.RefundNextAttemptAt.After(time.Now()) {
+		t.Fatal(b, err)
+	}
+	assertEngagementPoints(t, u.ID, 30, 10)
+	// A second worker must honor persisted backoff instead of attempting again.
+	n, err = smokeSrv.st.ProcessBountyRefunds(ctx)
+	if err != nil || n != 0 {
+		t.Fatal(n, err)
+	}
+	b, err = smokeSrv.st.AdminBounty(ctx, ids[0])
+	if err != nil || b.RefundAttempts != 1 {
+		t.Fatal(b, err)
+	}
+	p := fmt.Sprintf("/api/v1/admin/bounties/%d", ids[0])
+	checkJSON(t, smokeGet(t, p, cookie), 403)
+	checkJSON(t, memberJSON(t, "POST", p+"/retry", map[string]any{"reason": "retry"}, csrf, cookie), 403)
+	checkJSON(t, memberJSON(t, "POST", p+"/retry", map[string]any{"reason": "retry"}, "", adminCookie), 403)
+	checkJSON(t, smokeGet(t, p, adminCookie), 200)
+	checkJSON(t, smokeGet(t, "/api/v1/admin/bounties/diagnostics", adminCookie), 200)
+	env := checkJSON(t, smokeGet(t, "/api/v1/admin/bounties?state=all&refundFailed=true", adminCookie), 200)
+	var data struct {
+		Items []store.AdminBounty `json:"items"`
+	}
+	if err = json.Unmarshal(env["data"], &data); err != nil || len(data.Items) != 1 || data.Items[0].ThreadID != ids[0] {
+		t.Fatal(data, err)
+	}
+	checkJSON(t, smokeGet(t, "/api/v1/admin/bounties?state=invalid", adminCookie), 422)
+	checkJSON(t, memberJSON(t, "POST", p+"/retry", map[string]any{"reason": ""}, adminCSRF, adminCookie), 422)
+	flowSQL(t, `ALTER TABLE points_ledger DISABLE TRIGGER refund_fail_one`)
+	for i := 0; i < 2; i++ {
+		checkJSON(t, memberJSON(t, "POST", p+"/retry", map[string]any{"reason": "已排除故障"}, adminCSRF, adminCookie), 202)
+	}
+	n, err = smokeSrv.st.ProcessBountyRefunds(ctx)
+	if err != nil || n != 1 {
+		t.Fatal(n, err)
+	}
+	b, err = smokeSrv.st.AdminBounty(ctx, ids[0])
+	if err != nil || b.State != "expired" || b.RefundErrorCode != "" || b.RefundNextAttemptAt != nil {
+		t.Fatal(b, err)
+	}
+	checkJSON(t, memberJSON(t, "POST", p+"/retry", map[string]any{"reason": "重复退款"}, adminCSRF, adminCookie), 409)
+	assertEngagementPoints(t, u.ID, 30, 0)
 }

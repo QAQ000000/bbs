@@ -31,6 +31,104 @@
       }
     },
     "schemas": {
+      "AdminBounty": {
+        "properties": {
+          "amount": {
+            "maximum": 1000000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "closesAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "durationHours": {
+            "maximum": 8760,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "note": {
+            "type": "string"
+          },
+          "ownerId": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "postId": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "recipientId": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "refundAttempts": {
+            "description": "累计自动退款失败次数；成功后保留，不是运行次数。",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "refundErrorCode": {
+            "enum": [
+              "",
+              "FROZEN_BALANCE_MISMATCH",
+              "REFUND_TRANSACTION_FAILED",
+              "REFUND_RETRYABLE_CONFLICT"
+            ],
+            "type": "string"
+          },
+          "refundFailedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "refundNextAttemptAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "ruleVersion": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "settledAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "active",
+              "awarded",
+              "canceled",
+              "expired"
+            ],
+            "type": "string"
+          },
+          "threadId": {
+            "$ref": "#/components/schemas/ID"
+          }
+        },
+        "required": [
+          "threadId",
+          "ownerId",
+          "amount",
+          "durationHours",
+          "state",
+          "closesAt",
+          "createdAt",
+          "settledAt",
+          "recipientId",
+          "postId",
+          "ruleVersion",
+          "note",
+          "refundAttempts",
+          "refundErrorCode",
+          "refundFailedAt",
+          "refundNextAttemptAt"
+        ],
+        "type": "object"
+      },
       "Bounty": {
         "properties": {
           "amount": {
@@ -140,7 +238,7 @@
         "properties": {
           "items": {
             "items": {
-              "$ref": "#/components/schemas/Bounty"
+              "$ref": "#/components/schemas/AdminBounty"
             },
             "type": "array"
           },
@@ -152,6 +250,79 @@
         "required": [
           "items",
           "nextBefore"
+        ],
+        "type": "object"
+      },
+      "BountyRefundDiagnostics": {
+        "properties": {
+          "active": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "due": {
+            "description": "所有到期、删除或原主题已清理的活动记录，包含退避中的记录。",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "failed": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "oldestDueAt": {
+            "description": "待退款候选中的最早截止时间；因删帖提前退款的记录可能尚未到原截止时间，不代表入队时刻。",
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "scheduled": {
+            "description": "待退款且下次重试时间未到的记录数。",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "active",
+          "due",
+          "failed",
+          "scheduled",
+          "oldestDueAt"
+        ],
+        "type": "object"
+      },
+      "BountySummary": {
+        "description": "没有悬赏为 null；不含管理原因、失败重试或账户余额。",
+        "nullable": true,
+        "properties": {
+          "amount": {
+            "type": "integer"
+          },
+          "closesAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "expired": {
+            "description": "原截止时间是否已过，不改变持久化 state。",
+            "type": "boolean"
+          },
+          "postId": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "state": {
+            "enum": [
+              "active",
+              "awarded",
+              "canceled",
+              "expired"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "amount",
+          "state",
+          "closesAt",
+          "expired",
+          "postId"
         ],
         "type": "object"
       },
@@ -453,6 +624,100 @@
         "required": [],
         "type": "object"
       },
+      "EngagementRules": {
+        "additionalProperties": false,
+        "properties": {
+          "bounty": {
+            "additionalProperties": false,
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "maxDays": {
+                "maximum": 365,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "maxPoints": {
+                "maximum": 1000000,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "minPoints": {
+                "maximum": 1000000,
+                "minimum": 1,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "enabled",
+              "minPoints",
+              "maxPoints",
+              "maxDays"
+            ],
+            "type": "object"
+          },
+          "checkin": {
+            "additionalProperties": false,
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "experience": {
+                "maximum": 10000,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "points": {
+                "maximum": 10000,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "timeZone": {
+                "description": "有效 IANA 时区，默认 Asia/Shanghai，不接受 Local；存在签到记录后禁止更换。",
+                "type": "string"
+              }
+            },
+            "required": [
+              "enabled",
+              "experience",
+              "points",
+              "timeZone"
+            ],
+            "type": "object"
+          },
+          "poll": {
+            "additionalProperties": false,
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "maxDays": {
+                "maximum": 365,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "maxOptions": {
+                "maximum": 20,
+                "minimum": 2,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "enabled",
+              "maxOptions",
+              "maxDays"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "poll",
+          "bounty",
+          "checkin"
+        ],
+        "type": "object"
+      },
       "Envelope": {
         "properties": {
           "data": {},
@@ -730,6 +995,50 @@
         ],
         "type": "object"
       },
+      "PollSummary": {
+        "description": "没有投票或当前访问者无权查看待审/拒绝投票时为 null。不含选项和投票者名单；hasVoted 只表示本人是否投票。",
+        "nullable": true,
+        "properties": {
+          "closed": {
+            "type": "boolean"
+          },
+          "closesAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "hasVoted": {
+            "type": "boolean"
+          },
+          "maxChoices": {
+            "type": "integer"
+          },
+          "question": {
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "pending",
+              "published",
+              "closed",
+              "rejected"
+            ],
+            "type": "string"
+          },
+          "voters": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "question",
+          "state",
+          "maxChoices",
+          "voters",
+          "closesAt",
+          "closed",
+          "hasVoted"
+        ],
+        "type": "object"
+      },
       "PollVote": {
         "additionalProperties": false,
         "properties": {
@@ -762,7 +1071,16 @@
             "additionalProperties": {
               "type": "boolean"
             },
-            "properties": {},
+            "properties": {
+              "canAccept": {
+                "description": "结合当前采纳、活动悬赏是否到期以及账号/内容权限。",
+                "type": "boolean"
+              },
+              "canUnaccept": {
+                "description": "已支付的悬赏为 false；后续内容治理不自动撤销已支付资金。",
+                "type": "boolean"
+              }
+            },
             "type": "object"
           },
           "content": {
@@ -1888,11 +2206,52 @@
       },
       "Thread": {
         "properties": {
+          "acceptedPostId": {
+            "$ref": "#/components/schemas/ID"
+          },
           "authorId": {
             "$ref": "#/components/schemas/ID"
           },
           "authorName": {
             "type": "string"
+          },
+          "bounty": {
+            "$ref": "#/components/schemas/BountySummary"
+          },
+          "capabilities": {
+            "properties": {
+              "canCancelBounty": {
+                "type": "boolean"
+              },
+              "canClosePoll": {
+                "type": "boolean"
+              },
+              "canCreateBounty": {
+                "type": "boolean"
+              },
+              "canCreatePoll": {
+                "type": "boolean"
+              },
+              "canModerate": {
+                "type": "boolean"
+              },
+              "canReply": {
+                "type": "boolean"
+              },
+              "canVote": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "canModerate",
+              "canReply",
+              "canCreatePoll",
+              "canVote",
+              "canClosePoll",
+              "canCreateBounty",
+              "canCancelBounty"
+            ],
+            "type": "object"
           },
           "closed": {
             "type": "boolean"
@@ -1922,6 +2281,9 @@
           },
           "pendingReason": {
             "type": "string"
+          },
+          "poll": {
+            "$ref": "#/components/schemas/PollSummary"
           },
           "postCount": {
             "type": "integer"
@@ -2332,7 +2694,7 @@
     },
     "/api/v1/admin/bounties": {
       "get": {
-        "description": "要求 admin.panel 与 bounties.manage。每页最多 50 条 active 记录，包含等待退款的过期/删除主题；不是全状态历史检索。满页时返回游标，下一页可能为空。",
+        "description": "需要 admin.panel 和 bounties.manage；默认 active，可查询终态。每页 50 条，按主题 ID 降序；refundFailed=true 只返回当前仍有失败记录的悬赏。GET 不触发退款。",
         "operationId": "get_api_v1_admin_bounties",
         "parameters": [
           {
@@ -2343,6 +2705,29 @@
             "schema": {
               "pattern": "^[1-9][0-9]*$",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "schema": {
+              "default": "active",
+              "enum": [
+                "active",
+                "awarded",
+                "canceled",
+                "expired",
+                "all"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "refundFailed",
+            "schema": {
+              "default": false,
+              "type": "boolean"
             }
           }
         ],
@@ -2421,13 +2806,123 @@
             "sessionCookie": []
           }
         ],
-        "summary": "活动悬赏列表",
+        "summary": "按状态与退款失败条件检索悬赏",
         "tags": [
           "admin"
         ],
         "x-contract-level": "fields",
         "x-csrf-required": false,
         "x-handler": "adminBounties",
+        "x-source": "internal/api/handler_engagement.go"
+      }
+    },
+    "/api/v1/admin/bounties/diagnostics": {
+      "get": {
+        "description": "需要 admin.panel 和 bounties.manage；实时汇总活动记录。due 包含 scheduled，不能直接相加；GET 不执行退款。",
+        "operationId": "get_api_v1_admin_bounties_diagnostics",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/BountyRefundDiagnostics"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "读取悬赏退款积压和失败汇总",
+        "tags": [
+          "admin"
+        ],
+        "x-contract-level": "fields",
+        "x-csrf-required": false,
+        "x-handler": "adminBountyDiagnostics",
+        "x-source": "internal/api/handler_engagement.go"
+      }
+    },
+    "/api/v1/admin/bounties/{tid}": {
+      "get": {
+        "description": "需要 admin.panel 和 bounties.manage；包括终态和原主题已经删除的记录。仅返回稳定错误码，无原始 SQL 或异常文本。",
+        "operationId": "get_api_v1_admin_bounties_tid",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tid",
+            "required": true,
+            "schema": {
+              "pattern": "^[1-9][0-9]*$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/AdminBounty"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "读取悬赏及退款诊断记录",
+        "tags": [
+          "admin"
+        ],
+        "x-contract-level": "fields",
+        "x-csrf-required": false,
+        "x-handler": "adminBountyGet",
         "x-source": "internal/api/handler_engagement.go"
       }
     },
@@ -2581,6 +3076,79 @@
         "x-contract-level": "fields",
         "x-csrf-required": true,
         "x-handler": "adminBountyCancel",
+        "x-source": "internal/api/handler_engagement.go"
+      }
+    },
+    "/api/v1/admin/bounties/{tid}/retry": {
+      "post": {
+        "description": "需要 admin.panel、bounties.manage、会话和 CSRF；reason 必填 1–500 字。仅 active 且存在失败记录可排队，普通 Worker 仍复核到期/删除及冻结额。202 不表示已经退款；重复排队不重复审计。成功退款后重试返回 409。",
+        "operationId": "post_api_v1_admin_bounties_tid_retry",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tid",
+            "required": true,
+            "schema": {
+              "pattern": "^[1-9][0-9]*$",
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/CSRF"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BountyCancel"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/AdminBounty"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "已排入重试"
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "将失败悬赏退款排入立即重试",
+        "tags": [
+          "admin"
+        ],
+        "x-contract-level": "fields",
+        "x-csrf-required": true,
+        "x-handler": "adminBountyRetry",
         "x-source": "internal/api/handler_engagement.go"
       }
     },
@@ -7352,6 +7920,57 @@
         "x-source": "internal/api/routes.go"
       }
     },
+    "/api/v1/engagement/rules": {
+      "get": {
+        "description": "允许匿名读取的明确投影，仅含三个功能的开关、参数限制、签到奖励和时区；不返回管理版本、权限矩阵或诊断。当前用户状态仍以 capabilities 和实际写入校验为准。",
+        "operationId": "get_api_v1_engagement_rules",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/EngagementRules"
+                        }
+                      },
+                      "required": [
+                        "data"
+                      ],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        },
+        "security": [
+          {},
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "读取公开互动规则",
+        "tags": [
+          "community"
+        ],
+        "x-contract-level": "fields",
+        "x-csrf-required": false,
+        "x-handler": "engagementRules",
+        "x-source": "internal/api/handler_engagement.go"
+      }
+    },
     "/api/v1/events": {
       "get": {
         "description": "至少指定一个主题范围；user 只能是本人。25 秒心跳，每次事件/心跳重新鉴权。重连必须通过 API 补读；没有持久事件重放。",
@@ -10388,7 +11007,7 @@
         "x-source": "internal/api/routes.go"
       },
       "get": {
-        "description": "读取当前可见楼层与附件",
+        "description": "读取当前可见楼层与附件 canAccept/canUnaccept 结合当前悬赏结算状态；已经支付的悬赏不提供撤销入口，到期未退款的活动悬赏暂不可支付。",
         "operationId": "get_api_v1_posts_pid",
         "parameters": [
           {
@@ -11979,7 +12598,7 @@
     },
     "/api/v1/threads": {
       "get": {
-        "description": "游标模式不能与 page 或 sort 混用，不返回总数；只支持最后回复排序。",
+        "description": "游标模式不能与 page 或 sort 混用，不返回总数；只支持最后回复排序。 列表/详情包含 poll、bounty（可为 null）、acceptedPostId 和 capabilities；待审投票摘要仅作者与投票管理员可见。能力值是当前快照，限流、余额、请求参数及并发变化仍由写接口最终校验；不能据此替代服务端授权。",
         "operationId": "get_api_v1_threads",
         "parameters": [
           {
@@ -12267,7 +12886,7 @@
     },
     "/api/v1/threads/{tid}": {
       "get": {
-        "description": "读取主题与当前用户可用操作",
+        "description": "读取主题与当前用户可用操作 列表/详情包含 poll、bounty（可为 null）、acceptedPostId 和 capabilities；待审投票摘要仅作者与投票管理员可见。能力值是当前快照，限流、余额、请求参数及并发变化仍由写接口最终校验；不能据此替代服务端授权。",
         "operationId": "get_api_v1_threads_tid",
         "parameters": [
           {
@@ -13328,7 +13947,7 @@
     },
     "/api/v1/threads/{tid}/posts": {
       "get": {
-        "description": "分页读取当前用户可见楼层",
+        "description": "分页读取当前用户可见楼层 canAccept/canUnaccept 结合当前悬赏结算状态；已经支付的悬赏不提供撤销入口，到期未退款的活动悬赏暂不可支付。",
         "operationId": "get_api_v1_threads_tid_posts",
         "parameters": [
           {
@@ -14209,5 +14828,5 @@
       "url": "/"
     }
   ],
-  "x-route-count": 194
+  "x-route-count": 198
 }
