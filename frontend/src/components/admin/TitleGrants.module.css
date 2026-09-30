@@ -1,0 +1,90 @@
+.card {
+  padding: 16px 18px;
+}
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+.hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--color-text-tertiary);
+}
+.searchRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.reasonField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+.tableWrap {
+  overflow-x: auto;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.table th,
+.table td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+}
+.table th {
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: var(--color-fill);
+  white-space: nowrap;
+}
+.badge {
+  display: inline-block;
+  padding: 1px 8px;
+  margin-right: 8px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+}
+.equipped {
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--color-primary);
+}
+.progress {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--color-text-secondary);
+}
+.actions {
+  white-space: nowrap;
+}
+.confirmLine {
+  margin: 0 0 6px;
+  font-size: 13px;
+}
+.error {
+  margin: 0 0 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-btn);
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  font-size: 13px;
+  line-height: 1.7;
+}

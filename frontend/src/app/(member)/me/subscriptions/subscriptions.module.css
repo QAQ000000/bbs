@@ -1,0 +1,45 @@
+.items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+.item:last-child {
+  border-bottom: none;
+}
+.body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.name {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+.name:hover {
+  color: var(--color-primary);
+}
+.badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+.on {
+  color: var(--color-primary);
+}
+.off {
+  color: var(--color-text-tertiary);
+}
+.meta {
+  color: var(--color-text-tertiary);
+}

@@ -1,0 +1,139 @@
+.shell {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  min-height: 100vh;
+  background: var(--color-bg);
+}
+.sidebar {
+  background: #1d2129;
+  color: rgba(255, 255, 255, 0.75);
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 60px;
+  padding: 0 18px;
+  color: #fff;
+  font-weight: 700;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.brand:hover {
+  color: #fff;
+}
+.logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 14px;
+}
+.nav {
+  padding: 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.item,
+.active {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: var(--radius-btn);
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.75);
+}
+.item :global(svg),
+.active :global(svg) {
+  font-size: 16px;
+}
+.item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+.active {
+  background: var(--color-primary);
+  color: #fff;
+}
+.disabled {
+  cursor: not-allowed;
+  color: rgba(255, 255, 255, 0.34);
+}
+.disabled:hover {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.34);
+}
+.soon {
+  margin-left: auto;
+  font-size: 11px;
+  opacity: 0.8;
+}
+.body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.topbar {
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 24px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+.crumb {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+.topRight {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 13px;
+}
+.frontLink {
+  color: var(--color-primary);
+}
+.user {
+  color: var(--color-text-secondary);
+}
+.content {
+  padding: 20px 24px 40px;
+}
+@media (max-width: 900px) {
+  .shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sidebar {
+    display: none;
+  }
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    height: 48px;
+    padding: 0 16px;
+  }
+  .crumb {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .topRight { gap: 8px; }
+  .user { display: none; }
+  .content { padding: 16px 16px 32px; }
+}

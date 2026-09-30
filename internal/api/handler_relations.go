@@ -53,7 +53,7 @@ func (s *Server) threadSubscribe(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	if !s.checkNotBanned(w, r) {
+	if !s.checkNotBanned(w, r) || !s.checkMustChangePassword(w, r) {
 		return
 	}
 	switch kind {
@@ -149,7 +149,28 @@ func (s *Server) followsGet(w http.ResponseWriter, r *http.Request) {
 	}
 	page := pageOf(r)
 	rows, total, err := s.st.FollowUsers(r.Context(), uid, followers, page)
-	if !s.readError(w, r, err) {
-		s.list(w, rows, page, 30, total)
+	if s.readError(w, r, err) {
+		return
 	}
+	// 每行的关注状态由后端显式返回，避免前端只查第一页导致误判。
+	following := map[int64]bool{}
+	ids := make([]int64, 0, len(rows))
+	for _, v := range rows {
+		ids = append(ids, v.ID)
+	}
+	if viewer := User(r); viewer != nil {
+		if m, e := s.st.FollowingIDs(r.Context(), viewer.ID, ids); e == nil {
+			following = m
+		}
+	}
+	out := make([]map[string]any, 0, len(rows))
+	for _, v := range rows {
+		out = append(out, map[string]any{
+			"id":         idString(v.ID),
+			"username":   v.Username,
+			"followedAt": v.CreatedAt,
+			"following":  following[v.ID],
+		})
+	}
+	s.list(w, out, page, 30, total)
 }

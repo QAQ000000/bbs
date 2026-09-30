@@ -99,11 +99,16 @@ func (s *Store) RecomputeThreadLastPost(ctx context.Context, threadID int64) err
 }
 
 func recomputeThreadLastPost(ctx context.Context, db statsDB, threadID int64) error {
+	// last_post_at 是 NOT NULL：当主题已无公开楼层（全部删除或待审）时，
+	// 回退到主题自身的创建时间与作者，避免写入 NULL 触发约束错误。
 	_, err := db.Exec(ctx, `
 		UPDATE threads t SET
-			(last_post_at,last_post_uid) = (SELECT p.created_at,p.author_id FROM posts p
+			last_post_at = coalesce((SELECT p.created_at FROM posts p
 				WHERE p.thread_id = t.id AND NOT p.deleted AND NOT p.pending
-				ORDER BY p.created_at DESC,p.id DESC LIMIT 1)
+				ORDER BY p.created_at DESC,p.id DESC LIMIT 1), t.created_at),
+			last_post_uid = coalesce((SELECT p.author_id FROM posts p
+				WHERE p.thread_id = t.id AND NOT p.deleted AND NOT p.pending
+				ORDER BY p.created_at DESC,p.id DESC LIMIT 1), t.author_id)
 		WHERE t.id = $1`, threadID)
 	return err
 }

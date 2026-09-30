@@ -27,7 +27,7 @@ func (s *Server) messageSend(w http.ResponseWriter, r *http.Request) {
 	}
 	msg, e := s.st.SendDirectMessage(r.Context(), u.ID, to, body)
 	if errors.Is(e, store.ErrMessageBlocked) {
-		s.fail(w, r, 403, "MESSAGE_BLOCKED", "对方已屏蔽你")
+		s.fail(w, r, 403, "MESSAGE_BLOCKED", "当前会话已屏蔽，无法发送消息")
 		return
 	}
 	if errors.Is(e, store.ErrMessageReplyRequired) {

@@ -175,3 +175,29 @@ FORUM_MIGRATION_TEST_DSN="$FORUM_MIGRATION_TEST_DSN" go test ./internal/db -run 
 隔离 PostgreSQL 定向运行 6 个顶层 API 测试（含 13 个核心响应子项，开启 race），无失败或跳过，API 包耗时 7.885 秒；契约生成器测试、go build ./... 与差异检查通过。证据 /tmp/gobbs-backend-results.gbYCAJ/content-contract.log，临时集群已关闭并清理。首轮发现举报截断的契约断言遗漏追加省略号，按现有行为修正后通过。
 
 覆盖公开/登录态读取、点赞切换、收藏列表、历史权限、删除首楼/回复、非空审核队列、版主管辖、CSRF、审核说明上限、首楼接口限制、重复举报结案以及初始改密守卫。此处没有浏览器页面验收、完整门禁、长压测或业务数据库操作。
+
+
+## 2026-09-28：社区关系、订阅与私信接入契约
+
+基于 6e29fad，补齐 31 个既有操作的字段级 OpenAPI：标签浏览/后台管理/主题绑定 8 个、关注/粉丝 5 个、三类订阅与列表 10 个、私信/已读/屏蔽 6 个、全局通知偏好 2 个。总操作仍为 198，人工覆盖 110 个（94 fields、12 request、4 transport），88 个仍为路由级；未增加路由或数据库迁移。
+
+新增 [社区接入说明](FRONTEND_COMMUNITY_INTEGRATION.md)，固定资源 ID、分页与消息游标、标签与首楼版本区别、重试语义、订阅默认值、私信首条限制及屏蔽字段含义。核对时补齐三类订阅 POST/PUT 的初始改密检查，DELETE 仍可管理自己的已有订阅；私信拒收提示改为会话已屏蔽，避免把自己的屏蔽误报为对方设置。
+
+隔离 PostgreSQL 私有 socket 集群中，7 个顶层 API 测试开启 race 全部通过，无失败或跳过，API 包耗时 11.303 秒：
+
+- 3 个新增契约流程覆盖全部 31 个操作的成功响应，并验证标签规范化/旧别名/版本冲突/禁用保留、主题标签的首楼版本、关注列表和幂等取消、三类订阅默认值/偏好保留/静音清除/密码守卫、通知偏好的旧客户端兼容。
+- 私信覆盖无需互关即可首发、等待回复/回复解锁、取消屏蔽不重置首条限制、管理员不能读取他人会话、倒序游标/单调已读、任一方屏蔽拒收、屏蔽清除双方关注及解除不恢复。
+- 复用 3 个现有社区回归，覆盖 CSRF、订阅投递、投递时权限撤销和隐藏后取消；另运行实际 ServeMux 路由注册校验。
+- 契约生成器测试、生成一致性检查、go build ./...、go vet ./...、gofmt 与 git diff --check 均通过。
+
+复跑前提供隔离的 gobbs_test_* 数据库：
+
+```bash
+FORUM_REQUIRE_TEST_DB=1 FORUM_TEST_DSN="$FORUM_API_TEST_DSN" go test -race ./internal/api -run '^(TestOpenAPI(Community.*|RegisteredOperations)|TestMessagingAPIPrivacyReadAndBlock|TestTagsAndSubscriptionAPI|TestSubscriptionPermissionsAtDelivery)$' -count=1 -timeout=90s
+go test ./scripts/api-contract -count=1
+go run ./scripts/api-contract -check
+go build ./...
+go vet ./...
+```
+
+本地证据：/tmp/gobbs-backend-results.u5w0G7/community-contract.log。一次性集群已关闭并清理，未操作业务数据库。本轮未重跑完整门禁、持续压测、迁移升级矩阵或 SMTP/浏览器验收，也未提交、推送、部署或创建完整前端工程。

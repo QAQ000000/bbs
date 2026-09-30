@@ -20,7 +20,10 @@ func (s *Store) RefreshPointsLeaderboard(ctx context.Context, periodStart time.T
 	if limit <= 0 || limit > 1000 {
 		limit = 100
 	}
-	rows, err := s.pool.Query(ctx, `SELECT u.id,u.username,coalesce(a.balance,0) FROM users u JOIN points_accounts a ON a.user_id=u.id ORDER BY a.balance DESC,u.id LIMIT $1`, limit)
+	// 生成时就排除当前被禁止登录（封禁）的账号；读取时会再校验一次。
+	rows, err := s.pool.Query(ctx, `SELECT u.id,u.username,coalesce(a.balance,0) FROM users u JOIN points_accounts a ON a.user_id=u.id
+	 WHERE u.blocked_until IS NULL OR u.blocked_until<=now()
+	 ORDER BY a.balance DESC,u.id LIMIT $1`, limit)
 	if err != nil {
 		return err
 	}
@@ -93,6 +96,28 @@ func (s *Store) PruneAnalyticsSnapshots(ctx context.Context) (int64, error) {
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+// PublicUserIDs 返回给定用户中当前仍可公开展示的集合。读取旧快照时也会调用，
+// 这样封禁生效不需要等待下一次快照刷新。禁言（banned）用户的资料仍属公开，保留。
+func (s *Store) PublicUserIDs(ctx context.Context, ids []int64) (map[int64]bool, error) {
+	out := map[int64]bool{}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	rows, err := s.pool.Query(ctx, `SELECT id FROM users WHERE id=ANY($1) AND (blocked_until IS NULL OR blocked_until<=now())`, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out[id] = true
+	}
+	return out, rows.Err()
 }
 
 func (s *Store) LatestAnalyticsSnapshot(ctx context.Context, name string) (AnalyticsSnapshot, error) {

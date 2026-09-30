@@ -1,6 +1,6 @@
 # 排行榜与报表快照
 
-当前只有管理员读取的积分 Top 100（`points`）和站点统计（`site`）。快照存于 PostgreSQL，读取接口不执行实时聚合。没有增加 Redis、数据库迁移、公开排行榜或后台页面。
+积分 Top 100（`points`）和站点统计（`site`）存于 PostgreSQL，读取接口不执行实时聚合。当前公开读接口只有积分余额榜 `GET /api/v1/leaderboard/points`，读同一份 `points` 快照；没有增加 Redis、数据库迁移或后台页面。
 
 ## 刷新与恢复
 
@@ -25,6 +25,20 @@
 | `staleAfterSeconds` | 过期阈值，当前 3900，包含 5 分钟宽限 |
 
 前端可以在 `stale=true` 时提示“数据更新延迟”，继续显示最后一次成功数据。接口不会因读取或过期而同步重算，避免数据库故障期间产生额外聚合压力。
+
+### 公开积分余额榜
+
+`GET /api/v1/leaderboard/points` 无需登录，只读最新 `points` 快照，不在每个请求中重算排名。返回 `data`：
+
+| 字段 | 含义 |
+| --- | --- |
+| `status` | `ready` / `stale` / `unavailable`；`unavailable` 表示快照尚未生成 |
+| `generatedAt` | 快照生成时间；未生成时为 null |
+| `stale` / `ageSeconds` | 与管理员读取一致的过期判定 |
+| `entries` | `rank`、字符串 `userId`、`username`、`avatarUrl`、`points`；不返回邮箱或其它资料 |
+| `refreshIntervalSeconds` / `staleAfterSeconds` | 正常刷新间隔与过期阈值 |
+
+生成时排除当前被禁止登录（封禁）的账号；读取时会用同一规则再次过滤，因此**旧快照也不会继续展示已封禁用户**，名次在返回前紧凑重排。禁言（banned）用户的公开资料仍会展示。该榜只代表**当前积分余额**，不是累计获得积分、活跃度或周期新增。
 
 `generatedAt` 是数据库成功保存时间，不是全部源数据的同步水位；`periodStart` 是 UTC 存储分组，不代表该小时/当天的历史增量统计。站点报表的“今天/昨天”按后台 `reportTimeZone` 划分；当前总量仍采用原有公开内容口径。
 

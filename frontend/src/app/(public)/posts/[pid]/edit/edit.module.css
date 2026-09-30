@@ -1,0 +1,25 @@
+.title {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 700;
+}
+.subtitle {
+  margin: 0 0 20px;
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+}
+.forbidden {
+  padding: 40px;
+  text-align: center;
+}
+.forbidden h1 {
+  margin: 0 0 8px;
+  font-size: 20px;
+}
+.forbidden p {
+  margin: 0 0 16px;
+  color: var(--color-text-tertiary);
+}
+.forbidden a {
+  color: var(--color-primary);
+}

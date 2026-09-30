@@ -121,6 +121,51 @@ func (s *Store) SaveSubscription(ctx context.Context, uid int64, v Subscription,
  ON CONFLICT(uid,`+column+`) DO UPDATE SET `+conflict+` RETURNING enabled,notify_in_app,notify_email,muted_until,created_at`, uid, v.TargetID, v.Enabled, v.NotifyInApp, v.NotifyEmail, v.MutedUntil).Scan(&v.Enabled, &v.NotifyInApp, &v.NotifyEmail, &v.MutedUntil, &v.CreatedAt)
 	return v, err
 }
+// IsFollowing 当前用户是否关注目标用户。
+func (s *Store) IsFollowing(ctx context.Context, follower, target int64) (bool, error) {
+	if follower <= 0 || target <= 0 {
+		return false, nil
+	}
+	var exists bool
+	err := s.pool.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM user_follows WHERE follower_id=$1 AND following_id=$2)", follower, target).Scan(&exists)
+	return exists, err
+}
+
+// FollowingIDs 批量返回 uid 已关注的用户集合，用于列表行状态标注。
+func (s *Store) FollowingIDs(ctx context.Context, uid int64, ids []int64) (map[int64]bool, error) {
+	out := map[int64]bool{}
+	if uid <= 0 || len(ids) == 0 {
+		return out, nil
+	}
+	rows, err := s.pool.Query(ctx, "SELECT following_id FROM user_follows WHERE follower_id=$1 AND following_id=ANY($2)", uid, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out[id] = true
+	}
+	return out, rows.Err()
+}
+
+// IsSubscribed 单资源订阅状态；前端据此区分“未订阅”和“状态未知”。
+func (s *Store) IsSubscribed(ctx context.Context, uid, target int64, kind string) (bool, error) {
+	table, column, err := subscriptionTable(kind)
+	if err != nil {
+		return false, err
+	}
+	if uid <= 0 || target <= 0 {
+		return false, nil
+	}
+	var exists bool
+	err = s.pool.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM "+table+" WHERE uid=$1 AND "+column+"=$2)", uid, target).Scan(&exists)
+	return exists, err
+}
+
 func (s *Store) DeleteSubscription(ctx context.Context, uid, target int64, kind string) error {
 	table, column, err := subscriptionTable(kind)
 	if err != nil {

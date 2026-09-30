@@ -1,0 +1,23 @@
+.error {
+  margin: 12px 0 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-btn);
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  font-size: 13px;
+}
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+}
+.done {
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+}
+.refresh {
+  font-size: 13px;
+  color: var(--color-primary);
+}

@@ -1,0 +1,131 @@
+.card {
+  padding: 16px 18px;
+}
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+.hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--color-text-tertiary);
+}
+.diag {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  border-radius: var(--radius-btn);
+  background: var(--color-fill);
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+.diag strong {
+  color: var(--color-text);
+}
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+.filterLabel {
+  color: var(--color-text-tertiary);
+}
+.filter {
+  color: var(--color-text-secondary);
+}
+.filterActive {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+.tableWrap {
+  overflow-x: auto;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.table th,
+.table td {
+  padding: 9px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+}
+.table th {
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: var(--color-fill);
+  white-space: nowrap;
+}
+.time {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+.bad {
+  color: var(--color-danger);
+}
+.actions {
+  white-space: nowrap;
+}
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+.detail {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 16px;
+}
+.detail dt {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+.detail dd {
+  margin: 2px 0 0;
+  font-size: 13px;
+}
+.footer {
+  margin-top: 14px;
+}
+.error {
+  margin: 0 0 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-btn);
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  font-size: 13px;
+  line-height: 1.7;
+}
+.notice {
+  margin: 0 0 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-btn);
+  background: var(--color-success-bg);
+  color: var(--color-success);
+  font-size: 13px;
+}

@@ -1,0 +1,29 @@
+.list {
+  display: flex;
+  flex-direction: column;
+}
+.stickySection {
+  margin-bottom: 12px;
+}
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-danger);
+}
+.sectionTitle :global(svg) {
+  color: var(--color-danger);
+}
+.action {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 16px;
+  border-radius: var(--radius-btn);
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 13px;
+}

@@ -82,7 +82,14 @@ func (s *Server) forumsGet(w http.ResponseWriter, r *http.Request) {
 func (s *Server) forumGet(w http.ResponseWriter, r *http.Request) {
 	v, err := s.st.Forum(r.Context(), pathID(r, "fid"))
 	if !s.readError(w, r, err) {
-		s.respond(w, 200, s.memberForumResponse(r, v))
+		m := s.memberForumResponse(r, v)
+		// 单资源订阅状态随详情返回，前端不必再翻订阅列表第一页。
+		if u := User(r); u != nil {
+			if sub, e := s.st.IsSubscribed(r.Context(), u.ID, v.ID, "forum"); e == nil {
+				m["subscribed"] = sub
+			}
+		}
+		s.respond(w, 200, m)
 	}
 }
 func (s *Server) threadsGet(w http.ResponseWriter, r *http.Request) {
@@ -151,8 +158,16 @@ func (s *Server) threadGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	m := rows[0]
+	// 真实内容更新时间（含楼层编辑），供 sitemap 与 Markdown 出口使用；
+	// 单行查询，只挂在详情接口，不进入列表 DTO。
+	if updated, e := s.st.ThreadUpdatedAt(r.Context(), th.ID); e == nil {
+		m["updatedAt"] = updated
+	}
 	if User(r) != nil {
 		m["favorite"] = s.st.IsFavorite(r.Context(), User(r).ID, th.ID)
+		if sub, e := s.st.IsSubscribed(r.Context(), User(r).ID, th.ID, "thread"); e == nil {
+			m["subscribed"] = sub
+		}
 	}
 	s.respond(w, 200, m)
 }
@@ -316,7 +331,14 @@ func (s *Server) userGet(w http.ResponseWriter, r *http.Request) {
 	if s.readError(w, r, err) {
 		return
 	}
-	s.list(w, map[string]any{"user": user, "threads": threadRows, "reputation": map[string]int64{"posts": posts, "likes": likes}}, page, 10, total)
+	data := map[string]any{"user": user, "threads": threadRows, "reputation": map[string]int64{"posts": posts, "likes": likes}}
+	// 当前登录用户与该用户的关注关系随详情返回，避免分页列表近似判断。
+	if viewer := User(r); viewer != nil {
+		if following, e := s.st.IsFollowing(r.Context(), viewer.ID, u.ID); e == nil {
+			data["following"] = following
+		}
+	}
+	s.list(w, data, page, 10, total)
 }
 func (s *Server) favoritesGet(w http.ResponseWriter, r *http.Request) {
 	if !s.requireLogin(w, r) {
@@ -423,6 +445,58 @@ func (s *Server) notificationsRead(w http.ResponseWriter, r *http.Request) {
 func (s *Server) smileysGet(w http.ResponseWriter, r *http.Request) {
 	s.respond(w, 200, smiley.Groups())
 }
+
+// indexThreads 公开只读索引：供 Next.js 生成 sitemap / RSS。
+// 只读、有界分页（最多 100/页）。**固定游客口径**：无论调用者是否登录、
+// 是否为管理员，都按匿名可见范围过滤，不依赖调用方是否转发 Cookie。
+func (s *Server) indexThreads(w http.ResponseWriter, r *http.Request) {
+	page := pageOf(r)
+	size := 100
+	if raw := r.URL.Query().Get("size"); raw != "" {
+		n, err := strconv.Atoi(raw)
+		if err != nil || n < 1 || n > 100 {
+			s.fail(w, r, 422, "VALIDATION_FAILED", "size 需为 1 到 100 的整数")
+			return
+		}
+		size = n
+	}
+	sort := r.URL.Query().Get("sort")
+	if sort != "" && sort != "created" && sort != "updated" {
+		s.fail(w, r, 422, "VALIDATION_FAILED", "sort 只支持 created 或 updated")
+		return
+	}
+	access, err := s.st.MembershipAccess(r.Context(), 0)
+	if s.readError(w, r, err) {
+		return
+	}
+	visible := make([]int64, 0, len(access.Forums))
+	for _, id := range access.Forums {
+		if store.ForumReadAllowed(access.Config, nil, false, false, id) {
+			visible = append(visible, id)
+		}
+	}
+	ctx := store.WithVisibleForums(r.Context(), visible)
+	rows, total, err := s.st.PublicThreadIndex(ctx, sort, page, size)
+	if s.readError(w, r, err) {
+		return
+	}
+	threads := make([]map[string]any, 0, len(rows))
+	for _, row := range rows {
+		threads = append(threads, map[string]any{
+			"id":         idString(row.ID),
+			"forumId":    idString(row.ForumID),
+			"authorId":   idString(row.AuthorID),
+			"authorName": row.AuthorName,
+			"title":      row.Title,
+			"createdAt":  row.CreatedAt,
+			"lastPostAt": row.LastPostAt,
+			"updatedAt":  row.UpdatedAt,
+			"pending":    false,
+		})
+	}
+	s.list(w, map[string]any{"threads": threads}, page, size, total)
+}
+
 func (s *Server) setupGet(w http.ResponseWriter, r *http.Request) {
 	s.respond(w, 200, map[string]bool{"required": s.setupRequired()})
 }

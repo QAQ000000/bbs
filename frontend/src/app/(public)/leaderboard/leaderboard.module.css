@@ -1,0 +1,142 @@
+.title {
+  margin: 12px 0 8px;
+  font-size: 24px;
+  font-weight: 700;
+}
+.subtitle {
+  margin: 0 0 20px;
+  max-width: 760px;
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--color-text-secondary);
+}
+.metaCard {
+  padding: 16px 18px;
+  margin-bottom: 16px;
+}
+.metaRow {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 4px 0;
+  font-size: 13px;
+}
+.metaLabel {
+  width: 84px;
+  color: var(--color-text-tertiary);
+}
+.metaValue {
+  color: var(--color-text-secondary);
+}
+.ok {
+  color: var(--color-success);
+}
+.warn {
+  color: var(--color-warning);
+}
+.staleNote {
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-btn);
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+  font-size: 13px;
+  line-height: 1.7;
+}
+.board {
+  padding: 8px 0;
+}
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--color-border);
+}
+.item:last-child {
+  border-bottom: none;
+}
+.top {
+  background: var(--color-fill);
+}
+.rank {
+  width: 28px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.top .rank {
+  color: var(--color-primary);
+}
+.name {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.points {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-warning);
+  font-variant-numeric: tabular-nums;
+}
+.unit {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+.footNote {
+  margin: 8px 18px 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--color-text-tertiary);
+}
+.statsCard {
+  padding: 16px 18px;
+  margin-top: 16px;
+}
+.cardTitle {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.stats {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.stats dt {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+.stats dd {
+  margin: 4px 0 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+.back {
+  margin: 20px 0 0;
+  font-size: 13px;
+}
+.action {
+  color: var(--color-primary);
+}
+@media (max-width: 640px) {
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .metaLabel {
+    width: 72px;
+  }
+}

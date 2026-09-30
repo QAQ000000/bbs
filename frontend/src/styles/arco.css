@@ -1,0 +1,26 @@
+/* Arco 组件在论坛前后台的少量统一修正。 */
+.arco-btn {
+  font-family: var(--font-sans);
+}
+.arco-btn-primary {
+  box-shadow: none;
+}
+.arco-input-wrapper,
+.arco-select-view,
+.arco-textarea-wrapper {
+  font-family: var(--font-sans);
+}
+.arco-tabs-header-title {
+  font-weight: 500;
+}
+.arco-message {
+  font-family: var(--font-sans);
+}
+/* 深色后台侧栏内 Arco 菜单的文字对比。 */
+.arco-menu-dark .arco-menu-item,
+.arco-menu-dark .arco-menu-inline-header {
+  color: rgba(255, 255, 255, 0.72);
+}
+.arco-menu-dark .arco-menu-selected {
+  color: #fff;
+}

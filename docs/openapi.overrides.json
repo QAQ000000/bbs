@@ -219,9 +219,6 @@
               }
             }
           },
-          "default": {
-            "$ref": "#/components/responses/APIError"
-          },
           "401": {
             "description": "凭据错误或需要 MFA；MFA_REQUIRED 位于 data.code，尚未签发会话。",
             "content": {
@@ -238,6 +235,9 @@
                 }
               }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
           }
         },
         "requestBody": {
@@ -1111,7 +1111,10 @@
                           "pattern": "^[1-9][0-9]*$"
                         }
                       ]
-                    }
+                    },
+                    "maxItems": 8,
+                    "uniqueItems": true,
+                    "description": "最多 8 个不同 active 标签的正整数 ID。"
                   }
                 },
                 "required": [
@@ -1161,7 +1164,10 @@
                           "pattern": "^[1-9][0-9]*$"
                         }
                       ]
-                    }
+                    },
+                    "maxItems": 8,
+                    "uniqueItems": true,
+                    "description": "最多 8 个不同 active 标签的正整数 ID。"
                   }
                 },
                 "required": [
@@ -1607,9 +1613,6 @@
               }
             }
           },
-          "default": {
-            "$ref": "#/components/responses/APIError"
-          },
           "400": {
             "description": "BAD_REQUEST：JSON 语法、请求对象或字段类型不符合动作解析规则。",
             "content": {
@@ -1709,6 +1712,9 @@
                 }
               }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
           }
         },
         "security": [
@@ -2649,26 +2655,6 @@
               }
             }
           },
-          "503": {
-            "description": "配置不可读或写入失败时 SETTINGS_UNAVAILABLE；公共状态守卫也可能拒绝请求。",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "其他错误；根据 error.code 判断，message 仅用于展示。",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
           "409": {
             "description": "SETTINGS_CONFLICT：版本已变化；重新 GET 后合并。",
             "content": {
@@ -2701,6 +2687,26 @@
           },
           "428": {
             "description": "SETTINGS_VERSION_REQUIRED：没有提供 version。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "配置不可读或写入失败时 SETTINGS_UNAVAILABLE；公共状态守卫也可能拒绝请求。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "其他错误；根据 error.code 判断，message 仅用于展示。",
             "content": {
               "application/json": {
                 "schema": {
@@ -2756,26 +2762,6 @@
               }
             }
           },
-          "503": {
-            "description": "配置不可读或写入失败时 SETTINGS_UNAVAILABLE；公共状态守卫也可能拒绝请求。",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "其他错误；根据 error.code 判断，message 仅用于展示。",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
           "409": {
             "description": "SETTINGS_CONFLICT：版本已变化；重新 GET 后合并。",
             "content": {
@@ -2808,6 +2794,26 @@
           },
           "428": {
             "description": "SETTINGS_VERSION_REQUIRED：没有提供 version。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "配置不可读或写入失败时 SETTINGS_UNAVAILABLE；公共状态守卫也可能拒绝请求。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "其他错误；根据 error.code 判断，message 仅用于展示。",
             "content": {
               "application/json": {
                 "schema": {
@@ -2843,6 +2849,16 @@
               }
             }
           },
+          "400": {
+            "description": "BAD_REQUEST：JSON 或表单不能解析、无效根对象或字段结构。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "401": {
             "description": "UNAUTHENTICATED：缺少有效会话。",
             "content": {
@@ -2863,28 +2879,18 @@
               }
             }
           },
-          "503": {
-            "description": "配置不可读或写入失败时 SETTINGS_UNAVAILABLE；公共状态守卫也可能拒绝请求。",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "其他错误；根据 error.code 判断，message 仅用于展示。",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
           "409": {
             "description": "SETTINGS_CONFLICT：版本已变化；重新 GET 后合并。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "PAYLOAD_TOO_LARGE：兼容 JSON 请求超过 1 MiB。",
             "content": {
               "application/json": {
                 "schema": {
@@ -2923,8 +2929,8 @@
               }
             }
           },
-          "400": {
-            "description": "BAD_REQUEST：JSON 或表单不能解析、无效根对象或字段结构。",
+          "503": {
+            "description": "配置不可读或写入失败时 SETTINGS_UNAVAILABLE；公共状态守卫也可能拒绝请求。",
             "content": {
               "application/json": {
                 "schema": {
@@ -2933,8 +2939,8 @@
               }
             }
           },
-          "413": {
-            "description": "PAYLOAD_TOO_LARGE：兼容 JSON 请求超过 1 MiB。",
+          "default": {
+            "description": "其他错误；根据 error.code 判断，message 仅用于展示。",
             "content": {
               "application/json": {
                 "schema": {
@@ -3110,9 +3116,6 @@
               }
             }
           },
-          "default": {
-            "$ref": "#/components/responses/APIError"
-          },
           "403": {
             "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：权限不足、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
             "content": {
@@ -3142,6 +3145,9 @@
                 }
               }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
           }
         }
       },
@@ -3174,9 +3180,6 @@
                 }
               }
             }
-          },
-          "default": {
-            "$ref": "#/components/responses/APIError"
           },
           "401": {
             "description": "UNAUTHENTICATED：缺少有效会话。",
@@ -3257,6 +3260,9 @@
                 }
               }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
           }
         },
         "requestBody": {
@@ -3302,9 +3308,6 @@
               }
             }
           },
-          "default": {
-            "$ref": "#/components/responses/APIError"
-          },
           "401": {
             "description": "UNAUTHENTICATED：缺少有效会话。",
             "content": {
@@ -3384,6 +3387,9 @@
                 }
               }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
           }
         },
         "requestBody": {
@@ -3429,9 +3435,6 @@
               }
             }
           },
-          "default": {
-            "$ref": "#/components/responses/APIError"
-          },
           "401": {
             "description": "UNAUTHENTICATED：缺少有效会话。",
             "content": {
@@ -3511,6 +3514,9 @@
                 }
               }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
           }
         },
         "requestBody": {
@@ -3556,9 +3562,6 @@
               }
             }
           },
-          "default": {
-            "$ref": "#/components/responses/APIError"
-          },
           "401": {
             "description": "UNAUTHENTICATED：缺少有效会话。",
             "content": {
@@ -3598,6 +3601,9 @@
                 }
               }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
           }
         },
         "parameters": [
@@ -3645,9 +3651,6 @@
               }
             }
           },
-          "default": {
-            "$ref": "#/components/responses/APIError"
-          },
           "401": {
             "description": "UNAUTHENTICATED：缺少有效会话。",
             "content": {
@@ -3727,6 +3730,9 @@
                 }
               }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
           }
         },
         "requestBody": {
@@ -3772,9 +3778,6 @@
               }
             }
           },
-          "default": {
-            "$ref": "#/components/responses/APIError"
-          },
           "403": {
             "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：权限不足、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
             "content": {
@@ -3804,6 +3807,9 @@
                 }
               }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
           }
         }
       },
@@ -3836,9 +3842,6 @@
                 }
               }
             }
-          },
-          "default": {
-            "$ref": "#/components/responses/APIError"
           },
           "401": {
             "description": "UNAUTHENTICATED：缺少有效会话。",
@@ -3919,6 +3922,9 @@
                 }
               }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
           }
         },
         "requestBody": {
@@ -3964,9 +3970,6 @@
               }
             }
           },
-          "default": {
-            "$ref": "#/components/responses/APIError"
-          },
           "401": {
             "description": "UNAUTHENTICATED：缺少有效会话。",
             "content": {
@@ -4046,6 +4049,9 @@
                 }
               }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
           }
         },
         "requestBody": {
@@ -4091,9 +4097,6 @@
               }
             }
           },
-          "default": {
-            "$ref": "#/components/responses/APIError"
-          },
           "401": {
             "description": "UNAUTHENTICATED：缺少有效会话。",
             "content": {
@@ -4133,6 +4136,9 @@
                 }
               }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
           }
         },
         "parameters": [
@@ -4203,9 +4209,6 @@
               }
             }
           },
-          "default": {
-            "$ref": "#/components/responses/APIError"
-          },
           "401": {
             "description": "UNAUTHENTICATED：缺少有效会话。",
             "content": {
@@ -4285,6 +4288,9 @@
                 }
               }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
           }
         },
         "requestBody": {
@@ -4330,9 +4336,6 @@
               }
             }
           },
-          "default": {
-            "$ref": "#/components/responses/APIError"
-          },
           "401": {
             "description": "UNAUTHENTICATED：缺少有效会话。",
             "content": {
@@ -4362,6 +4365,9 @@
                 }
               }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
           }
         }
       },
@@ -4394,9 +4400,6 @@
                 }
               }
             }
-          },
-          "default": {
-            "$ref": "#/components/responses/APIError"
           },
           "401": {
             "description": "UNAUTHENTICATED：缺少有效会话。",
@@ -4457,6 +4460,9 @@
                 }
               }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
           }
         },
         "requestBody": {
@@ -4502,9 +4508,6 @@
               }
             }
           },
-          "default": {
-            "$ref": "#/components/responses/APIError"
-          },
           "401": {
             "description": "UNAUTHENTICATED：缺少有效会话。",
             "content": {
@@ -4534,6 +4537,9 @@
                 }
               }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
           }
         }
       },
@@ -4566,9 +4572,6 @@
                 }
               }
             }
-          },
-          "default": {
-            "$ref": "#/components/responses/APIError"
           },
           "401": {
             "description": "UNAUTHENTICATED：缺少有效会话。",
@@ -4639,6 +4642,9 @@
                 }
               }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
           }
         },
         "requestBody": {
@@ -4684,9 +4690,6 @@
               }
             }
           },
-          "default": {
-            "$ref": "#/components/responses/APIError"
-          },
           "401": {
             "description": "UNAUTHENTICATED：缺少有效会话。",
             "content": {
@@ -4726,6 +4729,9 @@
                 }
               }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
           }
         },
         "parameters": [
@@ -4784,9 +4790,6 @@
               }
             }
           },
-          "default": {
-            "$ref": "#/components/responses/APIError"
-          },
           "401": {
             "description": "UNAUTHENTICATED：缺少有效会话。",
             "content": {
@@ -4857,6 +4860,16 @@
               }
             }
           },
+          "500": {
+            "description": "INTERNAL_ERROR：采纳事务失败，事务未提交时积分和采纳均回滚。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "503": {
             "description": "REQUEST_TIMEOUT 或站点状态守卫拒绝；超时后先读取确认实际状态。",
             "content": {
@@ -4867,15 +4880,8 @@
               }
             }
           },
-          "500": {
-            "description": "INTERNAL_ERROR：采纳事务失败，事务未提交时积分和采纳均回滚。",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
+          "default": {
+            "$ref": "#/components/responses/APIError"
           }
         },
         "requestBody": {
@@ -4930,9 +4936,6 @@
               }
             }
           },
-          "default": {
-            "$ref": "#/components/responses/APIError"
-          },
           "401": {
             "description": "UNAUTHENTICATED：缺少有效会话。",
             "content": {
@@ -5003,6 +5006,16 @@
               }
             }
           },
+          "500": {
+            "description": "INTERNAL_ERROR：采纳事务失败，事务未提交时积分和采纳均回滚。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "503": {
             "description": "REQUEST_TIMEOUT 或站点状态守卫拒绝；超时后先读取确认实际状态。",
             "content": {
@@ -5013,15 +5026,8 @@
               }
             }
           },
-          "500": {
-            "description": "INTERNAL_ERROR：采纳事务失败，事务未提交时积分和采纳均回滚。",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
+          "default": {
+            "$ref": "#/components/responses/APIError"
           }
         },
         "requestBody": {
@@ -5218,9 +5224,6 @@
               }
             }
           },
-          "default": {
-            "$ref": "#/components/responses/APIError"
-          },
           "409": {
             "description": "SETUP_REQUIRED：站点尚未初始化。",
             "content": {
@@ -5250,6 +5253,9 @@
                 }
               }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
           }
         }
       }
@@ -5278,9 +5284,6 @@
               }
             }
           },
-          "default": {
-            "$ref": "#/components/responses/APIError"
-          },
           "409": {
             "description": "SETUP_REQUIRED：站点尚未初始化。",
             "content": {
@@ -5310,6 +5313,9 @@
                 }
               }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
           }
         }
       }
@@ -5341,9 +5347,6 @@
               }
             }
           },
-          "default": {
-            "$ref": "#/components/responses/APIError"
-          },
           "409": {
             "description": "SETUP_REQUIRED：站点尚未初始化。",
             "content": {
@@ -5373,6 +5376,9 @@
                 }
               }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
           }
         }
       }
@@ -5400,9 +5406,6 @@
                 }
               }
             }
-          },
-          "default": {
-            "$ref": "#/components/responses/APIError"
           },
           "404": {
             "description": "NOT_FOUND：资源不存在、已删除或当前用户不可见。",
@@ -5443,6 +5446,9 @@
                 }
               }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
           }
         }
       }
@@ -5482,9 +5488,6 @@
                 }
               }
             }
-          },
-          "default": {
-            "$ref": "#/components/responses/APIError"
           },
           "400": {
             "description": "BAD_REQUEST：JSON 语法、请求对象或字段类型不符合动作解析规则。",
@@ -5585,6 +5588,9 @@
                 }
               }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
           }
         },
         "security": [
@@ -5636,9 +5642,6 @@
               }
             }
           },
-          "default": {
-            "$ref": "#/components/responses/APIError"
-          },
           "404": {
             "description": "NOT_FOUND：资源不存在、已删除或当前用户不可见。",
             "content": {
@@ -5678,6 +5681,9 @@
                 }
               }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
           }
         }
       }
@@ -5717,9 +5723,6 @@
                 }
               }
             }
-          },
-          "default": {
-            "$ref": "#/components/responses/APIError"
           },
           "400": {
             "description": "BAD_REQUEST：JSON 语法、请求对象或字段类型不符合动作解析规则。",
@@ -5820,6 +5823,9 @@
                 }
               }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
           }
         },
         "security": [
@@ -5875,9 +5881,6 @@
               }
             }
           },
-          "default": {
-            "$ref": "#/components/responses/APIError"
-          },
           "401": {
             "description": "UNAUTHENTICATED：需要有效会话。",
             "content": {
@@ -5927,6 +5930,9 @@
                 }
               }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
           }
         },
         "security": [
@@ -5972,9 +5978,6 @@
               }
             }
           },
-          "default": {
-            "$ref": "#/components/responses/APIError"
-          },
           "404": {
             "description": "NOT_FOUND：资源不存在、已删除或当前用户不可见。",
             "content": {
@@ -6014,6 +6017,9 @@
                 }
               }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
           }
         }
       }
@@ -6044,9 +6050,6 @@
                 }
               }
             }
-          },
-          "default": {
-            "$ref": "#/components/responses/APIError"
           },
           "401": {
             "description": "UNAUTHENTICATED：需要有效会话。",
@@ -6107,6 +6110,9 @@
                 }
               }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
           }
         },
         "security": [
@@ -6139,9 +6145,6 @@
                 }
               }
             }
-          },
-          "default": {
-            "$ref": "#/components/responses/APIError"
           },
           "400": {
             "description": "BAD_REQUEST：JSON 语法、请求对象或字段类型不符合动作解析规则。",
@@ -6252,6 +6255,9 @@
                 }
               }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
           }
         },
         "security": [
@@ -6300,9 +6306,6 @@
               }
             }
           },
-          "default": {
-            "$ref": "#/components/responses/APIError"
-          },
           "401": {
             "description": "UNAUTHENTICATED：需要有效会话。",
             "content": {
@@ -6352,6 +6355,9 @@
                 }
               }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
           }
         },
         "security": [
@@ -6384,9 +6390,6 @@
                 }
               }
             }
-          },
-          "default": {
-            "$ref": "#/components/responses/APIError"
           },
           "400": {
             "description": "BAD_REQUEST：JSON 语法、请求对象或字段类型不符合动作解析规则。",
@@ -6487,6 +6490,9 @@
                 }
               }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
           }
         },
         "security": [
@@ -6535,9 +6541,6 @@
               }
             }
           },
-          "default": {
-            "$ref": "#/components/responses/APIError"
-          },
           "400": {
             "description": "BAD_REQUEST：JSON 语法、请求对象或字段类型不符合动作解析规则。",
             "content": {
@@ -6637,6 +6640,9 @@
                 }
               }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
           }
         },
         "security": [
@@ -6684,9 +6690,6 @@
                 }
               }
             }
-          },
-          "default": {
-            "$ref": "#/components/responses/APIError"
           },
           "400": {
             "description": "BAD_REQUEST：JSON 语法、请求对象或字段类型不符合动作解析规则。",
@@ -6787,6 +6790,9 @@
                 }
               }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
           }
         },
         "security": [
@@ -6807,6 +6813,4715 @@
                 "$ref": "#/components/schemas/ReportHandle"
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/tags": {
+      "get": {
+        "summary": "浏览标签目录",
+        "x-contract-level": "fields",
+        "description": "公开目录仅含 active 标签。 每页 30，按名称、ID 升序；threadCount 在此列表计算。",
+        "responses": {
+          "200": {
+            "description": "成功；data 为业务结果。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Tag"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMeta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：无权执行操作、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SETUP_REQUIRED：站点尚未初始化。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：业务读取或写入失败；错误不会返回数据库细节。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SETTINGS_UNAVAILABLE / SITE_CLOSED / REQUEST_TIMEOUT 等：配置、维护状态或请求超时；写超时先读取实际状态。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        },
+        "security": [
+          {},
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "名称或 slug 的不区分大小写子串匹配。"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "maximum": 10000
+            },
+            "description": "页码，默认 1；非数字或小于 1 时归一为 1，大于 10000 时归一为 10000。"
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/tags": {
+      "get": {
+        "summary": "读取后台标签列表",
+        "x-contract-level": "fields",
+        "description": "要求管理员、tags.configure 及完成初始改密；包括 active / disabled。 每页 30，按名称、ID 升序；threadCount 在此列表计算。",
+        "responses": {
+          "200": {
+            "description": "成功；data 为业务结果。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Tag"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMeta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：需要有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：无权执行操作、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SETUP_REQUIRED：站点尚未初始化。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：业务读取或写入失败；错误不会返回数据库细节。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SETTINGS_UNAVAILABLE / SITE_CLOSED / REQUEST_TIMEOUT 等：配置、维护状态或请求超时；写超时先读取实际状态。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "名称或 slug 的不区分大小写子串匹配。"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "maximum": 10000
+            },
+            "description": "页码，默认 1；非数字或小于 1 时归一为 1，大于 10000 时归一为 10000。"
+          }
+        ]
+      },
+      "post": {
+        "summary": "创建标签",
+        "x-contract-level": "fields",
+        "description": "要求管理员、tags.configure 及完成初始改密。名称、slug、旧别名互斥；改 slug 保留旧别名。保存响应 threadCount 不计算。创建无幂等键，超时先查询；更新 version 冲突后刷新再合并。 写入需会话 Cookie 与 X-CSRF-Token；JSON 上限 1 MiB，兼容表单，无业务字段的 JSON 动作发送 {}。",
+        "responses": {
+          "201": {
+            "description": "成功；data 为业务结果。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Tag"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BAD_REQUEST：JSON 语法、请求对象或字段类型不符合动作解析规则。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：需要有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：无权执行操作、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND：资源不存在、已删除或当前用户不可见。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CONFLICT：名称、slug、别名冲突，或标签版本过期 / 漏传；也可能 SETUP_REQUIRED。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "PAYLOAD_TOO_LARGE：JSON 请求超过 1 MiB 上限；过大的兼容表单可能返回 400 BAD_REQUEST。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_MEDIA_TYPE：使用 application/json 或 application/x-www-form-urlencoded。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_FAILED：字段、目标或操作无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：业务读取或写入失败；错误不会返回数据库细节。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SETTINGS_UNAVAILABLE / SITE_CLOSED / REQUEST_TIMEOUT 等：配置、维护状态或请求超时；写超时先读取实际状态。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TagCreateInput"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/TagCreateInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tags/{tagId}": {
+      "get": {
+        "summary": "读取标签详情或解析旧别名",
+        "x-contract-level": "fields",
+        "description": "允许读取 disabled 标签。slug 不区分大小写，旧别名返回当前规范标签，不执行 HTTP 重定向。threadCount=0 是未计算投影。",
+        "responses": {
+          "200": {
+            "description": "成功；data 为业务结果。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Tag"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：无权执行操作、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND：资源不存在、已删除或当前用户不可见。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SETUP_REQUIRED：站点尚未初始化。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：业务读取或写入失败；错误不会返回数据库细节。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SETTINGS_UNAVAILABLE / SITE_CLOSED / REQUEST_TIMEOUT 等：配置、维护状态或请求超时；写超时先读取实际状态。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        },
+        "security": [
+          {},
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tag-slugs/{slug}": {
+      "get": {
+        "summary": "读取标签详情或解析旧别名",
+        "x-contract-level": "fields",
+        "description": "允许读取 disabled 标签。slug 不区分大小写，旧别名返回当前规范标签，不执行 HTTP 重定向。threadCount=0 是未计算投影。",
+        "responses": {
+          "200": {
+            "description": "成功；data 为业务结果。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Tag"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：无权执行操作、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND：资源不存在、已删除或当前用户不可见。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SETUP_REQUIRED：站点尚未初始化。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：业务读取或写入失败；错误不会返回数据库细节。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SETTINGS_UNAVAILABLE / SITE_CLOSED / REQUEST_TIMEOUT 等：配置、维护状态或请求超时；写超时先读取实际状态。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        },
+        "security": [
+          {},
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tags/{tagId}/threads": {
+      "get": {
+        "summary": "读取标签下的可见主题",
+        "x-contract-level": "fields",
+        "description": "仅可见、公开且未删除主题，按 lastPostAt / ID 倒序；pageSize 使用站点 ThreadsPerPage。data 直接为数组，无 stickies 包装；禁用标签仍可查询。",
+        "responses": {
+          "200": {
+            "description": "成功；data 为业务结果。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Thread"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMeta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：无权执行操作、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND：资源不存在、已删除或当前用户不可见。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SETUP_REQUIRED：站点尚未初始化。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：业务读取或写入失败；错误不会返回数据库细节。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SETTINGS_UNAVAILABLE / SITE_CLOSED / REQUEST_TIMEOUT 等：配置、维护状态或请求超时；写超时先读取实际状态。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        },
+        "security": [
+          {},
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "maximum": 10000
+            },
+            "description": "页码，默认 1；非数字或小于 1 时归一为 1，大于 10000 时归一为 10000。"
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/tags/{tagId}": {
+      "put": {
+        "summary": "完整更新标签",
+        "x-contract-level": "fields",
+        "description": "要求管理员、tags.configure 及完成初始改密。名称、slug、旧别名互斥；改 slug 保留旧别名。保存响应 threadCount 不计算。创建无幂等键，超时先查询；更新 version 冲突后刷新再合并。 写入需会话 Cookie 与 X-CSRF-Token；JSON 上限 1 MiB，兼容表单，无业务字段的 JSON 动作发送 {}。",
+        "responses": {
+          "200": {
+            "description": "成功；data 为业务结果。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Tag"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BAD_REQUEST：JSON 语法、请求对象或字段类型不符合动作解析规则。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：需要有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：无权执行操作、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND：资源不存在、已删除或当前用户不可见。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CONFLICT：名称、slug、别名冲突，或标签版本过期 / 漏传；也可能 SETUP_REQUIRED。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "PAYLOAD_TOO_LARGE：JSON 请求超过 1 MiB 上限；过大的兼容表单可能返回 400 BAD_REQUEST。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_MEDIA_TYPE：使用 application/json 或 application/x-www-form-urlencoded。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_FAILED：字段、目标或操作无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：业务读取或写入失败；错误不会返回数据库细节。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SETTINGS_UNAVAILABLE / SITE_CLOSED / REQUEST_TIMEOUT 等：配置、维护状态或请求超时；写超时先读取实际状态。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TagUpdateInput"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/TagUpdateInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/threads/{tid}/tags": {
+      "put": {
+        "summary": "替换主题标签",
+        "x-contract-level": "fields",
+        "description": "要求可见主题、首楼 post.edit 权限与编辑时限，未禁言且已完成初始改密。成功递增首楼版本，无历史订阅通知补发；409 后刷新首楼版本再编辑。 写入需会话 Cookie 与 X-CSRF-Token；JSON 上限 1 MiB，兼容表单，无业务字段的 JSON 动作发送 {}。",
+        "responses": {
+          "200": {
+            "description": "成功；data 为业务结果。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "version": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "saved": {
+                          "type": "boolean",
+                          "enum": [
+                            true
+                          ]
+                        }
+                      },
+                      "required": [
+                        "version",
+                        "saved"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BAD_REQUEST：JSON 语法、请求对象或字段类型不符合动作解析规则。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：需要有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED / CSRF_INVALID：无权编辑、禁言、初始密码未改或 CSRF 失败。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND：资源不存在、已删除或当前用户不可见。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CONFLICT：首楼版本已更新；也可能 SETUP_REQUIRED。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "PAYLOAD_TOO_LARGE：JSON 请求超过 1 MiB 上限；过大的兼容表单可能返回 400 BAD_REQUEST。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_MEDIA_TYPE：使用 application/json 或 application/x-www-form-urlencoded。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_FAILED：字段、目标或操作无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：业务读取或写入失败；错误不会返回数据库细节。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SETTINGS_UNAVAILABLE / SITE_CLOSED / REQUEST_TIMEOUT 等：配置、维护状态或请求超时；写超时先读取实际状态。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ThreadTagsInput"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/ThreadTagsInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{id}/follow": {
+      "post": {
+        "summary": "关注用户",
+        "x-contract-level": "fields",
+        "description": "要求登录、未禁言、已完成初始改密；不能关注自己。按目标状态幂等，每用户 API 30 次/分钟。关注不会自动订阅，也不是私信前提。目标不存在或被封禁返回 404；任意一方屏蔽返回 403。 写入需会话 Cookie 与 X-CSRF-Token；JSON 上限 1 MiB，兼容表单，无业务字段的 JSON 动作发送 {}。",
+        "responses": {
+          "200": {
+            "description": "成功；data 为业务结果。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FollowState"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BAD_REQUEST：JSON 语法、请求对象或字段类型不符合动作解析规则。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：需要有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "MESSAGE_BLOCKED（关注时）、FORBIDDEN 或 CSRF_INVALID：会话被任意一方屏蔽，或账号 / CSRF 受限。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND：资源不存在、已删除或当前用户不可见。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SETUP_REQUIRED：站点尚未初始化。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "PAYLOAD_TOO_LARGE：JSON 请求超过 1 MiB 上限；过大的兼容表单可能返回 400 BAD_REQUEST。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_MEDIA_TYPE：使用 application/json 或 application/x-www-form-urlencoded。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_FAILED：字段、目标或操作无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED：请求过于频繁。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：业务读取或写入失败；错误不会返回数据库细节。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SETTINGS_UNAVAILABLE / SITE_CLOSED / REQUEST_TIMEOUT 等：配置、维护状态或请求超时；写超时先读取实际状态。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentEmpty"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentEmpty"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "取消关注",
+        "x-contract-level": "fields",
+        "description": "要求登录、未禁言、已完成初始改密；不能关注自己。按目标状态幂等，每用户 API 30 次/分钟。关注不会自动订阅，也不是私信前提。取消不要求目标仍存在或关系已建立。 写入需会话 Cookie 与 X-CSRF-Token；JSON 上限 1 MiB，兼容表单，无业务字段的 JSON 动作发送 {}。",
+        "responses": {
+          "200": {
+            "description": "成功；data 为业务结果。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FollowState"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BAD_REQUEST：JSON 语法、请求对象或字段类型不符合动作解析规则。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：需要有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "MESSAGE_BLOCKED（关注时）、FORBIDDEN 或 CSRF_INVALID：会话被任意一方屏蔽，或账号 / CSRF 受限。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND：资源不存在、已删除或当前用户不可见。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SETUP_REQUIRED：站点尚未初始化。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "PAYLOAD_TOO_LARGE：JSON 请求超过 1 MiB 上限；过大的兼容表单可能返回 400 BAD_REQUEST。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_MEDIA_TYPE：使用 application/json 或 application/x-www-form-urlencoded。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_FAILED：字段、目标或操作无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED：请求过于频繁。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：业务读取或写入失败；错误不会返回数据库细节。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SETTINGS_UNAVAILABLE / SITE_CLOSED / REQUEST_TIMEOUT 等：配置、维护状态或请求超时；写超时先读取实际状态。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentEmpty"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentEmpty"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/following": {
+      "get": {
+        "summary": "读取关注 / 粉丝列表",
+        "x-contract-level": "fields",
+        "description": "必须登录，包括读取其他用户粉丝。每页 30，按关注时间、用户 ID 倒序，过滤当前被封禁的关联用户。",
+        "responses": {
+          "200": {
+            "description": "成功；data 为业务结果。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/FollowUser"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMeta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：需要有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：无权执行操作、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND：资源不存在、已删除或当前用户不可见。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SETUP_REQUIRED：站点尚未初始化。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：业务读取或写入失败；错误不会返回数据库细节。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SETTINGS_UNAVAILABLE / SITE_CLOSED / REQUEST_TIMEOUT 等：配置、维护状态或请求超时；写超时先读取实际状态。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "maximum": 10000
+            },
+            "description": "页码，默认 1；非数字或小于 1 时归一为 1，大于 10000 时归一为 10000。"
+          }
+        ]
+      }
+    },
+    "/api/v1/me/followers": {
+      "get": {
+        "summary": "读取关注 / 粉丝列表",
+        "x-contract-level": "fields",
+        "description": "必须登录，包括读取其他用户粉丝。每页 30，按关注时间、用户 ID 倒序，过滤当前被封禁的关联用户。",
+        "responses": {
+          "200": {
+            "description": "成功；data 为业务结果。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/FollowUser"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMeta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：需要有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：无权执行操作、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND：资源不存在、已删除或当前用户不可见。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SETUP_REQUIRED：站点尚未初始化。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：业务读取或写入失败；错误不会返回数据库细节。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SETTINGS_UNAVAILABLE / SITE_CLOSED / REQUEST_TIMEOUT 等：配置、维护状态或请求超时；写超时先读取实际状态。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "maximum": 10000
+            },
+            "description": "页码，默认 1；非数字或小于 1 时归一为 1，大于 10000 时归一为 10000。"
+          }
+        ]
+      }
+    },
+    "/api/v1/users/{id}/followers": {
+      "get": {
+        "summary": "读取关注 / 粉丝列表",
+        "x-contract-level": "fields",
+        "description": "必须登录，包括读取其他用户粉丝。每页 30，按关注时间、用户 ID 倒序，过滤当前被封禁的关联用户。",
+        "responses": {
+          "200": {
+            "description": "成功；data 为业务结果。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/FollowUser"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMeta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：需要有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：无权执行操作、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND：资源不存在、已删除或当前用户不可见。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SETUP_REQUIRED：站点尚未初始化。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：业务读取或写入失败；错误不会返回数据库细节。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SETTINGS_UNAVAILABLE / SITE_CLOSED / REQUEST_TIMEOUT 等：配置、维护状态或请求超时；写超时先读取实际状态。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "maximum": 10000
+            },
+            "description": "页码，默认 1；非数字或小于 1 时归一为 1，大于 10000 时归一为 10000。"
+          }
+        ]
+      }
+    },
+    "/api/v1/threads/{tid}/subscribe": {
+      "post": {
+        "summary": "订阅主题",
+        "x-contract-level": "fields",
+        "description": "登录且未禁言、完成初始改密；目标必须可见，主题不能待审，标签须 active。新建时三个通知开关全为 true，mutedUntil=null；重复 POST 原样保留既有设置与订阅时间。请求中的偏好字段不用于更新；更新使用 PUT。通知异步投递，无历史回填。 写入需会话 Cookie 与 X-CSRF-Token；JSON 上限 1 MiB，兼容表单，无业务字段的 JSON 动作发送 {}。",
+        "responses": {
+          "200": {
+            "description": "成功；data 为业务结果。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Subscription"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BAD_REQUEST：JSON 语法、请求对象或字段类型不符合动作解析规则。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：需要有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：无权执行操作、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND：资源不存在、已删除或当前用户不可见。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SETUP_REQUIRED：站点尚未初始化。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "PAYLOAD_TOO_LARGE：JSON 请求超过 1 MiB 上限；过大的兼容表单可能返回 400 BAD_REQUEST。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_MEDIA_TYPE：使用 application/json 或 application/x-www-form-urlencoded。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_FAILED：字段、目标或操作无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：业务读取或写入失败；错误不会返回数据库细节。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SETTINGS_UNAVAILABLE / SITE_CLOSED / REQUEST_TIMEOUT 等：配置、维护状态或请求超时；写超时先读取实际状态。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentEmpty"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentEmpty"
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "保存thread订阅偏好",
+        "x-contract-level": "fields",
+        "description": "目标及账号检查与 POST 相同；不存在则创建，存在则完整覆盖三个开关及静音。省略或空 mutedUntil 清除静音，不重置首次订阅时间。相同目标状态可重发，但并发保存会覆盖偏好。 写入需会话 Cookie 与 X-CSRF-Token；JSON 上限 1 MiB，兼容表单，无业务字段的 JSON 动作发送 {}。",
+        "responses": {
+          "200": {
+            "description": "成功；data 为业务结果。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Subscription"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BAD_REQUEST：JSON 语法、请求对象或字段类型不符合动作解析规则。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：需要有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：无权执行操作、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND：资源不存在、已删除或当前用户不可见。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SETUP_REQUIRED：站点尚未初始化。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "PAYLOAD_TOO_LARGE：JSON 请求超过 1 MiB 上限；过大的兼容表单可能返回 400 BAD_REQUEST。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_MEDIA_TYPE：使用 application/json 或 application/x-www-form-urlencoded。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_FAILED：字段、目标或操作无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：业务读取或写入失败；错误不会返回数据库细节。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SETTINGS_UNAVAILABLE / SITE_CLOSED / REQUEST_TIMEOUT 等：配置、维护状态或请求超时；写超时先读取实际状态。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscriptionPreferencesInput"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscriptionPreferencesInput"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "取消thread订阅",
+        "x-contract-level": "fields",
+        "description": "只删除自己的订阅，可重复调用。不要求继续拥有目标阅读权限，允许初始密码未改或被禁言时取消；目标正整数 ID 仍需合法。 写入需会话 Cookie 与 X-CSRF-Token；JSON 上限 1 MiB，兼容表单，无业务字段的 JSON 动作发送 {}。",
+        "responses": {
+          "200": {
+            "description": "成功；data 为业务结果。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "subscribed": {
+                          "type": "boolean",
+                          "enum": [
+                            false
+                          ]
+                        }
+                      },
+                      "required": [
+                        "subscribed"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BAD_REQUEST：JSON 语法、请求对象或字段类型不符合动作解析规则。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：需要有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：无权执行操作、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SETUP_REQUIRED：站点尚未初始化。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "PAYLOAD_TOO_LARGE：JSON 请求超过 1 MiB 上限；过大的兼容表单可能返回 400 BAD_REQUEST。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_MEDIA_TYPE：使用 application/json 或 application/x-www-form-urlencoded。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_FAILED：字段、目标或操作无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：业务读取或写入失败；错误不会返回数据库细节。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SETTINGS_UNAVAILABLE / SITE_CLOSED / REQUEST_TIMEOUT 等：配置、维护状态或请求超时；写超时先读取实际状态。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentEmpty"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentEmpty"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/forums/{fid}/subscribe": {
+      "post": {
+        "summary": "订阅版块",
+        "x-contract-level": "fields",
+        "description": "登录且未禁言、完成初始改密；目标必须可见，主题不能待审，标签须 active。新建时三个通知开关全为 true，mutedUntil=null；重复 POST 原样保留既有设置与订阅时间。请求中的偏好字段不用于更新；更新使用 PUT。通知异步投递，无历史回填。 写入需会话 Cookie 与 X-CSRF-Token；JSON 上限 1 MiB，兼容表单，无业务字段的 JSON 动作发送 {}。",
+        "responses": {
+          "200": {
+            "description": "成功；data 为业务结果。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Subscription"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BAD_REQUEST：JSON 语法、请求对象或字段类型不符合动作解析规则。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：需要有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：无权执行操作、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND：资源不存在、已删除或当前用户不可见。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SETUP_REQUIRED：站点尚未初始化。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "PAYLOAD_TOO_LARGE：JSON 请求超过 1 MiB 上限；过大的兼容表单可能返回 400 BAD_REQUEST。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_MEDIA_TYPE：使用 application/json 或 application/x-www-form-urlencoded。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_FAILED：字段、目标或操作无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：业务读取或写入失败；错误不会返回数据库细节。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SETTINGS_UNAVAILABLE / SITE_CLOSED / REQUEST_TIMEOUT 等：配置、维护状态或请求超时；写超时先读取实际状态。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentEmpty"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentEmpty"
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "保存forum订阅偏好",
+        "x-contract-level": "fields",
+        "description": "目标及账号检查与 POST 相同；不存在则创建，存在则完整覆盖三个开关及静音。省略或空 mutedUntil 清除静音，不重置首次订阅时间。相同目标状态可重发，但并发保存会覆盖偏好。 写入需会话 Cookie 与 X-CSRF-Token；JSON 上限 1 MiB，兼容表单，无业务字段的 JSON 动作发送 {}。",
+        "responses": {
+          "200": {
+            "description": "成功；data 为业务结果。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Subscription"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BAD_REQUEST：JSON 语法、请求对象或字段类型不符合动作解析规则。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：需要有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：无权执行操作、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND：资源不存在、已删除或当前用户不可见。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SETUP_REQUIRED：站点尚未初始化。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "PAYLOAD_TOO_LARGE：JSON 请求超过 1 MiB 上限；过大的兼容表单可能返回 400 BAD_REQUEST。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_MEDIA_TYPE：使用 application/json 或 application/x-www-form-urlencoded。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_FAILED：字段、目标或操作无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：业务读取或写入失败；错误不会返回数据库细节。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SETTINGS_UNAVAILABLE / SITE_CLOSED / REQUEST_TIMEOUT 等：配置、维护状态或请求超时；写超时先读取实际状态。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscriptionPreferencesInput"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscriptionPreferencesInput"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "取消forum订阅",
+        "x-contract-level": "fields",
+        "description": "只删除自己的订阅，可重复调用。不要求继续拥有目标阅读权限，允许初始密码未改或被禁言时取消；目标正整数 ID 仍需合法。 写入需会话 Cookie 与 X-CSRF-Token；JSON 上限 1 MiB，兼容表单，无业务字段的 JSON 动作发送 {}。",
+        "responses": {
+          "200": {
+            "description": "成功；data 为业务结果。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "subscribed": {
+                          "type": "boolean",
+                          "enum": [
+                            false
+                          ]
+                        }
+                      },
+                      "required": [
+                        "subscribed"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BAD_REQUEST：JSON 语法、请求对象或字段类型不符合动作解析规则。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：需要有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：无权执行操作、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SETUP_REQUIRED：站点尚未初始化。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "PAYLOAD_TOO_LARGE：JSON 请求超过 1 MiB 上限；过大的兼容表单可能返回 400 BAD_REQUEST。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_MEDIA_TYPE：使用 application/json 或 application/x-www-form-urlencoded。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_FAILED：字段、目标或操作无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：业务读取或写入失败；错误不会返回数据库细节。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SETTINGS_UNAVAILABLE / SITE_CLOSED / REQUEST_TIMEOUT 等：配置、维护状态或请求超时；写超时先读取实际状态。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentEmpty"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentEmpty"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tags/{tagId}/subscribe": {
+      "post": {
+        "summary": "订阅标签",
+        "x-contract-level": "fields",
+        "description": "登录且未禁言、完成初始改密；目标必须可见，主题不能待审，标签须 active。新建时三个通知开关全为 true，mutedUntil=null；重复 POST 原样保留既有设置与订阅时间。请求中的偏好字段不用于更新；更新使用 PUT。通知异步投递，无历史回填。 写入需会话 Cookie 与 X-CSRF-Token；JSON 上限 1 MiB，兼容表单，无业务字段的 JSON 动作发送 {}。",
+        "responses": {
+          "200": {
+            "description": "成功；data 为业务结果。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Subscription"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BAD_REQUEST：JSON 语法、请求对象或字段类型不符合动作解析规则。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：需要有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：无权执行操作、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND：资源不存在、已删除或当前用户不可见。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SETUP_REQUIRED：站点尚未初始化。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "PAYLOAD_TOO_LARGE：JSON 请求超过 1 MiB 上限；过大的兼容表单可能返回 400 BAD_REQUEST。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_MEDIA_TYPE：使用 application/json 或 application/x-www-form-urlencoded。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_FAILED：字段、目标或操作无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：业务读取或写入失败；错误不会返回数据库细节。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SETTINGS_UNAVAILABLE / SITE_CLOSED / REQUEST_TIMEOUT 等：配置、维护状态或请求超时；写超时先读取实际状态。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentEmpty"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentEmpty"
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "保存tag订阅偏好",
+        "x-contract-level": "fields",
+        "description": "目标及账号检查与 POST 相同；不存在则创建，存在则完整覆盖三个开关及静音。省略或空 mutedUntil 清除静音，不重置首次订阅时间。相同目标状态可重发，但并发保存会覆盖偏好。 写入需会话 Cookie 与 X-CSRF-Token；JSON 上限 1 MiB，兼容表单，无业务字段的 JSON 动作发送 {}。",
+        "responses": {
+          "200": {
+            "description": "成功；data 为业务结果。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Subscription"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BAD_REQUEST：JSON 语法、请求对象或字段类型不符合动作解析规则。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：需要有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：无权执行操作、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND：资源不存在、已删除或当前用户不可见。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SETUP_REQUIRED：站点尚未初始化。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "PAYLOAD_TOO_LARGE：JSON 请求超过 1 MiB 上限；过大的兼容表单可能返回 400 BAD_REQUEST。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_MEDIA_TYPE：使用 application/json 或 application/x-www-form-urlencoded。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_FAILED：字段、目标或操作无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：业务读取或写入失败；错误不会返回数据库细节。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SETTINGS_UNAVAILABLE / SITE_CLOSED / REQUEST_TIMEOUT 等：配置、维护状态或请求超时；写超时先读取实际状态。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscriptionPreferencesInput"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscriptionPreferencesInput"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "取消tag订阅",
+        "x-contract-level": "fields",
+        "description": "只删除自己的订阅，可重复调用。不要求继续拥有目标阅读权限，允许初始密码未改或被禁言时取消；目标正整数 ID 仍需合法。 写入需会话 Cookie 与 X-CSRF-Token；JSON 上限 1 MiB，兼容表单，无业务字段的 JSON 动作发送 {}。",
+        "responses": {
+          "200": {
+            "description": "成功；data 为业务结果。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "subscribed": {
+                          "type": "boolean",
+                          "enum": [
+                            false
+                          ]
+                        }
+                      },
+                      "required": [
+                        "subscribed"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BAD_REQUEST：JSON 语法、请求对象或字段类型不符合动作解析规则。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：需要有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：无权执行操作、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SETUP_REQUIRED：站点尚未初始化。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "PAYLOAD_TOO_LARGE：JSON 请求超过 1 MiB 上限；过大的兼容表单可能返回 400 BAD_REQUEST。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_MEDIA_TYPE：使用 application/json 或 application/x-www-form-urlencoded。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_FAILED：字段、目标或操作无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：业务读取或写入失败；错误不会返回数据库细节。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SETTINGS_UNAVAILABLE / SITE_CLOSED / REQUEST_TIMEOUT 等：配置、维护状态或请求超时；写超时先读取实际状态。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentEmpty"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentEmpty"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/subscriptions": {
+      "get": {
+        "summary": "读取我的订阅列表",
+        "x-contract-level": "fields",
+        "description": "kind 缺省为 thread，仅支持 thread / forum / tag。每页 30，按创建时间、目标 ID 倒序；过滤隐藏 / 删除 / 待审主题及不可见版块，标签列表保留 disabled。name 仅在列表投影提供。",
+        "responses": {
+          "200": {
+            "description": "成功；data 为业务结果。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Subscription"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMeta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：需要有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：无权执行操作、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SETUP_REQUIRED：站点尚未初始化。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_FAILED：字段、目标或操作无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：业务读取或写入失败；错误不会返回数据库细节。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SETTINGS_UNAVAILABLE / SITE_CLOSED / REQUEST_TIMEOUT 等：配置、维护状态或请求超时；写超时先读取实际状态。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "thread",
+                "forum",
+                "tag"
+              ],
+              "default": "thread"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "maximum": 10000
+            },
+            "description": "页码，默认 1；非数字或小于 1 时归一为 1，大于 10000 时归一为 10000。"
+          }
+        ]
+      }
+    },
+    "/api/v1/me/notification-preferences": {
+      "get": {
+        "summary": "读取通知偏好",
+        "x-contract-level": "fields",
+        "description": "返回当前用户全部九个通知开关；没有自定义偏好时均为 true。subscriptions 与 email 全局开关还会限制单项订阅投递。",
+        "responses": {
+          "200": {
+            "description": "成功；data 为业务结果。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/NotificationPreferences"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：需要有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：无权执行操作、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SETUP_REQUIRED：站点尚未初始化。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：业务读取或写入失败；错误不会返回数据库细节。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SETTINGS_UNAVAILABLE / SITE_CLOSED / REQUEST_TIMEOUT 等：配置、维护状态或请求超时；写超时先读取实际状态。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      },
+      "put": {
+        "summary": "保存通知偏好",
+        "x-contract-level": "fields",
+        "description": "必须发送八个历史开关；subscriptions 省略时保留原值，兼容旧客户端。建议先 GET 再全量保存；并发保存可能覆盖另一设备偏好。允许初始密码未改或禁言用户管理自己的偏好。 写入需会话 Cookie 与 X-CSRF-Token；JSON 上限 1 MiB，兼容表单，无业务字段的 JSON 动作发送 {}。",
+        "responses": {
+          "200": {
+            "description": "成功；data 为业务结果。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/NotificationPreferences"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BAD_REQUEST：JSON 语法、请求对象或字段类型不符合动作解析规则。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：需要有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：无权执行操作、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SETUP_REQUIRED：站点尚未初始化。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "PAYLOAD_TOO_LARGE：JSON 请求超过 1 MiB 上限；过大的兼容表单可能返回 400 BAD_REQUEST。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_MEDIA_TYPE：使用 application/json 或 application/x-www-form-urlencoded。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_FAILED：字段、目标或操作无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：业务读取或写入失败；错误不会返回数据库细节。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SETTINGS_UNAVAILABLE / SITE_CLOSED / REQUEST_TIMEOUT 等：配置、维护状态或请求超时；写超时先读取实际状态。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationPreferencesInput"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationPreferencesInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{id}/messages": {
+      "post": {
+        "summary": "发送私信",
+        "x-contract-level": "fields",
+        "description": "无需互关；登录、未禁言且完成初始改密。发起人只能发送首条，直到接收方回复后永久解除首条限制；任意一方屏蔽均拒绝发送。每发送者滚动一分钟 30 条、24 小时 20 个新会话，另有 API 限流。无客户端幂等键，重发会产生重复消息；超时先拉取历史。 写入需会话 Cookie 与 X-CSRF-Token；JSON 上限 1 MiB，兼容表单，无业务字段的 JSON 动作发送 {}。",
+        "responses": {
+          "201": {
+            "description": "成功；data 为业务结果。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/DirectMessage"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BAD_REQUEST：JSON 语法、请求对象或字段类型不符合动作解析规则。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：需要有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "MESSAGE_BLOCKED：当前会话任意一方已屏蔽，不披露对方屏蔽设置；或 FORBIDDEN / CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND：资源不存在、已删除或当前用户不可见。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "MESSAGE_REPLY_REQUIRED：请等待接收方回复；也可能 SETUP_REQUIRED。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "PAYLOAD_TOO_LARGE：JSON 请求超过 1 MiB 上限；过大的兼容表单可能返回 400 BAD_REQUEST。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_MEDIA_TYPE：使用 application/json 或 application/x-www-form-urlencoded。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_FAILED：字段、目标或操作无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "MESSAGE_RATE_LIMITED：每分钟发送 / 每日新会话额度达到上限，或 API 发送频率过高。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：业务读取或写入失败；错误不会返回数据库细节。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SETTINGS_UNAVAILABLE / SITE_CLOSED / REQUEST_TIMEOUT 等：配置、维护状态或请求超时；写超时先读取实际状态。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "body": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 5000,
+                    "description": "敏感词处理并去首尾空白后的正文为 1–5,000 个字符。"
+                  }
+                },
+                "required": [
+                  "body"
+                ]
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "body": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 5000,
+                    "description": "敏感词处理并去首尾空白后的正文为 1–5,000 个字符。"
+                  }
+                },
+                "required": [
+                  "body"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/conversations": {
+      "get": {
+        "summary": "读取我的私信会话",
+        "x-contract-level": "fields",
+        "description": "每页 30，按 lastMessageAt、ID 倒序。blocked 仅当前用户主动屏蔽状态；waitingForReply 不代表全部发送权限。unread 不包含本人消息和已删除消息。",
+        "responses": {
+          "200": {
+            "description": "成功；data 为业务结果。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Conversation"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMeta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：需要有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：无权执行操作、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SETUP_REQUIRED：站点尚未初始化。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：业务读取或写入失败；错误不会返回数据库细节。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SETTINGS_UNAVAILABLE / SITE_CLOSED / REQUEST_TIMEOUT 等：配置、维护状态或请求超时；写超时先读取实际状态。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "maximum": 10000
+            },
+            "description": "页码，默认 1；非数字或小于 1 时归一为 1，大于 10000 时归一为 10000。"
+          }
+        ]
+      }
+    },
+    "/api/v1/conversations/{cid}/messages": {
+      "get": {
+        "summary": "读取私信历史",
+        "x-contract-level": "fields",
+        "description": "仅会话参与者，包括管理员也无额外读取特权。消息 ID 倒序，最多 50 条；before 为不包含该消息的正整数游标，使用最小 ID 继续，空数组表示结束。无 meta / nextCursor，读取不标记已读。",
+        "responses": {
+          "200": {
+            "description": "成功；data 为业务结果。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/DirectMessage"
+                      },
+                      "maxItems": 50
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：需要有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：无权执行操作、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND：资源不存在、已删除或当前用户不可见。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SETUP_REQUIRED：站点尚未初始化。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_FAILED：字段、目标或操作无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：业务读取或写入失败；错误不会返回数据库细节。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SETTINGS_UNAVAILABLE / SITE_CLOSED / REQUEST_TIMEOUT 等：配置、维护状态或请求超时；写超时先读取实际状态。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*$"
+            },
+            "description": "上一批最小消息 ID；缺省取最新消息。"
+          }
+        ]
+      }
+    },
+    "/api/v1/conversations/{cid}/read": {
+      "post": {
+        "summary": "更新私信已读游标",
+        "x-contract-level": "fields",
+        "description": "仅参与者；messageId 必须属于本会话。已读游标只前进，重复或较旧游标不会回退；读取历史本身不更新已读。 写入需会话 Cookie 与 X-CSRF-Token；JSON 上限 1 MiB，兼容表单，无业务字段的 JSON 动作发送 {}。",
+        "responses": {
+          "200": {
+            "description": "成功；data 为业务结果。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "read": {
+                          "type": "boolean",
+                          "enum": [
+                            true
+                          ]
+                        }
+                      },
+                      "required": [
+                        "read"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BAD_REQUEST：JSON 语法、请求对象或字段类型不符合动作解析规则。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：需要有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：无权执行操作、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND：资源不存在、已删除或当前用户不可见。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SETUP_REQUIRED：站点尚未初始化。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "PAYLOAD_TOO_LARGE：JSON 请求超过 1 MiB 上限；过大的兼容表单可能返回 400 BAD_REQUEST。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_MEDIA_TYPE：使用 application/json 或 application/x-www-form-urlencoded。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_FAILED：字段、目标或操作无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：业务读取或写入失败；错误不会返回数据库细节。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SETTINGS_UNAVAILABLE / SITE_CLOSED / REQUEST_TIMEOUT 等：配置、维护状态或请求超时；写超时先读取实际状态。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "messageId": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[1-9][0-9]*$"
+                      },
+                      {
+                        "type": "integer",
+                        "minimum": 1
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "messageId"
+                ]
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "messageId": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[1-9][0-9]*$"
+                      },
+                      {
+                        "type": "integer",
+                        "minimum": 1
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "messageId"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/conversations/{cid}/block": {
+      "post": {
+        "summary": "屏蔽私信会话",
+        "x-contract-level": "fields",
+        "description": "仅参与者，可重复设置；响应是当前用户自己的屏蔽状态。屏蔽会解除双方关注，并拒绝双方后续发送。 写入需会话 Cookie 与 X-CSRF-Token；JSON 上限 1 MiB，兼容表单，无业务字段的 JSON 动作发送 {}。",
+        "responses": {
+          "200": {
+            "description": "成功；data 为业务结果。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "blocked": {
+                          "type": "boolean",
+                          "enum": [
+                            true
+                          ]
+                        }
+                      },
+                      "required": [
+                        "blocked"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BAD_REQUEST：JSON 语法、请求对象或字段类型不符合动作解析规则。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：需要有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：无权执行操作、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND：资源不存在、已删除或当前用户不可见。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SETUP_REQUIRED：站点尚未初始化。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "PAYLOAD_TOO_LARGE：JSON 请求超过 1 MiB 上限；过大的兼容表单可能返回 400 BAD_REQUEST。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_MEDIA_TYPE：使用 application/json 或 application/x-www-form-urlencoded。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：业务读取或写入失败；错误不会返回数据库细节。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SETTINGS_UNAVAILABLE / SITE_CLOSED / REQUEST_TIMEOUT 等：配置、维护状态或请求超时；写超时先读取实际状态。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentEmpty"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentEmpty"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "解除自己的会话屏蔽",
+        "x-contract-level": "fields",
+        "description": "仅参与者，可重复设置；响应是当前用户自己的屏蔽状态。只解除自己的屏蔽；对方仍屏蔽时仍拒收。不会恢复关注或清除首次等待回复状态。 写入需会话 Cookie 与 X-CSRF-Token；JSON 上限 1 MiB，兼容表单，无业务字段的 JSON 动作发送 {}。",
+        "responses": {
+          "200": {
+            "description": "成功；data 为业务结果。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "blocked": {
+                          "type": "boolean",
+                          "enum": [
+                            false
+                          ]
+                        }
+                      },
+                      "required": [
+                        "blocked"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BAD_REQUEST：JSON 语法、请求对象或字段类型不符合动作解析规则。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：需要有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN / MEMBER_PERMISSION_DENIED：无权执行操作、账号受限或需修改初始密码；写入还可能 CSRF_INVALID。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND：资源不存在、已删除或当前用户不可见。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SETUP_REQUIRED：站点尚未初始化。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "PAYLOAD_TOO_LARGE：JSON 请求超过 1 MiB 上限；过大的兼容表单可能返回 400 BAD_REQUEST。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_MEDIA_TYPE：使用 application/json 或 application/x-www-form-urlencoded。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR：业务读取或写入失败；错误不会返回数据库细节。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SETTINGS_UNAVAILABLE / SITE_CLOSED / REQUEST_TIMEOUT 等：配置、维护状态或请求超时；写超时先读取实际状态。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentEmpty"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentEmpty"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/feed/forums": {
+      "get": {
+        "summary": "关注版块聚合流",
+        "x-contract-level": "fields",
+        "description": "需登录。只收录当前账号订阅的版块（通知关闭或静音仍算订阅，不因此移出）内的公开主题；主题与楼层在数据库层过滤待审、删除与版块可见性，再按主题 created_at 与 id 倒序游标翻页。",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "上一页 meta.nextCursor；游标绑定账号、流类型与排序，跨流或跨账号复用返回 422。"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            },
+            "description": "每页条数，默认取站点 threadsPerPage 并限制在 1-50。"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功；data.threads 为公开主题投影（含 excerpt / coverUrl），meta 为游标分页信息。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "threads": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": true,
+                            "description": "主题列表投影；摘要与封面已按访问者正文权限过滤。"
+                          }
+                        }
+                      },
+                      "required": [
+                        "threads"
+                      ]
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "pagination": {
+                          "type": "string",
+                          "enum": [
+                            "cursor"
+                          ]
+                        },
+                        "stream": {
+                          "type": "string",
+                          "enum": [
+                            "forums",
+                            "users"
+                          ]
+                        },
+                        "pageSize": {
+                          "type": "integer"
+                        },
+                        "hasMore": {
+                          "type": "boolean"
+                        },
+                        "nextCursor": {
+                          "type": "string"
+                        },
+                        "followingCount": {
+                          "type": "integer",
+                          "description": "当前账号已关注的版块 / 用户数量；0 表示尚无关注。"
+                        }
+                      },
+                      "required": [
+                        "pagination",
+                        "stream",
+                        "pageSize",
+                        "hasMore",
+                        "nextCursor",
+                        "followingCount"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：需要有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "INVALID_CURSOR / VALIDATION_FAILED：游标无效或 limit 越界。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        }
+      }
+    },
+    "/api/v1/me/feed/users": {
+      "get": {
+        "summary": "关注的人聚合流",
+        "x-contract-level": "fields",
+        "description": "需登录。只收录当前账号关注的用户作为「主题作者」发布的公开主题，不把普通回复当成新主题；过滤与排序规则同上。",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "上一页 meta.nextCursor；游标绑定账号、流类型与排序，跨流或跨账号复用返回 422。"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            },
+            "description": "每页条数，默认取站点 threadsPerPage 并限制在 1-50。"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功；data.threads 为公开主题投影（含 excerpt / coverUrl），meta 为游标分页信息。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "threads": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": true,
+                            "description": "主题列表投影；摘要与封面已按访问者正文权限过滤。"
+                          }
+                        }
+                      },
+                      "required": [
+                        "threads"
+                      ]
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "pagination": {
+                          "type": "string",
+                          "enum": [
+                            "cursor"
+                          ]
+                        },
+                        "stream": {
+                          "type": "string",
+                          "enum": [
+                            "forums",
+                            "users"
+                          ]
+                        },
+                        "pageSize": {
+                          "type": "integer"
+                        },
+                        "hasMore": {
+                          "type": "boolean"
+                        },
+                        "nextCursor": {
+                          "type": "string"
+                        },
+                        "followingCount": {
+                          "type": "integer",
+                          "description": "当前账号已关注的版块 / 用户数量；0 表示尚无关注。"
+                        }
+                      },
+                      "required": [
+                        "pagination",
+                        "stream",
+                        "pageSize",
+                        "hasMore",
+                        "nextCursor",
+                        "followingCount"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：需要有效会话。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "INVALID_CURSOR / VALIDATION_FAILED：游标无效或 limit 越界。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        }
+      }
+    },
+    "/api/v1/leaderboard/points": {
+      "get": {
+        "summary": "公开积分余额榜",
+        "x-contract-level": "fields",
+        "description": "无需登录。只读后台 Worker 生成的 points 快照，不在请求内重算排名；读取时会再次过滤当前被封禁（禁止登录）账号，因此旧快照同样遵守公开规则。status=unavailable 表示快照尚未生成，stale=true 表示快照过期。",
+        "responses": {
+          "200": {
+            "description": "成功；entries 只返回名次、用户 ID、用户名、头像与积分余额。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "ready",
+                            "stale",
+                            "unavailable"
+                          ]
+                        },
+                        "generatedAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "stale": {
+                          "type": "boolean"
+                        },
+                        "ageSeconds": {
+                          "type": "integer"
+                        },
+                        "staleAfterSeconds": {
+                          "type": "integer"
+                        },
+                        "refreshIntervalSeconds": {
+                          "type": "integer"
+                        },
+                        "entries": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "rank": {
+                                "type": "integer",
+                                "minimum": 1
+                              },
+                              "userId": {
+                                "type": "string",
+                                "pattern": "^[1-9][0-9]*$"
+                              },
+                              "username": {
+                                "type": "string"
+                              },
+                              "avatarUrl": {
+                                "type": "string"
+                              },
+                              "points": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "rank",
+                              "userId",
+                              "username",
+                              "avatarUrl",
+                              "points"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "status",
+                        "generatedAt",
+                        "stale",
+                        "entries"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "LEADERBOARD_UNAVAILABLE：快照读取失败或损坏。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        }
+      }
+    },
+    "/api/v1/index/threads": {
+      "get": {
+        "summary": "公开主题索引（sitemap / RSS 用）",
+        "x-contract-level": "fields",
+        "description": "无需登录，只返回游客可见的公开主题（未删除、未待审、按版块可见性过滤）；有界分页，size 最大 100。供 Next.js 生成 sitemap.xml 与 rss.xml，不返回正文、附件或待审内容。",
+        "parameters": [
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "created",
+                "updated"
+              ]
+            },
+            "description": "created 按发表时间倒序（RSS），updated 按最后更新时间倒序（sitemap lastmod）；默认 created。"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "description": "每页条数，默认 100。"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功；data.threads 为公开主题的最小投影。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "threads": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "pattern": "^[1-9][0-9]*$"
+                              },
+                              "forumId": {
+                                "type": "string"
+                              },
+                              "authorId": {
+                                "type": "string"
+                              },
+                              "authorName": {
+                                "type": "string"
+                              },
+                              "title": {
+                                "type": "string"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              },
+                              "lastPostAt": {
+                                "type": "string"
+                              },
+                              "updatedAt": {
+                                "type": "string",
+                                "description": "真实内容更新时间：max(最后回复时间, 可见楼层最后编辑时间)。sitemap lastmod 使用该字段。"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "forumId",
+                              "title",
+                              "createdAt",
+                              "lastPostAt",
+                              "updatedAt"
+                            ],
+                            "description": "公开主题的最小投影：固定游客可见范围，不受调用者身份影响。"
+                          }
+                        }
+                      },
+                      "required": [
+                        "threads"
+                      ]
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMeta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_FAILED：size 越界或 sort 不受支持。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
           }
         }
       }
@@ -7050,6 +11765,13 @@
           "favorite": {
             "type": "boolean",
             "description": "登录后的主题详情提供；列表不保证包含。"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Tag"
+            },
+            "description": "主题列表与详情附带的标签摘要，未计算 threadCount。"
           }
         },
         "required": [
@@ -9943,6 +14665,673 @@
           "id",
           "op"
         ]
+      },
+      "Tag": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"
+          },
+          "description": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string",
+            "pattern": "^$|^#[0-9a-fA-F]{6}$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "disabled"
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "threadCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "仅标签目录与后台列表计算公开主题数；前台按可见版块过滤，后台按管理员范围。详情、保存响应及主题标签投影固定为 0，表示未计算。"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "description",
+          "color",
+          "status",
+          "version",
+          "threadCount"
+        ]
+      },
+      "FollowUser": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "username": {
+            "type": "string"
+          },
+          "followedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "followedAt"
+        ]
+      },
+      "FollowState": {
+        "type": "object",
+        "properties": {
+          "following": {
+            "type": "boolean"
+          },
+          "userId": {
+            "$ref": "#/components/schemas/ID"
+          }
+        },
+        "required": [
+          "following",
+          "userId"
+        ]
+      },
+      "Subscription": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "thread",
+              "forum",
+              "tag"
+            ]
+          },
+          "targetId": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "仅列表提供目标名称；创建或修改响应省略。"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "notifyInApp": {
+            "type": "boolean"
+          },
+          "notifyEmail": {
+            "type": "boolean",
+            "description": "订阅邮件偏好，不代表已投递；还受全局偏好、SMTP 和 Worker 状态限制。"
+          },
+          "mutedUntil": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "首次订阅时间；重复 POST 或 PUT 不重置。"
+          }
+        },
+        "required": [
+          "kind",
+          "targetId",
+          "enabled",
+          "notifyInApp",
+          "notifyEmail",
+          "mutedUntil",
+          "createdAt"
+        ]
+      },
+      "Conversation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "otherId": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "otherName": {
+            "type": "string"
+          },
+          "lastMessageAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "unread": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "blocked": {
+            "type": "boolean",
+            "description": "仅当前用户自己的屏蔽状态，不代表对方状态。"
+          },
+          "waitingForReply": {
+            "type": "boolean",
+            "description": "当前用户是发起人且已有首条消息、尚无接收方回复。false 不保证可发消息，仍需检查屏蔽、账号状态与速率。"
+          }
+        },
+        "required": [
+          "id",
+          "otherId",
+          "otherName",
+          "lastMessageAt",
+          "unread",
+          "blocked",
+          "waitingForReply"
+        ]
+      },
+      "DirectMessage": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "conversationId": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "senderId": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "body": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "conversationId",
+          "senderId",
+          "body",
+          "createdAt"
+        ]
+      },
+      "SubscriptionPreferencesInput": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "oneOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer",
+                "enum": [
+                  0,
+                  1
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "true",
+                  "false",
+                  "1",
+                  "0"
+                ]
+              }
+            ]
+          },
+          "notifyInApp": {
+            "oneOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer",
+                "enum": [
+                  0,
+                  1
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "true",
+                  "false",
+                  "1",
+                  "0"
+                ]
+              }
+            ]
+          },
+          "notifyEmail": {
+            "oneOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer",
+                "enum": [
+                  0,
+                  1
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "true",
+                  "false",
+                  "1",
+                  "0"
+                ]
+              }
+            ]
+          },
+          "mutedUntil": {
+            "type": "string",
+            "description": "RFC3339 时间；省略或空字符串清除静音。响应为日期时间字符串或 null，写入请勿传 null。"
+          }
+        },
+        "required": [
+          "enabled",
+          "notifyInApp",
+          "notifyEmail"
+        ]
+      },
+      "NotificationPreferences": {
+        "type": "object",
+        "properties": {
+          "mentions": {
+            "type": "boolean"
+          },
+          "replies": {
+            "type": "boolean"
+          },
+          "acceptance": {
+            "type": "boolean"
+          },
+          "membership": {
+            "type": "boolean"
+          },
+          "titles": {
+            "type": "boolean"
+          },
+          "moderation": {
+            "type": "boolean"
+          },
+          "reports": {
+            "type": "boolean"
+          },
+          "email": {
+            "type": "boolean"
+          },
+          "subscriptions": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "mentions",
+          "replies",
+          "acceptance",
+          "membership",
+          "titles",
+          "moderation",
+          "reports",
+          "email",
+          "subscriptions"
+        ]
+      },
+      "NotificationPreferencesInput": {
+        "type": "object",
+        "properties": {
+          "mentions": {
+            "oneOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer",
+                "enum": [
+                  0,
+                  1
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "true",
+                  "false",
+                  "1",
+                  "0"
+                ]
+              }
+            ]
+          },
+          "replies": {
+            "oneOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer",
+                "enum": [
+                  0,
+                  1
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "true",
+                  "false",
+                  "1",
+                  "0"
+                ]
+              }
+            ]
+          },
+          "acceptance": {
+            "oneOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer",
+                "enum": [
+                  0,
+                  1
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "true",
+                  "false",
+                  "1",
+                  "0"
+                ]
+              }
+            ]
+          },
+          "membership": {
+            "oneOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer",
+                "enum": [
+                  0,
+                  1
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "true",
+                  "false",
+                  "1",
+                  "0"
+                ]
+              }
+            ]
+          },
+          "titles": {
+            "oneOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer",
+                "enum": [
+                  0,
+                  1
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "true",
+                  "false",
+                  "1",
+                  "0"
+                ]
+              }
+            ]
+          },
+          "moderation": {
+            "oneOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer",
+                "enum": [
+                  0,
+                  1
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "true",
+                  "false",
+                  "1",
+                  "0"
+                ]
+              }
+            ]
+          },
+          "reports": {
+            "oneOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer",
+                "enum": [
+                  0,
+                  1
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "true",
+                  "false",
+                  "1",
+                  "0"
+                ]
+              }
+            ]
+          },
+          "email": {
+            "oneOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer",
+                "enum": [
+                  0,
+                  1
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "true",
+                  "false",
+                  "1",
+                  "0"
+                ]
+              }
+            ]
+          },
+          "subscriptions": {
+            "oneOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer",
+                "enum": [
+                  0,
+                  1
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "true",
+                  "false",
+                  "1",
+                  "0"
+                ]
+              }
+            ]
+          }
+        },
+        "required": [
+          "mentions",
+          "replies",
+          "acceptance",
+          "membership",
+          "titles",
+          "moderation",
+          "reports",
+          "email"
+        ],
+        "description": "全量保存八个历史开关；subscriptions 省略时保留当前值以兼容旧客户端。新客户端应发送全部九个开关。"
+      },
+      "TagCreateInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "转小写并合并空白后为 1–32 个字符。"
+          },
+          "slug": {
+            "type": "string",
+            "description": "转小写并去首尾空白后匹配 ^[a-z0-9][a-z0-9-]{0,63}$。"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "color": {
+            "type": "string",
+            "pattern": "^$|^#[0-9a-fA-F]{6}$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "disabled"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "slug"
+        ],
+        "description": "status 省略时为 active，description 与 color 默认空字符串；没有客户端幂等键。"
+      },
+      "TagUpdateInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "转小写并合并空白后为 1–32 个字符。"
+          },
+          "slug": {
+            "type": "string",
+            "description": "转小写并去首尾空白后匹配 ^[a-z0-9][a-z0-9-]{0,63}$。"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "color": {
+            "type": "string",
+            "pattern": "^$|^#[0-9a-fA-F]{6}$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "disabled"
+            ]
+          },
+          "version": {
+            "oneOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "string",
+                "pattern": "^[1-9][0-9]*$"
+              }
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "slug",
+          "status",
+          "version"
+        ],
+        "description": "标签完整更新；省略 description 或 color 会清空。version 为标签当前版本，漏传或过期会冲突。"
+      },
+      "ThreadTagsInput": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "oneOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "string",
+                "pattern": "^[1-9][0-9]*$"
+              }
+            ]
+          },
+          "tagIds": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[1-9][0-9]*$"
+                },
+                {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              ]
+            },
+            "maxItems": 8,
+            "uniqueItems": true,
+            "description": "最多 8 个不同标签；空数组清空，兼容行为中省略也会清空。只能新增 active 标签，可保留已绑定的 disabled 标签。"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "description": "version 是首楼版本，成功递增；不是标签自身版本。建议始终明确发送 tagIds。"
       }
     }
   }

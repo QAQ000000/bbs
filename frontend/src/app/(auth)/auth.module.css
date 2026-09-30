@@ -1,0 +1,99 @@
+.shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 560px;
+  min-height: 100vh;
+}
+.brand {
+  background: linear-gradient(160deg, #0b2a6b 0%, #123f9e 55%, #165dff 100%);
+  color: #fff;
+  padding: 48px 72px 64px;
+  display: flex;
+  flex-direction: column;
+}
+.brandHead {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+}
+.brandHead:hover {
+  color: #fff;
+}
+.brandBody {
+  margin: auto 0;
+  max-width: 520px;
+}
+.slogan {
+  margin: 0 0 16px;
+  font-size: 32px;
+  line-height: 1.4;
+  font-weight: 700;
+}
+.brandDesc {
+  margin: 0 0 24px;
+  font-size: 15px;
+  line-height: 1.8;
+  color: rgba(255, 255, 255, 0.82);
+}
+.points {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.points li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.9);
+}
+.check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  color: #165dff;
+  font-size: 12px;
+  font-weight: 700;
+  flex: 0 0 auto;
+}
+.formSide {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+  background: var(--color-bg-elevated);
+}
+.formInner {
+  width: 100%;
+  max-width: 360px;
+}
+.closed {
+  margin: 0 0 20px;
+  padding: 10px 14px;
+  border-radius: var(--radius-btn);
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  font-size: 13px;
+  line-height: 1.6;
+}
+@media (max-width: 900px) {
+  .shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .brand {
+    display: none;
+  }
+  .formSide {
+    padding: 24px 16px;
+    align-items: flex-start;
+  }
+}

@@ -1,8 +1,10 @@
 # 社区关系与私信 API
 
+2026-09-28 契约核对（当前 schema 21）：本页 31 个既有操作（含全局通知偏好）已提供字段级 [OpenAPI](openapi.json)，按页面接入与重试规则见 [社区接入说明](FRONTEND_COMMUNITY_INTEGRATION.md)。本批补齐三类订阅 POST/PUT 的初始改密检查，保留 DELETE 取消订阅的可用性；私信屏蔽提示统一描述会话状态，不认定一定由对方设置。下方历史迁移记录不代表需要重新迁移或重置数据。
+
 2026-09-08 订阅修复：临时待审或删除的事件保留原始时间和进度，worker 跳过隐藏内容，重新公开后继续未完成的投递。隐藏事件不会阻塞后续公开事件；投递回执防重，后订阅用户不会补收旧事件。schema 15 首次升级会恢复旧 worker 可能误标完成的事件，保留原游标与回执，重复启动不会再次重置。
 
-2026-09-07，schema 9。本页描述已经实现的后端接口。计划与未完成模块见 [社区扩展方案](COMMUNITY_FEATURES_PLAN.md)。路径均以 `/api/v1` 开头；写入需登录 Cookie 和 `X-CSRF-Token`，ID 使用字符串。
+初版发布于 2026-09-07（schema 9）。本页描述已经实现的后端接口。计划与未完成模块见 [社区扩展方案](COMMUNITY_FEATURES_PLAN.md)。路径均以 `/api/v1` 开头；写入需登录 Cookie 和 `X-CSRF-Token`，ID 使用字符串。
 
 ## 标签
 
@@ -17,7 +19,7 @@
 | PUT | `/admin/tags/{tagId}` | 全量编辑、重命名或停用；需 tags.configure 及当前 version |
 | PUT | `/threads/{tid}/tags` | 替换标签；需主题首楼编辑权限，遵守等级编辑时间限制 |
 
-标签字段为 name、slug、description、color、status、version。name 小写并折叠空白，最多 32 字；slug 为 1-64 个小写 ASCII 字母/数字/连字符，首字符为字母或数字；color 为空或 #RRGGBB；description 最多 500 字。status 为 active/disabled，创建默认 active。名称和 slug 冲突、旧版本更新返回 409。
+标签返回 id、name、slug、description、color、status、version、threadCount。threadCount 仅目录/后台列表计算，详情、保存响应和主题标签摘要的 0 表示未计算；不能将此值当作真实主题数。name 小写并折叠空白，最多 32 字；slug 为 1-64 个小写 ASCII 字母/数字/连字符，首字符为字母或数字；color 为空或 #RRGGBB；description 最多 500 字。status 为 active/disabled，创建默认 active。名称和 slug 冲突、旧版本更新返回 409。
 
 重命名 slug 保留旧 slug 别名；其他标签不能占用旧别名。停用后禁止新绑定，但原有主题可保留并读取。第一版没有标签合并和手动别名管理接口。
 
@@ -31,6 +33,14 @@
 
 关注不自动订阅内容，也不影响私信资格。会话被任一方屏蔽时禁止重新关注，屏蔽会清除双方关注关系；取消屏蔽不自动恢复关注。
 
+## 关注信息流
+
+- `GET /me/feed/forums?cursor=&limit=`：当前账号订阅版块内的公开主题。
+- `GET /me/feed/users?cursor=&limit=`：当前账号关注的用户作为**主题作者**发布的公开主题；回复不算新主题。
+- 两者都需要登录，`limit` 默认取站点 threadsPerPage 并限制在 1-50。数据库层过滤待审、删除与版块权限后，按主题 `created_at`、`id` 倒序游标翻页，不计算 total。
+- 游标是 HMAC 签名载荷，绑定账号、流类型与排序；跨流、跨账号或篡改返回 422 `INVALID_CURSOR`。`meta.followingCount` 为已关注数量，用于区分“尚无关注”和“暂无内容”。
+- 通知开关与静音只影响提醒，不影响是否进入版块流；取消关注或取消订阅后立即不再收录。
+
 ## 订阅
 
 主题、版块、标签分别使用 `/threads/{tid}/subscribe`、`/forums/{fid}/subscribe`、`/tags/{tagId}/subscribe`。
@@ -40,9 +50,9 @@
 - DELETE：取消订阅。即使后来失去内容权限，仍可取消自己的订阅。
 - `GET /me/subscriptions?kind=thread&page=1`：kind 为 thread/forum/tag；每页 30 条，按当前版块权限过滤。
 
-主题订阅通知该主题新回复；版块、标签订阅通知新主题。创建订阅需要资源存在、可见；不能订阅待审主题或停用标签。失去版块权限的订阅暂不显示，也不投递通知。
+主题订阅通知该主题新回复；版块、标签订阅通知新主题。新建及修改订阅要求未禁言、已修改初始密码，且资源存在、可见；不能订阅待审主题或停用标签。取消订阅只要求登录、CSRF 和合法目标 ID。失去版块权限的订阅暂不显示，也不投递通知。
 
-`/me/notification-preferences` 增加 subscriptions 布尔开关，默认 true；旧客户端不传此字段时保留当前值。email 全局开关也影响订阅邮件。notifyInApp 和 notifyEmail 可分别关闭，mutedUntil 生效期间两种通知均暂停。
+`/me/notification-preferences` 增加 subscriptions 布尔开关，默认 true；旧客户端不传此字段时保留当前值。email 全局开关也影响订阅邮件。全量偏好含 mentions、replies、acceptance、membership、titles、moderation、reports、email、subscriptions；PUT 除 subscriptions 外必须提供其余八个布尔值。notifyInApp 和 notifyEmail 可分别关闭，mutedUntil 生效期间两种通知均暂停。
 
 发布/审核通过在原事务内写 subscription_events。后台保留单消费者，每轮最多 100 批、250ms 投递软预算，每批最多 50 个订阅者；轮末在线计数与投递共用 10 秒上下文。空队列每秒检查；达到预算且连接池有余量时，50ms 后继续下一轮。池占用达到 75% 时停止追加批次，快速轮次开始前再次检查；常规轮次仍允许首批尝试，避免完全饥饿。连续失败按 1/2/4/8/16/30 秒退避，成功后重置。预算在事务之间检查，不拆分已开始的事务；实际吞吐和恢复时间仍取决于数据库负载。每批通过同一事务连接读取接收者的最新会员与版块权限，排除发帖者和封禁用户；取消/静音的订阅不参与尚未生成的通知。重复订阅多个来源只产生一条通知；@、指定回复和楼主通知在订阅事务开始前恢复投递，按用户+楼层去重。
 
@@ -62,6 +72,8 @@
 | POST | `/conversations/{cid}/read` | messageId，必须属于此会话；已读位置单调推进 |
 | POST | `/conversations/{cid}/block` | 屏蔽对方；双方暂停发送 |
 | DELETE | `/conversations/{cid}/block` | 取消自己的屏蔽；对方设置的屏蔽继续生效 |
+
+blocked 仅表示当前用户自己的屏蔽设置；waitingForReply 仅表示本人是发起人且尚未收到回复，为 false 不保证具备全部发送权限。发送私信没有客户端幂等键，超时先读取历史；请求重发可能新增重复消息。
 
 无需关注。发起者只能发送首条；接收方回复后才能继续。双向同时发起只创建一个会话，数据库唯一约束及事务锁防止并发绕过。删除消息、刷新页面、再次调用发送接口均不能重置会话资格。屏蔽与发送共用锁，屏蔽成功后后续发送被拒绝；解除屏蔽保留原来的等待回复状态。
 

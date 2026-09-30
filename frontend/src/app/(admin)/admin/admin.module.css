@@ -1,0 +1,210 @@
+.pageHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.pageTitle {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+.pageMeta {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+.cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.card {
+  padding: 16px 18px;
+}
+.cardLabel {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+}
+.cardValue {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.cardValueWarning {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--color-warning);
+}
+.cardHint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+.section {
+  padding: 16px 18px;
+  margin-bottom: 16px;
+}
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.sectionTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.sectionMeta,
+.sectionLink {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+.sectionLink {
+  color: var(--color-primary);
+}
+.health {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+.health li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+.health em {
+  font-style: normal;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+}
+.dotOk,
+.dotWarn {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.dotOk {
+  background: var(--color-success);
+}
+.dotWarn {
+  background: var(--color-danger);
+}
+.twoCol {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 16px;
+}
+.queue {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.queueItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-top: 1px solid var(--color-border);
+  font-size: 13px;
+}
+.queueItem:first-child {
+  border-top: none;
+}
+.tagThread,
+.tagPost,
+.tagReport {
+  flex: 0 0 auto;
+  padding: 1px 7px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+}
+.tagThread {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+.tagPost {
+  background: var(--color-fill);
+  color: var(--color-text-secondary);
+}
+.tagReport {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+.queueTitle {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.queueMeta {
+  flex: 0 0 auto;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+}
+.emptyQueue {
+  padding: 10px 0;
+  color: var(--color-text-tertiary);
+  font-size: 13px;
+}
+.info {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.info dt {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+.info dd {
+  margin: 2px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.empty {
+  margin: 0;
+  color: var(--color-text-tertiary);
+  font-size: 13px;
+}
+.forbidden {
+  padding: 40px;
+  text-align: center;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+.forbidden h1 {
+  margin: 0 0 8px;
+  font-size: 20px;
+}
+.forbidden p {
+  margin: 0 0 16px;
+  color: var(--color-text-tertiary);
+}
+@media (max-width: 1100px) {
+  .cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .twoCol {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 640px) {
+  .cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -1,0 +1,117 @@
+.pageHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.pageTitle {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+.pageMeta {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  max-width: 720px;
+  line-height: 1.7;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.card {
+  padding: 16px 18px;
+}
+.cardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.cardTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.badge {
+  font-size: 12px;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+}
+.ok {
+  color: var(--color-success);
+  background: var(--color-success-bg);
+}
+.warn {
+  color: var(--color-warning);
+  background: var(--color-warning-bg);
+}
+.bad {
+  color: var(--color-danger);
+  background: var(--color-danger-bg);
+}
+.stateTitle {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.meta {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
+}
+.meta dt {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+.meta dd {
+  margin: 2px 0 0;
+  font-size: 13px;
+}
+.table {
+  width: 100%;
+  margin-top: 12px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.table th,
+.table td {
+  padding: 7px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+}
+.table th {
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: var(--color-fill);
+}
+.details {
+  margin-top: 12px;
+  font-size: 13px;
+}
+.pre {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  max-height: 320px;
+  overflow: auto;
+  border-radius: var(--radius-btn);
+  background: var(--color-fill);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.hint {
+  margin: 12px 0 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--color-text-tertiary);
+}
+@media (max-width: 1100px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

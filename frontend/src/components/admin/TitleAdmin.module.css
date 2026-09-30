@@ -1,0 +1,147 @@
+.card {
+  padding: 16px 18px;
+}
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+.hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--color-text-tertiary);
+}
+.tableWrap {
+  overflow-x: auto;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.table th,
+.table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+}
+.table th {
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: var(--color-fill);
+  white-space: nowrap;
+}
+.badge {
+  display: inline-block;
+  padding: 1px 8px;
+  margin-right: 8px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+}
+.name {
+  font-weight: 600;
+}
+.desc {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+.condCell {
+  max-width: 320px;
+  line-height: 1.7;
+}
+.actions {
+  white-space: nowrap;
+}
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+.groupLabel {
+  margin: 8px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+.condRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.inlineField {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  color: var(--color-text-secondary);
+}
+.modalFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.logs {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+.logs li {
+  display: flex;
+  gap: 10px;
+  padding: 4px 0;
+  border-bottom: 1px dashed var(--color-border);
+}
+.logAction {
+  font-weight: 600;
+  width: 96px;
+}
+.error {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-btn);
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  font-size: 13px;
+}
+.notice {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-btn);
+  background: var(--color-success-bg);
+  color: var(--color-success);
+  font-size: 13px;
+}
+.previewNote {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-btn);
+  background: var(--color-fill);
+  font-size: 13px;
+}

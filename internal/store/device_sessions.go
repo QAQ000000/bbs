@@ -166,3 +166,53 @@ func (s *Store) ManageDevice(ctx context.Context, uid, current, target int64, ac
 	}
 	return tag.RowsAffected(), tx.Commit(ctx)
 }
+
+// AdminRevokeSessions 由管理员撤销目标用户的设备会话：
+// target>0 撤销单个会话，action="all" 撤销该用户全部有效会话。
+// 不要求传调用者的“当前会话”，因为撤销的是他人的会话。
+//
+// 撤销会话与清理 MFA 挑战在同一事务内提交：任一步失败都整体回滚，
+// 不会出现“接口报错但会话已被撤销”的部分成功状态。
+func (s *Store) AdminRevokeSessions(ctx context.Context, uid, target int64, action string) (int64, error) {
+	if uid < 1 || (action != "revoke" && action != "all") {
+		return 0, errors.New("invalid device action")
+	}
+	if action == "revoke" && target < 1 {
+		return 0, errors.New("invalid device action")
+	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback(ctx)
+	var exists bool
+	if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM users WHERE id=$1)`, uid).Scan(&exists); err != nil {
+		return 0, err
+	}
+	if !exists {
+		return 0, ErrNotFound
+	}
+	query := `UPDATE sessions SET revoked_at=now() WHERE user_id=$1 AND id=$2 AND revoked_at IS NULL AND expires_at>now()`
+	args := []any{uid, target}
+	if action == "all" {
+		query = `UPDATE sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL AND expires_at>now()`
+		args = []any{uid}
+	}
+	tag, err := tx.Exec(ctx, query, args...)
+	if err != nil {
+		return 0, err
+	}
+	// 单个会话不存在、已撤销、已过期或不属于该用户：与文档的 404 约定一致。
+	if action == "revoke" && tag.RowsAffected() == 0 {
+		return 0, ErrNotFound
+	}
+	if action == "all" {
+		if _, err = tx.Exec(ctx, `DELETE FROM mfa_challenges WHERE user_id=$1`, uid); err != nil {
+			return 0, err
+		}
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return 0, err
+	}
+	return tag.RowsAffected(), nil
+}

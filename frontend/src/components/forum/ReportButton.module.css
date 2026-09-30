@@ -1,0 +1,16 @@
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 8px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-btn);
+  color: var(--color-text-tertiary);
+  font-size: 13px;
+  cursor: pointer;
+}
+.trigger:hover {
+  background: var(--color-fill);
+  color: var(--color-danger);
+}

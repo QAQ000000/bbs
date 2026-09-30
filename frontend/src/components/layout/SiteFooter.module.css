@@ -1,0 +1,35 @@
+.footer {
+  margin-top: auto;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+.inner {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  color: var(--color-text-tertiary);
+  font-size: 13px;
+}
+.links {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.link {
+  color: var(--color-text-tertiary);
+}
+.link:hover {
+  color: var(--color-primary);
+}
+.extra {
+  color: var(--color-text-tertiary);
+}
+@media (max-width: 768px) {
+  .footer {
+    display: none;
+  }
+}

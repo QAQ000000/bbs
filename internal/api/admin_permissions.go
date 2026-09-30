@@ -31,6 +31,8 @@ func (s *Server) adminPointGuard(route string, h http.HandlerFunc) http.HandlerF
 		point = perm.PointsView
 	case strings.Contains(route, "/email-jobs"):
 		point = perm.EmailManage
+	case strings.Contains(route, "/sessions"):
+		point = perm.SessionsManage
 	case strings.Contains(route, "/tags"):
 		point = perm.TagsConfigure
 	case strings.Contains(route, "/titles/") && strings.HasPrefix(route, "PATCH "):

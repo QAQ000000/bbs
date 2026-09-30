@@ -55,6 +55,7 @@ const (
 	TitleLogs           Point = "titles.logs"
 	TagsConfigure       Point = "tags.configure"
 	EmailManage         Point = "email.manage"
+	SessionsManage      Point = "sessions.manage" // 管理员查看 / 撤销用户设备会话
 	PointsView          Point = "points.view"
 	PointsConfigure     Point = "points.configure"
 	PointsAdjust        Point = "points.adjust"
@@ -68,9 +69,10 @@ var rolePerms = map[Role]map[Point]bool{
 	RoleAdmin: {
 		EngagementView: true, EngagementConfigure: true, PollManage: true, BountyManage: true,
 		PointsView: true, PointsConfigure: true, PointsAdjust: true,
-		EmailManage:   true,
-		TagsConfigure: true,
-		TitleView:     true, TitleConfigure: true, TitleGrant: true, TitleRevoke: true, TitleLogs: true, ReplyAccept: true,
+		EmailManage:    true,
+		SessionsManage: true,
+		TagsConfigure:  true,
+		TitleView:      true, TitleConfigure: true, TitleGrant: true, TitleRevoke: true, TitleLogs: true, ReplyAccept: true,
 		PermissionsEdit: true, UsersView: true, MemberView: true, MemberConfigure: true, MemberAdjust: true, ExperienceAdjust: true, MemberLogs: true,
 		AdminPanel: true, ForumManage: true, ContentModerate: true,
 		ContentEditOwn: true, ContentEditAny: true, ContentDeleteOwn: true, ContentDeleteAny: true,
@@ -108,7 +110,9 @@ func Allowed(r Role, p Point) bool {
 	return matrix[r][p]
 }
 
-// Load 用 DB 中的矩阵整表替换运行时值（缺省权限点回退编译期默认）。
+// Load 用 DB 中的矩阵覆盖运行时值：先铺编译期默认值，再用 DB 里显式存在的角色 / 权限点覆盖。
+// 因此新增权限点不需要人工保存一次才会生效——旧矩阵缺少该点时直接采用默认值，
+// 只有 DB 明确写成 false 的项才会保留 false。
 func Load(m map[Role]map[Point]bool) {
 	merged := map[Role]map[Point]bool{}
 	for role, defs := range rolePerms {
@@ -149,7 +153,7 @@ func AllPoints() []Point {
 	return []Point{
 		EngagementView, EngagementConfigure, PollManage, BountyManage,
 		PointsView, PointsConfigure, PointsAdjust,
-		EmailManage,
+		EmailManage, SessionsManage,
 		TagsConfigure,
 		TitleView, TitleConfigure, TitleGrant, TitleRevoke, TitleLogs, ReplyAccept,
 		PermissionsEdit, UsersView, MemberView, MemberConfigure, MemberAdjust, ExperienceAdjust, MemberLogs,

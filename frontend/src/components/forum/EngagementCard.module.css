@@ -1,0 +1,161 @@
+.card {
+  padding: 16px 18px;
+  margin-top: 12px;
+}
+.cardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.cardTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.stateBadge {
+  font-size: 12px;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+.question {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.6;
+}
+.optionList {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.optionItem {
+  min-width: 0;
+}
+.choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.choice input {
+  accent-color: var(--color-primary);
+}
+.resultRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+.resultText {
+  color: var(--color-text);
+}
+.resultTextPicked {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+.resultMeta {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+}
+.bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--color-fill);
+  overflow: hidden;
+}
+.barFill {
+  display: block;
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: 3px;
+}
+.cardFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border);
+}
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.picked {
+  font-size: 12px;
+  color: var(--color-primary);
+}
+.bountyAmount {
+  margin: 0 0 6px;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+.bountyAmount strong {
+  font-size: 22px;
+  color: var(--color-warning);
+  margin-right: 4px;
+}
+.muted {
+  margin: 0 0 8px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--color-text-tertiary);
+}
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.label {
+  display: block;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+.optionRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.removeOption {
+  border: none;
+  background: transparent;
+  color: var(--color-danger);
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.inlineFields {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.error {
+  margin: 0 0 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-btn);
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  font-size: 13px;
+}
+.notice {
+  margin: 0 0 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-btn);
+  background: var(--color-success-bg);
+  color: var(--color-success);
+  font-size: 13px;
+}

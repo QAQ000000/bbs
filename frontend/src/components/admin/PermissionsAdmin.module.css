@@ -1,0 +1,74 @@
+.card {
+  padding: 16px 18px;
+}
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+.title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+.hint {
+  margin: 0 0 8px;
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--color-text-tertiary);
+}
+.tableWrap {
+  overflow-x: auto;
+  margin-top: 12px;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.table th,
+.table td {
+  padding: 7px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+}
+.table th {
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: var(--color-fill);
+  white-space: nowrap;
+}
+.pointName {
+  font-weight: 500;
+}
+.pointCode {
+  margin-left: 8px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--color-text-tertiary);
+}
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+.error {
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-btn);
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  font-size: 13px;
+  line-height: 1.7;
+}
+.notice {
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-btn);
+  background: var(--color-success-bg);
+  color: var(--color-success);
+  font-size: 13px;
+}

@@ -249,6 +249,62 @@ func (s *Store) LatestThreads(ctx context.Context, page, size int) ([]*Thread, i
 	return list, total, err
 }
 
+// PublicThreadIndexRow 公开索引条目：机器可读出口需要的最小字段集合。
+type PublicThreadIndexRow struct {
+	ID         int64
+	ForumID    int64
+	AuthorID   int64
+	AuthorName string
+	Title      string
+	CreatedAt  time.Time
+	LastPostAt time.Time
+	// UpdatedAt 是真实内容更新时间：取（最后回复时间, 可见楼层最后编辑时间）的较大值；
+	// 编辑首楼正文或标题只写 posts.edited_at，不会推进 last_post_at。
+	UpdatedAt time.Time
+}
+
+const publicThreadUpdated = `COALESCE(GREATEST(t.last_post_at, COALESCE((SELECT max(p.edited_at) FROM posts p WHERE p.thread_id=t.id AND NOT p.deleted AND NOT p.pending), t.last_post_at)), t.created_at)`
+
+// PublicThreadIndex 公开只读索引：给 sitemap / RSS 用的有界分页列表。
+// 只返回上下文允许的公开主题（未删除、未待审 + forumFilter）；
+// 调用方必须显式提供游客可见范围，不要依赖请求者身份。
+func (s *Store) PublicThreadIndex(ctx context.Context, sort string, page, size int) ([]PublicThreadIndexRow, int, error) {
+	order := "t.created_at DESC, t.id DESC"
+	if sort == "updated" {
+		order = publicThreadUpdated + " DESC, t.id DESC"
+	}
+	filter := " WHERE NOT t.deleted AND NOT t.pending" + forumFilter(ctx, "t.forum_id")
+	var total int
+	if err := s.pool.QueryRow(ctx, "SELECT count(*) FROM threads t"+filter).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+	rows, err := s.pool.Query(ctx,
+		"SELECT t.id, t.forum_id, t.author_id, u.username, t.title, t.created_at, t.last_post_at, "+
+			publicThreadUpdated+" FROM threads t JOIN users u ON u.id = t.author_id"+filter+
+			" ORDER BY "+order+" LIMIT $1 OFFSET $2", size, (page-1)*size)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+	list := make([]PublicThreadIndexRow, 0, size)
+	for rows.Next() {
+		var row PublicThreadIndexRow
+		if err := rows.Scan(&row.ID, &row.ForumID, &row.AuthorID, &row.AuthorName, &row.Title,
+			&row.CreatedAt, &row.LastPostAt, &row.UpdatedAt); err != nil {
+			return nil, 0, err
+		}
+		list = append(list, row)
+	}
+	return list, total, rows.Err()
+}
+
+// ThreadUpdatedAt 单个主题的真实内容更新时间，供 Markdown 出口标注“最后更新”。
+func (s *Store) ThreadUpdatedAt(ctx context.Context, tid int64) (time.Time, error) {
+	var updated time.Time
+	err := s.pool.QueryRow(ctx, "SELECT "+publicThreadUpdated+" FROM threads t WHERE t.id=$1", tid).Scan(&updated)
+	return updated, err
+}
+
 // LatestThreadPreview avoids computing a total that the home response never uses.
 func (s *Store) LatestThreadPreview(ctx context.Context, size int) ([]*Thread, error) {
 	return s.latestThreads(ctx, size, 0)

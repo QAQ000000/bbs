@@ -5,3 +5,13 @@ data/
 .mimosa/
 .tmp-query/
 cmd/tmpquery/
+
+# 本地开发临时目录（Go 构建缓存、npm/pnpm 缓存、设计稿下载、API 样本）
+.tmp/
+
+# Next.js 前端
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.env
+frontend/.env.local

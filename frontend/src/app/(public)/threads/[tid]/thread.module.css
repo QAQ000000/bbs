@@ -1,0 +1,247 @@
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 24px;
+  align-items: start;
+}
+.main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px;
+}
+.headerMain {
+  min-width: 0;
+}
+.flags {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.flag {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 500;
+}
+.danger {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+.warning {
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+}
+.primary {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+.success {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+.neutral {
+  background: var(--color-fill);
+  color: var(--color-text-secondary);
+}
+.title {
+  margin: 0 0 10px;
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+}
+.author {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+.author:hover {
+  color: var(--color-primary);
+}
+.dotSep {
+  color: var(--color-text-disabled);
+}
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+.pendingBanner {
+  margin: 0;
+  padding: 10px 16px;
+  border-radius: var(--radius-card);
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+  font-size: 13px;
+}
+.posts {
+  display: flex;
+  flex-direction: column;
+}
+.paginationWrap {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.sideCard {
+  padding: 16px;
+}
+.sideTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.authorCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+.authorName {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+.authorBadges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.authorStats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  width: 100%;
+  margin: 6px 0 4px;
+}
+.authorStats div {
+  background: var(--color-fill);
+  border-radius: var(--radius-btn);
+  padding: 8px 10px;
+}
+.authorStats dt {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+.authorStats dd {
+  margin: 2px 0 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+.forumDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-primary);
+}
+.forumDesc {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--color-text-secondary);
+}
+.forumActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.forumLink {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: var(--radius-btn);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+.forumLink:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+.related {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.relatedItem {
+  padding: 10px 0;
+  border-top: 1px solid var(--color-border);
+}
+.relatedItem:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+.relatedTitle {
+  display: block;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.relatedTitle:hover {
+  color: var(--color-primary);
+}
+.relatedMeta {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+.sideEmpty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+}
+@media (max-width: 1180px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.markdownLink {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  align-self: center;
+}
+.markdownLink:hover {
+  color: var(--color-primary);
+}
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+  }
+  .title {
+    font-size: 18px;
+  }
+}

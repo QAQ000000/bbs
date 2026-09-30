@@ -1,0 +1,84 @@
+/* GoBBS 主题变量：数值以 Ardot 已确认稿为准（亮蓝 + 浅灰 + 深蓝灰文字）。 */
+:root {
+  /* 品牌与状态色 */
+  --color-primary: #165dff;
+  --color-primary-hover: #0e42d2;
+  --color-primary-active: #0a33a8;
+  --color-primary-light: #e8f0ff;
+  --color-primary-lighter: #f2f6ff;
+  --color-success: #00b42a;
+  --color-success-bg: #e8ffea;
+  --color-warning: #ff7d00;
+  --color-warning-bg: #fff7e8;
+  --color-danger: #f53f3f;
+  --color-danger-bg: #ffece8;
+  --color-info: #165dff;
+
+  /* 文本 */
+  --color-text: #1d2129;
+  --color-text-secondary: #4e5969;
+  --color-text-tertiary: #86909c;
+  --color-text-disabled: #c9cdd4;
+  --color-text-inverse: #ffffff;
+
+  /* 背景与边框 */
+  --color-bg: #f5f6f8;
+  --color-bg-elevated: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-hover: #f7f8fa;
+  --color-fill: #f2f3f5;
+  --color-border: #e5e6eb;
+  --color-border-strong: #c9cdd4;
+
+  /* 圆角 */
+  --radius-sm: 4px;
+  --radius-btn: 6px;
+  --radius-card: 8px;
+  --radius-lg: 12px;
+  --radius-pill: 999px;
+
+  /* 阴影 */
+  --shadow-card: 0 1px 2px rgba(29, 33, 41, 0.04);
+  --shadow-raised: 0 4px 10px rgba(29, 33, 41, 0.08);
+
+  /* 尺寸 */
+  --container-max: 1440px;
+  --container-pad: 32px;
+  --header-height: 60px;
+  --mobile-nav-height: 56px;
+  --home-left-width: 208px;
+  --home-right-width: 300px;
+
+  /* 字体 */
+  --font-sans: "Noto Sans SC", -apple-system, BlinkMacSystemFont, "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", "Source Han Sans SC", "WenQuanYi Micro Hei",
+    system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+}
+
+/* Arco Design 主题变量覆盖：primary-6 = #165DFF。 */
+:root {
+  --primary-1: 232, 240, 255;
+  --primary-2: 203, 220, 255;
+  --primary-3: 163, 192, 255;
+  --primary-4: 117, 158, 255;
+  --primary-5: 71, 124, 255;
+  --primary-6: 22, 93, 255;
+  --primary-7: 12, 71, 209;
+  --primary-8: 4, 53, 168;
+  --primary-9: 0, 38, 130;
+  --primary-10: 0, 26, 92;
+  --success-6: 0, 180, 42;
+  --warning-6: 255, 125, 0;
+  --danger-6: 245, 63, 63;
+  --color-text-1: 29, 33, 41;
+  --color-text-2: 78, 89, 105;
+  --color-text-3: 134, 144, 156;
+  --color-border-2: 229, 230, 235;
+  --color-fill-1: 247, 248, 250;
+  --color-fill-2: 242, 243, 245;
+  --border-radius-small: 4px;
+  --border-radius-medium: 6px;
+  --border-radius-large: 8px;
+}

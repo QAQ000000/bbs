@@ -1,12 +1,12 @@
 # 当前后端 API（前端剥离版本）
 
-2026-09-28：Go 页面渲染已移除，HTTP 实现在 `internal/api`。本文对应当前源码；Nuxt 前端尚未创建，不能将纯 API 二进制当作包含页面的旧版网站。当前功能状态见 [功能矩阵](FEATURE_STATUS.md)。
+2026-09-28：Go 页面渲染已移除，HTTP 实现在 `internal/api`。本文对应当前源码；Next.js 前端尚未创建，不能将纯 API 二进制当作包含页面的旧版网站。当前功能状态见 [功能矩阵](FEATURE_STATUS.md)。
 
 本文件描述本轮已实现的接口。完整目标见 [前后端分离方案](FRONTEND_BACKEND_SEPARATION.md)。本轮先保留既有业务处理与部分动作式接口；OpenAPI 路由基线已建立；完整字段契约、统一写入字段命名、通用幂等写入及完整前端仍待后续阶段完成。
 
 会员等级、成长规则、经验流水、徽章、版块访问限制及 12 个新增接口见 [会员 API 文档](MEMBERSHIP.md)。该文档定义配置预览、人工调整幂等和等级额度语义。
 
-任务称号、自动补发、佩戴、作者采纳及 13 个新增接口见 [称号 API 文档](TITLES.md)。当前数据库 schema 为 21；schema 18–20 的投票、积分悬赏、签到新增 16 个 API，配置和第一版规则见 [互动 API](ENGAGEMENT_FEATURES.md)；schema 21 补齐退款后台全状态查询、诊断与重试，另提供公开互动规则和主题摘要；Nuxt 管理和展示页面仍待开发。通知、楼层回复及定位、草稿标题和本人内容状态见 [基础流程 API](FORUM_WORKFLOWS.md)。标签、关注/粉丝、订阅投递和私信接口见 [社区 API](COMMUNITY_API.md)，该文档补充下方基础路由清单。邮箱换绑及旧恢复链接撤销见 [安全邮箱换绑](EMAIL_CHANGE.md)。数据库读取优化、主题游标分页、超时和连接池诊断见 [数据库性能](DATABASE_PERFORMANCE.md)。
+任务称号、自动补发、佩戴、作者采纳及 13 个新增接口见 [称号 API 文档](TITLES.md)。当前数据库 schema 为 21；schema 18–20 的投票、积分悬赏、签到新增 16 个 API，配置和第一版规则见 [互动 API](ENGAGEMENT_FEATURES.md)；schema 21 补齐退款后台全状态查询、诊断与重试，另提供公开互动规则和主题摘要；Next.js 管理和展示页面仍待开发。通知、楼层回复及定位、草稿标题和本人内容状态见 [基础流程 API](FORUM_WORKFLOWS.md)。标签、关注/粉丝、订阅投递和私信接口见 [社区 API](COMMUNITY_API.md)，该文档补充下方基础路由清单。邮箱换绑及旧恢复链接撤销见 [安全邮箱换绑](EMAIL_CHANGE.md)。数据库读取优化、主题游标分页、超时和连接池诊断见 [数据库性能](DATABASE_PERFORMANCE.md)。
 
 ## 请求与响应
 
@@ -19,11 +19,13 @@
 - 第一版业务写入接受 JSON 或 URL 编码表单，上传接受 multipart。JSON 使用下面列出的**现有业务字段名**，并非全部已统一为 camelCase；数组表示同名重复字段，布尔值按 1/0 传给旧校验流程。
 - 列表从 `page=1` 开始，版块主题/帖子楼层沿用站点每页设置；当前未开放任意 pageSize 参数。越界返回空数据及总数。
 - `GET /threads` 可选 `pagination=cursor`，下一页携带 `cursor=meta.nextCursor`；只支持默认最后回复排序，不与 `page` 或 `sort` 混用。此模式的 meta 为 `{pagination, pageSize, hasMore, nextCursor}`，不计算 total；权限每次重新校验。
+- `GET /me/feed/forums`、`GET /me/feed/users` 是登录用户的关注聚合流，使用与 `GET /threads?pagination=cursor` 不同的**签名游标**：游标用 HMAC 绑定当前账号、流类型（forums/users）与排序（created），跨流、跨账号或篡改后返回 422 `INVALID_CURSOR`。两类流都在数据库层过滤待审、删除与版块可见性，再按主题 `created_at`、`id` 倒序分页；`limit` 限制在 1-50，默认取站点每页设置。版块流只认订阅关系（通知关闭或静音仍算订阅，不因此移出）；人的流只认被关注者作为**主题作者**发布的主题，不把回复当作新主题。`meta.followingCount` 用于区分“尚无关注”与“暂无内容”。
+- 主题列表投影新增 `excerpt`（≤160 字的纯文本摘要）与 `coverUrl`（可选，仅站内 `/uploads/` 图片）。两者取自当前访问者**可见的首楼**，SQL 内已过滤待审与删除，为空时正常展示纯文字信息流；读取时计算、不做缓存，编辑 / 审核 / 删除立即生效，不依赖缓存过期。
 - 普通 API 默认 15 秒超时，上传默认 60 秒，超时响应为 HTTP 503 `REQUEST_TIMEOUT`。SSE 和媒体保留流式策略，个人导出单独限制查询上下文。超时不保证此前写入未提交，客户端不得自动重试非幂等动作。
 
 ## 会话与 CSRF
 
-设备列表、重命名与会话撤销接口见 [设备会话管理](DEVICE_SESSIONS.md)（schema 11）。
+设备列表、重命名与会话撤销接口见 [设备会话管理](DEVICE_SESSIONS.md)（schema 11）；管理员按用户查看 / 撤销会话使用 `GET|DELETE /api/v1/admin/users/{uid}/sessions[/{sessionId}]`，需要权限点 `sessions.manage`。
 
 TOTP 绑定、验证登录、关闭和恢复码更新见 [二次验证](MFA.md)（schema 14）。已启用账户提交正确密码后返回 HTTP 401 `data.code=MFA_REQUIRED`，前端完成第二因素验证后才能取得登录 Cookie。
 
@@ -45,6 +47,9 @@ TOTP 绑定、验证登录、关闭和恢复码更新见 [二次验证](MFA.md)�
 | `GET /home` | 分类版块、统计、最新主题、公告的聚合数据 |
 | `GET /threads` | `forumId` 可选；`page`、`sort=new/digest/hot`；返回 `data.threads`、`data.stickies` 及 meta；省略 forumId 取最新回复时间线 |
 | `GET /threads/{tid}` | 主题信息、当前用户的收藏状态及操作能力；不增加浏览量 |
+| `GET /me/feed/forums` | 关注版块流；`cursor`、`limit`；返回 `data.threads` 与签名游标 meta，不计算 total |
+| `GET /me/feed/users` | 关注的人流；口径同上，只收录被关注者作为主题作者发布的主题 |
+| `GET /leaderboard/points` | 公开积分余额榜；只读快照，返回 status/generatedAt/stale 与 entries |
 | `GET /threads/{tid}/posts` | 当前用户可见楼层分页，`content` 为 Markdown 原文，含附件与 capabilities；不写阅读记录 |
 | `GET /posts/{pid}` | 单楼层及附件，供编辑、引用和 SSE 事件后的重新读取 |
 | `GET /search` | `q`、`forumId`、`author`、`page`；摘要为纯文本，前端自行高亮 |
@@ -134,14 +139,16 @@ go run ./scripts/api-contract -check  # 检查路由/审核定义与生成文件
 | transport | SSE、原始下载或监控等非标准 envelope 传输 |
 | route | 路由、基础鉴权提示和通用占位；尚未完成字段审核，不可据此生成完整业务类型 |
 
-当前 79 个操作有人工覆盖（63 fields、12 request、4 transport），包含内容浏览/互动/审核、站点设置、互动功能、退款运维、公开规则、主题摘要和采纳结算契约，其余 119 个为路由级定义。角色、版块、会员、会话和站点状态共同决定访问结果；`security` 声明登录要求不等于授予业务权限。所有写入要求 CSRF，首选请求头，过渡期兼容表单字段。
+当前 110 个操作有人工覆盖（94 fields、12 request、4 transport），包含社区关系/订阅/私信/通知偏好、内容浏览/互动/审核、站点设置、互动功能、退款运维、公开规则、主题摘要和采纳结算契约，其余 88 个为路由级定义。角色、版块、会员、会话和站点状态共同决定访问结果；`security` 声明登录要求不等于授予业务权限。所有写入要求 CSRF，首选请求头，过渡期兼容表单字段。
 
-测试同时检查生成文件未漂移、引用可解析、operationId 唯一、路径参数、实际 ServeMux 注册，以及核心读写响应（会话、主题/楼层、列表/游标、搜索、发帖/编辑/回复）的字段形态。此阶段不是完整 OpenAPI 形式化校验器或全接口 SDK；新增字段和错误分支仍需逐组补齐。
+测试同时检查生成文件未漂移、引用可解析、operationId 唯一、路径参数、实际 ServeMux 注册，以及核心读写响应（会话、主题/楼层、列表/游标、搜索、发帖/编辑/回复以及社区标签、关系、订阅、私信）的字段形态。此阶段不是完整 OpenAPI 形式化校验器或全接口 SDK；新增字段和错误分支仍需逐组补齐。
 
 内容浏览、点赞/收藏、定位/历史、删除/举报及后台审核的接入顺序、返回差异和重试规则见 [内容接入说明](FRONTEND_CONTENT_INTEGRATION.md)。后台审核队列不等同于前台详情 DTO，举报行保留 tId/threadTtl 字段；内容治理入口与其他后台入口一样要求完成初始改密。
+
+标签目录/管理、关注粉丝、三类订阅、私信与屏蔽以及通知偏好的 31 个既有操作已补齐字段契约，页面流程见 [社区接入说明](FRONTEND_COMMUNITY_INTEGRATION.md)。三类订阅的新建/修改要求完成初始改密，取消不受此限制；私信 blocked 只表示当前用户自己的屏蔽，任一方屏蔽均拒绝发送。发送私信没有客户端幂等键，超时先读取历史，不自动重发。
 
 ## 运维与尚未完成项
 
 `/api/status` 和 `/api/v1/health/ready` 保留 `{ok, db, schema, pending, ts}` 监控结构；数据库不可用时返回 503。`/api/v1/health/live` 仅检查进程 HTTP 服务。
 
-本次完成后端展示层剥离和业务接口化，不表示分离方案全部完成。后续需要 Nuxt SSR/交互、HTML 与 Markdown 出口、SEO/旧页面 URL、完整字段契约/生成类型、请求幂等、前后端发布编排。部分动作式接口与字段将在契约阶段规范化，联调前应锁定版本。
+本次完成后端展示层剥离和业务接口化，不表示分离方案全部完成。后续需要 Next.js SSR/交互、HTML 与 Markdown 出口、SEO/旧页面 URL、完整字段契约/生成类型、请求幂等、前后端发布编排。部分动作式接口与字段将在契约阶段规范化，联调前应锁定版本。

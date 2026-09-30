@@ -1,0 +1,29 @@
+.like,
+.liked {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 8px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-btn);
+  color: var(--color-text-tertiary);
+  font-size: 13px;
+  cursor: pointer;
+}
+.like:hover {
+  background: var(--color-fill);
+  color: var(--color-text-secondary);
+}
+.liked {
+  color: var(--color-danger);
+}
+.liked:hover {
+  background: var(--color-danger-bg);
+}
+.like:disabled,
+.liked:disabled {
+  cursor: default;
+  opacity: 0.7;
+}

@@ -20,6 +20,8 @@ type Tag struct {
 	Status      string `json:"status"`
 	Version     int    `json:"version"`
 	ThreadCount int    `json:"threadCount"`
+	// Subscribed 仅在详情接口按当前登录用户设置；nil 表示未计算。
+	Subscribed *bool `json:"subscribed,omitempty"`
 }
 
 var tagSlug = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,63}$`)

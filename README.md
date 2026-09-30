@@ -1,8 +1,8 @@
 # GoBBS
 
-Go + PostgreSQL 论坛 API 后端，当前数据库 schema 21。Go 提供 JSON API、SSE 与受控媒体；浏览器页面、HTML/Markdown 出口及 SEO 由独立前端承担，Nuxt 工程尚未实现。旧版 Release 可能仍包含整站页面，部署前须核对版本说明。
+Go + PostgreSQL 论坛 API 后端，当前数据库 schema 21。Go 提供 JSON API、SSE 与受控媒体；浏览器页面、SSR、Markdown 出口及 SEO 由独立 Next.js 前端承担（见 [前端状态](docs/FRONTEND_STATUS.md)）。旧版 Release 可能仍包含整站页面，部署前须核对版本说明。
 
-开发入口：[当前功能状态](docs/FEATURE_STATUS.md) · [API 契约](docs/API.md) · [内容接入](docs/FRONTEND_CONTENT_INTEGRATION.md) · [OpenAPI](docs/openapi.json) · [迁移与维护](docs/MIGRATIONS.md) · [测试门禁](docs/TEST_GATE.md) · [前后端分离方案](docs/FRONTEND_BACKEND_SEPARATION.md)。
+开发入口：[当前功能状态](docs/FEATURE_STATUS.md) · [API 契约](docs/API.md) · [内容接入](docs/FRONTEND_CONTENT_INTEGRATION.md) · [社区接入](docs/FRONTEND_COMMUNITY_INTEGRATION.md) · [OpenAPI](docs/openapi.json) · [迁移与维护](docs/MIGRATIONS.md) · [测试门禁](docs/TEST_GATE.md) · [前后端分离方案](docs/FRONTEND_BACKEND_SEPARATION.md) · [前端 UI 选型](docs/FRONTEND_UI_STACK.md) · [UI 交付规范](docs/FRONTEND_UI_HANDOFF.md) · [页面设计说明](docs/FRONTEND_PAGE_DESIGN.md) · [Ardot 设计核对](docs/ARDOT_DESIGN_REVIEW.md)。
 
 ## 已实现的后端能力
 
@@ -121,7 +121,7 @@ WantedBy=multi-user.target
 ```nginx
 location /api/ { proxy_pass http://127.0.0.1:8090; }
 location /api/v1/events { proxy_pass http://127.0.0.1:8090; proxy_buffering off; proxy_read_timeout 60s; }
-# 页面路由须在 Nuxt 上线后转发给其独立服务；媒体路由见部署文档。
+# 页面路由须在 Next.js 上线后转发给其独立服务；媒体路由见部署文档。
 ```
 
 生产环境务必：改默认管理员密码、`FORUM_PROD=1`（HTTPS 下 Secure Cookie）。
@@ -146,17 +146,17 @@ internal/
 scripts/           辅助脚本（素材导出、发布自检）
 ```
 
-- 后端不再打包页面模板或前端静态资源；Nuxt 项目尚未创建
+- 后端不再打包页面模板或前端静态资源；页面由独立 Next.js 工程 `frontend/` 提供（SSR + 同域代理 API）
 - 发布版本由 GitHub Actions 在 `v*` 标签推送时构建并附带 SHA256；生产升级使用 `gobbsctl`
 - API 简要说明见 [docs/API.md](docs/API.md)
-- 后续前后端分离开发遵循 [docs/FRONTEND_BACKEND_SEPARATION.md](docs/FRONTEND_BACKEND_SEPARATION.md)（已完成后端展示层剥离；Nuxt 和 Markdown 出口待开发）
+- 前后端分离遵循 [docs/FRONTEND_BACKEND_SEPARATION.md](docs/FRONTEND_BACKEND_SEPARATION.md)（后端展示层已剥离；Next.js 前台、后台、安装向导、Markdown 出口与 robots/sitemap/RSS 均已实现，进度见 [docs/FRONTEND_STATUS.md](docs/FRONTEND_STATUS.md)）
 - 表结构见 `assets/db/schema.sql`（含逐表注释）
 - 检查：`go vet ./...`、`go build ./...`。
 - 后端 API 测试：`go test ./internal/api`；不设置 `FORUM_TEST_DSN` 时，仅运行无需数据库的测试，集成测试明确跳过。
 - 完整集成：为 API 和 store **分别**准备独立测试库，并分别设置 `FORUM_TEST_DSN` 执行 `go test ./internal/api` 与 `go test ./internal/store`。API 测试要求库名以 `gobbs_test_` 开头，上传文件使用临时目录。
 - 发布门禁：`bash scripts/verify-local-backend.sh test` 自动启动独立 PostgreSQL 集群，执行与 CI 相同的严格回归。已有专用测试库时可设置 `FORUM_STORE_TEST_DSN`、`FORUM_API_TEST_DSN`、`FORUM_MIGRATION_TEST_DSN` 后执行 `bash scripts/test-backend.sh`。三个库名必须不同且以 `gobbs_test_` 开头；任何跳过、失败或数据库缺失均拒绝通过。详见 [测试门禁](docs/TEST_GATE.md)。
 - 数据库测试会清空目标库 schema；禁止使用业务库，禁止两个包共用同一测试库并行执行。`store` 已移除默认数据库连接，同样要求显式指定 `gobbs_test_` 测试库。
-- API 回归覆盖 JSON 数据、字段隐私、登录/CSRF、发帖/编辑/删除、权限、审核、附件及 SSE；原 HTML 展示断言已移除，后续由 Nuxt 测试接替。
+- API 回归覆盖 JSON 数据、字段隐私、登录/CSRF、发帖/编辑/删除、权限、审核、附件及 SSE；原 HTML 展示断言已移除，后续由 Next.js 测试接替。
 
 ## 已知边界与取舍
 
@@ -167,6 +167,27 @@ scripts/           辅助脚本（素材导出、发布自检）
 - **登录会话**：Cookie 中为原始 token，库中仅存 SHA-256。
 - **设备管理**：支持设备列表、重命名、单设备/其他设备/全部退出，接口见 [设备会话管理](docs/DEVICE_SESSIONS.md)。
 - **独立积分**：账户、行为奖励、冲回流水、后台配置/调账及只读对账，见 [积分账本](docs/POINTS.md)；悬赏结算/退款、每日签到奖励已接入；积分榜已生成后台快照，公开排行尚未接入。
+
+## 前端运行（frontend/）
+
+Next.js 14 App Router + React + TypeScript + Arco Design；SSR 直接调用 Go API，浏览器同域经 `next.config.mjs` 的 rewrites 代理到后端。
+
+```bash
+cd frontend
+pnpm install
+pnpm dev            # 开发模式，http://127.0.0.1:3000
+pnpm lint && pnpm typecheck && pnpm build
+API_INTERNAL_URL=http://127.0.0.1:8090 FORUM_SITE_URL=https://your.domain pnpm start
+```
+
+必须显式提供两个环境变量（都有开发默认值，但生产必须设置）：
+
+- `API_INTERNAL_URL`：SSR 访问后端的内部地址，**在构建时写入 rewrites**；改动后需要重新构建。
+- `FORUM_SITE_URL`：公开站点基址，用于 canonical、Markdown 文档、`/sitemap.xml`、`/rss.xml` 与 robots 的 Host/Sitemap。**不从请求 Host 头推导**，需与后端的 `FORUM_SITE_URL` 保持一致。
+
+安装向导：只有后端 `GET /api/v1/setup` 返回 `required=true`（库中还没有任何用户）时 `/setup` 才可提交；完成后会自动登录并跳转后台，再次访问跳转登录页。前端不收集数据库凭据，数据库连接只由后端环境变量提供。
+
+公开机器可读出口：`/content/threads/{id}.md?page=N` 固定使用游客身份取数（后端索引接口同样固定游客范围，不依赖调用方）；`Accept: text/markdown` 明确优先时按 RFC 9110 的有效权重切换同一页面范围的 Markdown，越界页码返回 404。`/robots.txt`、`/sitemap.xml`、`/rss.xml` 均由 Next.js 生成：`/sitemap.xml` 是 sitemap 索引，主题按每片 500 条分片（`/sitemap/threads-{i}.xml`），标签按每片最多 10 页分片（`/sitemap/tags-{i}.xml`，当前接口每页 30 条），静态入口与版块在 `/sitemap/pages.xml`；索引发现全部主题与标签分片，越界或非安全整数编号返回 404，`lastmod` 使用真实内容更新时间；上游读取失败时返回 503，不伪装成空文档。
 
 ## 许可
 

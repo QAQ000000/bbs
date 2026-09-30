@@ -2,7 +2,7 @@
 
 核对日期：2026-09-28。对象为本仓库当前 Go API 源码，schema 21。此矩阵取代 README 中已过时的整站 UI / 信任等级描述；历史审查文档保留历史语境。
 
-“已实现”表示有后端业务路径和数据模型；不等于前端已完成、线上已部署或生产容量已验收。Nuxt、浏览器主流程和对外 HTML/Markdown 页面仍待实现。
+“已实现”表示有后端业务路径和数据模型；不等于前端已完成、线上已部署或生产容量已验收。Next.js、浏览器主流程和对外 HTML/Markdown 页面仍待实现。
 
 ## 业务能力
 
@@ -10,16 +10,16 @@
 | --- | --- | --- | --- |
 | 注册登录与安装 | 已实现 | 注册开关、验证码、条款同意、安装 API、Cookie 会话；当前无安装网页 | [API](API.md)、[handler_user.go](../internal/api/handler_user.go)、[handler_setup.go](../internal/api/handler_setup.go) |
 | 账号安全 | 已实现 | 设备会话、密码恢复、安全换绑邮箱、TOTP 与恢复码；依赖部署密钥及邮件配置 | [设备会话](DEVICE_SESSIONS.md)、[2FA](MFA.md)、[换绑邮箱](EMAIL_CHANGE.md) |
-| 版块与内容 | 已实现 | 分类、版块、主题、楼层回复、草稿、编辑版本、删除、附件；Markdown 存储，前端负责安全渲染 | [基础流程](FORUM_WORKFLOWS.md)、[handler_post.go](../internal/api/handler_post.go) |
+| 版块与内容 | 已实现 | 分类、版块、主题、楼层回复、草稿、编辑版本、删除、附件；Markdown 存储，前端负责安全渲染；列表投影提供受控摘要与可选站内封面，按访问者可见首楼计算 | [基础流程](FORUM_WORKFLOWS.md)、[handler_post.go](../internal/api/handler_post.go)、[thread_preview.go](../internal/store/thread_preview.go) |
 | 互动与通知 | 已实现 | 点赞、收藏、@、具体楼层回复、作者采纳、通知偏好/已读；部分 toggle 接口不可自动重试 | [API](API.md)、[handler_workflows.go](../internal/api/handler_workflows.go) |
-| 标签、关注/粉丝 | 已实现 | 标签配置/筛选、关注关系与列表；不等于关注动态推荐流 | [社区 API](COMMUNITY_API.md) |
+| 标签、关注/粉丝 | 已实现 | 标签配置/筛选、关注关系与列表，字段契约和页面接入说明已补齐；关注版块 / 关注的人聚合流（`/me/feed/*`）已在数据库层过滤并按签名游标分页，人的流只认主题作者 | [社区 API](COMMUNITY_API.md)、[社区接入](FRONTEND_COMMUNITY_INTEGRATION.md) |
 | 订阅 | 已实现，有容量边界 | 主题/版块/标签订阅、默认站内及邮件通知、权限复核与去重；在线计数按消费轮次合并，离线省略计数；本地 400 读/15 回帖每秒夹具下无持续积压，600/30 档仍积压 | [subscriptions.go](../internal/api/subscriptions.go)、[持续负载](SUSTAINED_LOAD.md) |
-| 私信 | 已实现 | 不要求互关；对方回复前限首条，回复后解除限制，屏蔽拒绝新发送；不是群聊 | [handler_messaging.go](../internal/api/handler_messaging.go)、[社区 API](COMMUNITY_API.md) |
+| 私信 | 已实现 | 不要求互关；对方回复前限首条，回复后解除限制，屏蔽拒绝新发送；不是群聊 | [handler_messaging.go](../internal/api/handler_messaging.go)、[社区 API](COMMUNITY_API.md)、[社区接入](FRONTEND_COMMUNITY_INTEGRATION.md) |
 | 会员成长 | 已实现 | 等级/经验/徽章、自动升级、权限额度、版块访问、后台预览和人工调整；旧 TL 体系已移除 | [会员](MEMBERSHIP.md) |
 | 任务称号 | 已实现 | 发帖、回复、获赞、精华、采纳等条件，补发/授予/撤销/佩戴/审计；称号不授予权限 | [称号](TITLES.md) |
 | 积分账本 | 已实现 | 独立账户、行为奖励、冲回、后台调账与只读对账；现接入悬赏冻结/结算/退款与签到奖励 | [积分](POINTS.md) |
 | 投票、悬赏、签到 | 第一版已实现 | 单选/多选、审核/截止/幂等；积分冻结、采纳结算、取消/超时退款；每日签到、连续天数、经验/积分与自动升级；不含改投、分摊、补签和连续额外奖励 | [实际 API 与配置](ENGAGEMENT_FEATURES.md) |
-| 排行榜与报表 | 部分实现 | 积分 Top 100 和站点统计快照，启动/每小时刷新；独立超时及退避、过期标识、保留期和有界清理；报表时区可配置并附带统计日边界；仅管理员可读，没有公开榜、多维榜、榜单规则配置及前端 | [快照说明](ANALYTICS_SNAPSHOTS.md)、[analytics.go](../internal/api/analytics.go) |
+| 排行榜与报表 | 部分实现 | 积分 Top 100 和站点统计快照，启动/每小时刷新；独立超时及退避、过期标识、保留期和有界清理；报表时区可配置并附带统计日边界；公开积分余额榜 `/leaderboard/points` 只读快照并在读取时过滤封禁账号；仍没有多维榜、榜单规则配置 | [快照说明](ANALYTICS_SNAPSHOTS.md)、[analytics.go](../internal/api/analytics.go)、[handler_leaderboard.go](../internal/api/handler_leaderboard.go) |
 | 内容治理与后台 | 已实现 | 审核、举报、版主管辖、封禁、回收站、敏感词、公告、角色权限、站点配置和审计；后台页面未开发 | [配置](SETTINGS.md)、[路由](../internal/api/routes.go) |
 | 搜索 | 已实现，有容量边界 | PostgreSQL tsvector + 中文 bigram，异步索引；top-400 候选按主题去重，仅加载当前页展示字段；total 不是无限制全量命中数 | [search.go](../internal/store/search.go)、[数据库性能](DATABASE_PERFORMANCE.md) |
 | 数据导出/注销 | 部分实现 | 本人导出与受限删除已有；有业务关联的账号不支持通用匿名化注销 | [handler_profile.go](../internal/api/handler_profile.go)、[积分](POINTS.md) |
@@ -29,7 +29,7 @@
 
 | 项目 | 当前交付 | 仍需单独验收 / 建设 |
 | --- | --- | --- |
-| 展示层分离 | Go 仅负责 JSON API、SSE、受控媒体；没有页面模板和整页缓存 | Nuxt SSR、SEO、站点地图、供爬虫读取的 HTML/Markdown |
+| 展示层分离 | Go 仅负责 JSON API、SSE、受控媒体；没有页面模板和整页缓存 | Next.js SSR、SEO、站点地图、供爬虫读取的 HTML/Markdown |
 | 持久异步 | 经验/积分、称号、订阅、邮件、搜索、版块统计使用 PostgreSQL 任务；分析快照周期刷新，悬赏退款有界扫描、逐条失败退避、后台检索/诊断/排队重试 | 各队列统一的延迟目标、告警、重试/死信运维体验；大积压与持续负载下的背压/隔离 |
 | 邮件 | 持久任务、退避、租约恢复、后台查询与重试；本地 SMTP 夹具测试已有 | 外部 SMTP 送达、退信与真实部署验证 |
 | 二进制发布 | 有界 HTTP/服务命令，重启失败与健康失败统一恢复，恢复后再验健康，保留备份 | 实际 systemd 主机演练；跨 schema 必须另外准备数据库恢复/前向修复 |
@@ -51,7 +51,7 @@
 - `transport`：SSE、原始下载、监控等特殊传输形态。
 - `route`：只有路由、基础鉴权提示与通用响应；不能作为完整前端类型定义。
 
-79 个操作已有人工覆盖（63 个 fields、12 个 request、4 个 transport），其中互动功能的 16 个操作、原有采纳/撤销的 2 个操作及新增退款运维/公开规则的 4 个操作已补齐字段和幂等/结算语义，主题与楼层读取补齐摘要和结算能力；后台站点配置的六个操作覆盖 20 项设置。本批补齐内容浏览、互动与后台审核的 16 个操作，接入规则见 [内容接入说明](FRONTEND_CONTENT_INTEGRATION.md)。其余 119 个为路由级占位。后续按前端模块逐组补齐字段、错误分支、幂等性和权限说明。测试校验源码生成一致、引用可解析、operationId 唯一、声明路由在实际 ServeMux 注册，以及核心读写响应的字段形态。当前没有全接口形式化请求验证器或完整 SDK。
+110 个操作已有人工覆盖（94 个 fields、12 个 request、4 个 transport）。已覆盖互动功能、采纳/撤销、退款运维/公开规则、后台站点配置和内容浏览/互动/审核。本批新增标签、关注/粉丝、三类订阅、私信/屏蔽及通知偏好的 31 个既有操作，接入规则见 [社区接入说明](FRONTEND_COMMUNITY_INTEGRATION.md)；此前内容模块见 [内容接入说明](FRONTEND_CONTENT_INTEGRATION.md)。其余 88 个为路由级占位。后续按前端模块逐组补齐字段、错误分支、幂等性和权限说明。测试校验源码生成一致、引用可解析、operationId 唯一、声明路由在实际 ServeMux 注册，以及核心和社区读写响应的字段形态。当前没有全接口形式化请求验证器或完整 SDK。
 
 ## 证据边界和后续顺序
 

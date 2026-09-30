@@ -1,0 +1,46 @@
+.title {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 700;
+}
+.subtitle {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+}
+.history {
+  margin-top: 16px;
+  padding: 16px 20px;
+}
+.historyTitle {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 0;
+  border-top: 1px solid var(--color-border);
+  font-size: 13px;
+}
+.item:first-child {
+  border-top: none;
+}
+.day {
+  font-weight: 600;
+}
+.itemMeta {
+  flex: 1 1 auto;
+  color: var(--color-text-secondary);
+}
+.itemTime {
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+}

@@ -3,7 +3,7 @@ package api
 
 import "net/http"
 
-// routes serves API and controlled media only. Nuxt owns all website URLs.
+// routes serves API and controlled media only. Next.js owns all website URLs.
 func (s *Server) routes() http.Handler {
 	m := s.mux
 	s.membershipRoutes()
@@ -17,6 +17,7 @@ func (s *Server) routes() http.Handler {
 	m.HandleFunc("GET /api/v1/forums", s.forumsGet)
 	m.HandleFunc("GET /api/v1/forums/{fid}", s.forumGet)
 	m.HandleFunc("GET /api/v1/threads", s.threadsGet)
+	m.HandleFunc("GET /api/v1/index/threads", s.indexThreads)
 	m.HandleFunc("GET /api/v1/threads/{tid}", s.threadGet)
 	m.HandleFunc("GET /api/v1/threads/{tid}/posts", s.postsGet)
 	m.HandleFunc("GET /api/v1/posts/{pid}", s.postGet)
@@ -33,6 +34,9 @@ func (s *Server) routes() http.Handler {
 	m.HandleFunc("GET /api/v1/me/subscriptions", s.subscriptionsGet)
 	m.HandleFunc("GET /api/v1/me/following", s.followsGet)
 	m.HandleFunc("GET /api/v1/me/followers", s.followsGet)
+	m.HandleFunc("GET /api/v1/me/feed/forums", s.feedForums)
+	m.HandleFunc("GET /api/v1/me/feed/users", s.feedUsers)
+	m.HandleFunc("GET /api/v1/leaderboard/points", s.publicPointsLeaderboard)
 	m.HandleFunc("GET /api/v1/users/{id}/followers", s.followsGet)
 	m.HandleFunc("GET /api/v1/tags", s.tagsGet)
 	m.HandleFunc("GET /api/v1/tags/{tagId}", s.tagGet)
@@ -99,20 +103,23 @@ func (s *Server) routes() http.Handler {
 		"GET /api/v1/admin/users":            s.adminUsers, "GET /api/v1/admin/settings": s.adminSettings, "GET /api/v1/admin/perms": s.adminPerms,
 		"GET /api/v1/admin/logs": s.adminLogs, "GET /api/v1/admin/recyclebin": s.adminRecycle, "GET /api/v1/admin/censor": s.adminCensor,
 		"GET /api/v1/admin/announcements": s.adminAnnounce, "GET /api/v1/admin/moderate": s.adminModerate,
-		"GET /api/v1/admin/tags":            s.tagsGet,
-		"GET /api/v1/admin/settings/schema": s.settingsSchema,
-		"GET /api/v1/admin/settings/status": s.settingsStatus,
-		"PUT /api/v1/admin/settings":        s.settingsJSONSave,
-		"PATCH /api/v1/admin/settings":      s.settingsJSONSave,
-		"GET /api/v1/admin/email-jobs":      s.adminEmailQueue,
+		"GET /api/v1/admin/tags":                 s.tagsGet,
+		"GET /api/v1/admin/settings/schema":      s.settingsSchema,
+		"GET /api/v1/admin/settings/status":      s.settingsStatus,
+		"PUT /api/v1/admin/settings":             s.settingsJSONSave,
+		"PATCH /api/v1/admin/settings":           s.settingsJSONSave,
+		"GET /api/v1/admin/email-jobs":           s.adminEmailQueue,
+		"GET /api/v1/admin/users/{uid}/sessions": s.adminUserSessions,
 	} {
 		m.HandleFunc(route, s.adminPointGuard(route, h))
 	}
 	for route, h := range map[string]http.HandlerFunc{
 		"POST /api/v1/admin/forums/save": s.adminForumSave, "POST /api/v1/admin/forums/delete": s.adminForumDelete, "POST /api/v1/admin/forums/move": s.adminForumMove,
 		"POST /api/v1/admin/tags": s.tagSave, "PUT /api/v1/admin/tags/{tagId}": s.tagSave,
-		"POST /api/v1/admin/email-jobs/{jobId}/retry": s.adminEmailRetry,
-		"POST /api/v1/admin/cats/save":                s.adminCatSave, "POST /api/v1/admin/cats/delete": s.adminCatDelete, "POST /api/v1/admin/threads/action": s.adminThreadAction,
+		"POST /api/v1/admin/email-jobs/{jobId}/retry":           s.adminEmailRetry,
+		"DELETE /api/v1/admin/users/{uid}/sessions":             s.adminUserSessionsManage,
+		"DELETE /api/v1/admin/users/{uid}/sessions/{sessionId}": s.adminUserSessionsManage,
+		"POST /api/v1/admin/cats/save":                          s.adminCatSave, "POST /api/v1/admin/cats/delete": s.adminCatDelete, "POST /api/v1/admin/threads/action": s.adminThreadAction,
 		"POST /api/v1/admin/users/ban": s.adminUserBan, "POST /api/v1/admin/users/unban": s.adminUserUnban, "POST /api/v1/admin/users/group": s.adminUserGroup,
 		"POST /api/v1/admin/users/delete": s.adminUserDelete, "POST /api/v1/admin/users/block": s.adminUserBlock, "POST /api/v1/admin/users/unblock": s.adminUserUnblock,
 		"POST /api/v1/admin/settings": s.adminSettingsSave, "POST /api/v1/admin/perms/save": s.adminPermsSave,

@@ -353,11 +353,18 @@ func (s *Server) memberThreadRows(r *http.Request, rows []*store.Thread) ([]map[
 	if err != nil {
 		return nil, err
 	}
+	// 列表摘要与封面：一次批量投影，SQL 内已按待审 / 删除过滤。
+	previews, err := s.st.ThreadPreviews(r.Context(), tids)
+	if err != nil {
+		return nil, err
+	}
 	return mapRows(rows, func(t *store.Thread) map[string]any {
 		v := threadDTO(t)
 		v["authorLevel"] = badges[t.AuthorID]
 		v["equippedTitle"] = titles[t.AuthorID]
 		v["tags"] = tags[t.ID]
+		v["excerpt"] = previews[t.ID].Excerpt
+		v["coverUrl"] = previews[t.ID].CoverURL
 		s.threadEngagementResponse(r, t, v, engagement[t.ID], rules)
 		return v
 	}), nil

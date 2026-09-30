@@ -2,6 +2,7 @@
 package api
 
 import (
+	"crypto/sha256"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -37,6 +38,9 @@ type Server struct {
 	mfaCipher  *mfa.Cipher
 	limiter    *limiter.Limiter
 	prod       bool
+	// feedKey 是关注流游标的 HMAC 密钥：由部署内唯一的 DSN 派生，
+	// 不引入新的环境变量，也不对外暴露。
+	feedKey []byte
 
 	uploadMu     sync.Mutex // 上传目录占用缓存（5 分钟）
 	uploadSize   int64
@@ -70,6 +74,8 @@ func New(cfg config.Config, st *store.Store, hub *live.Hub, logger *slog.Logger)
 			return nil, err
 		}
 	}
+	feedKey := sha256.Sum256([]byte("gobbs-feed-cursor-v1|" + cfg.DSN))
+	s.feedKey = feedKey[:]
 	s.routes()
 	return s, nil
 }

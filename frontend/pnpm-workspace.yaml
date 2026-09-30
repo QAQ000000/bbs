@@ -1,0 +1,6 @@
+# pnpm 11 将设置从 package.json 迁移到 workspace 配置。
+# 允许构建的依赖（原生解析器由 eslint-config-next 间接引入）。
+allowBuilds:
+  unrs-resolver: true
+# 运行脚本前不做自动 install 校验，避免重复解析依赖。
+verifyDepsBeforeRun: false

@@ -1,0 +1,121 @@
+.card {
+  padding: 16px 18px;
+}
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+.hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--color-text-tertiary);
+}
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+.filter,
+.filterActive {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.filter {
+  color: var(--color-text-secondary);
+}
+.filterActive {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+.count {
+  font-size: 12px;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-fill);
+  color: var(--color-text-tertiary);
+}
+.tableWrap {
+  overflow-x: auto;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.table th,
+.table td {
+  padding: 9px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+}
+.table th {
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: var(--color-fill);
+  white-space: nowrap;
+}
+.time {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+.errorCell {
+  max-width: 260px;
+  font-size: 12px;
+  color: var(--color-danger);
+  word-break: break-word;
+}
+.actions {
+  white-space: nowrap;
+}
+.detail {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 16px;
+}
+.detail dt {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+.detail dd {
+  margin: 2px 0 0;
+  font-size: 13px;
+}
+.full {
+  grid-column: 1 / -1;
+}
+.footer {
+  margin-top: 14px;
+}
+.error {
+  margin: 0 0 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-btn);
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  font-size: 13px;
+  line-height: 1.7;
+}
+.notice {
+  margin: 0 0 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-btn);
+  background: var(--color-success-bg);
+  color: var(--color-success);
+  font-size: 13px;
+}

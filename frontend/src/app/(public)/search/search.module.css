@@ -1,0 +1,77 @@
+.title {
+  margin: 0 0 12px;
+  font-size: 22px;
+  font-weight: 700;
+}
+.search {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  max-width: 560px;
+}
+.input {
+  flex: 1 1 auto;
+  height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-btn);
+  font-size: 14px;
+  outline: none;
+}
+.input:focus {
+  border-color: var(--color-primary);
+}
+.button {
+  height: 38px;
+  padding: 0 22px;
+  border: none;
+  border-radius: var(--radius-btn);
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+.summary {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+}
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.item {
+  padding: 16px 18px;
+}
+.itemTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+.itemTitle:hover {
+  color: var(--color-primary);
+}
+.excerpt {
+  margin: 8px 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--color-text-secondary);
+}
+.meta {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+.pagination {
+  margin-top: 16px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+.link {
+  color: var(--color-primary);
+  font-size: 13px;
+}

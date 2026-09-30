@@ -1,0 +1,44 @@
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+.filters,
+.filter,
+.filterActive {
+  display: inline-flex;
+  align-items: center;
+}
+.filters {
+  gap: 4px;
+}
+.filter,
+.filterActive {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: var(--radius-btn);
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+.filter:hover {
+  background: var(--color-fill);
+}
+.filterActive {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  font-weight: 500;
+}
+.pagination {
+  margin-top: 16px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}

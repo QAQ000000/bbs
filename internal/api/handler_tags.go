@@ -44,6 +44,12 @@ func (s *Server) tagGet(w http.ResponseWriter, r *http.Request) {
 	}
 	row, err := s.st.Tag(r.Context(), id)
 	if !s.readError(w, r, err) {
+		// 单资源订阅状态随标签详情返回。
+		if u := User(r); u != nil {
+			if sub, e := s.st.IsSubscribed(r.Context(), u.ID, row.ID, "tag"); e == nil {
+				row.Subscribed = &sub
+			}
+		}
 		s.respond(w, 200, row)
 	}
 }
