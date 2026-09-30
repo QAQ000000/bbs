@@ -1,5 +1,7 @@
 # 后端测试门禁
 
+> 本文包含多个日期批次的历史门禁记录，旧批次中的操作数量、提交状态和“未推送”描述只适用于对应记录。当前 API 契约为 205 个操作；当前代码与前端状态以仓库最新提交及 [功能矩阵](FEATURE_STATUS.md) 为准。
+
 ## CI 与发布
 
 `.github/workflows/backend-tests.yml` 在 PR 和分支 push 时运行，也供 Release 的 `tests` job 调用。PostgreSQL 18 服务创建三个独立数据库，测试角色不具备超级用户、建库或建角色权限。Release 构建/上传依赖该 job 成功，不能再仅靠不接数据库的 `go test ./...` 发布。

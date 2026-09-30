@@ -1,6 +1,6 @@
 # 部署运维手册
 
-> 2026-09-06：当前源码已剥离页面，以下原单体部署流程保留供旧版运维参考。新版本仅提供 API/SSE/媒体，Nuxt 前端尚未实现，不能直接替换现有完整网站。新架构与发布约束见 [分离方案](FRONTEND_BACKEND_SEPARATION.md)。原 `/api/live` 已改为 `/api/v1/events`，所有 `/` 页面转发配置必须在 Nuxt 完成后调整。后端仍兼容 `/api/status`。
+> 2026-09-30：Go 服务仅提供 API/SSE/媒体，浏览器页面由独立 Next.js 服务提供。新架构与发布约束见 [分离方案](FRONTEND_BACKEND_SEPARATION.md)。旧版 `/api/live` 已改为 `/api/v1/events`；生产 Nginx 应将 `/api/` 和 `/api/v1/events` 转发到 Go，将其他页面转发到 Next.js。后端仍兼容 `/api/status`。
 
 面向生产部署的完整流程。默认使用 [GitHub Releases](https://github.com/QAQ000000/bbs/releases) 中的二进制，不需要下载源码；只有开发或自行构建时才需要源码。
 
@@ -103,21 +103,34 @@ server {
     # 与后台"附件上限"保持一致（默认 20MB，另留头部余量）
     client_max_body_size 25m;
 
+    # 浏览器页面、SSR、robots/sitemap/RSS 由 Next.js 提供
     location / {
-        proxy_pass http://127.0.0.1:8090;
+        proxy_pass http://127.0.0.1:3000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    # SSE 实时通道：必须关闭缓冲
-    location /api/live {
+    # API SSE 实时通道：必须关闭缓冲
+    location /api/v1/events {
         proxy_pass http://127.0.0.1:8090;
         proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header Connection "";
         proxy_buffering off;
         proxy_read_timeout 3600s;
+    }
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:8090;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
 ```
@@ -185,11 +198,11 @@ systemctl start gobbs
 - 新库初始化完整 schema；已有版本的库只执行缺失的 `assets/db/migrations/NNN_*.sql` 编号迁移，
   启动日志出现「已应用编号迁移 version=N」即表示存量库完成升级
 - 需要全量重分词或修复版块统计时，显式执行 `forumd -enqueue-derived-repair`，再由普通服务 Worker 消费；命令成功只表示入队，不表示修复已经完成
-- 当前 API 二进制只 embed 数据库结构；页面和前端静态资源需要独立前端部署
+- 当前 API 二进制只 embed 数据库结构；页面和前端静态资源由独立 Next.js 服务部署
 
 ## 7. 监控与健康检查
 
-- `GET /api/status` → `{"ok":true,"db":"up","schema":17,"pending":{...},"ts":"..."}`，可接入拨测：
+- `GET /api/status` → `{"ok":true,"db":"up","schema":21,"pending":{...},"ts":"..."}`，可接入拨测：
   - `db` 数据库可达性；`schema` 为 `schema_migrations` 迁移版本（与发布版本核对）
   - `pending` 为治理队列积压（待审主题/回复/待处理举报），持续增长说明该去后台处理了
 - `forumd -check-backup`：上线检查单（DSN 可写、schema 版本、pg_dump 在 PATH、
@@ -204,7 +217,8 @@ systemctl start gobbs
 - [ ] 默认管理员已改密（`-seed` 站点首次登录会被强制改密后方可发帖/进后台）
 - [ ] `FORUM_PROD=1`（HTTPS）
 - [ ] `client_max_body_size` 与后台"上传限额"匹配
-- [ ] `/api/live` 无缓冲（否则实时刷新失效）
+- [ ] `/api/v1/events` 无缓冲（否则实时刷新失效）
+- [ ] `/api/` 转发到 Go，其他页面路由转发到 Next.js
 - [ ] 备份 cron 已配置且试跑过一次恢复
 - [ ] `/api/status` 的 `schema` 版本与本次发布一致
 - [ ] 发布前跑 `scripts/check-clean.sh`（仓库不含第三方素材）

@@ -1,7 +1,9 @@
 # GoBBS 前端页面与交互设计说明
 
+> 设计说明与画板索引：本文保留早期页面设计记录，当前实现和联调状态以 [前端状态](FRONTEND_STATUS.md) 为准。Ardot 后续文件共读取 95 个画板，本文的 85 个页面级 Frame 统计不作为当前总数。
+
 日期：2026-09-28
-状态：已形成 Ardot 页面设计基线，等待 HTML 样稿与 React 实现。
+状态：已形成 Ardot 页面设计基线，主要页面已在 `frontend/` 完成 React/Next.js 实现；本文保留页面清单和交互约束，HTML 样稿不是当前实现前置条件。
 Ardot 设计文件：[论坛社区前端页面设计](https://ardot.tencent.com/file/730748088704786?node_id=28%3A2)，共核对 85 个页面级 Frame。
 技术基线：React + Next.js App Router + TypeScript；基础组件首选 Arco Design React，后台参考 Arco Pro；Go 只提供 API、SSE、鉴权和受控媒体。
 

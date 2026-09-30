@@ -1,6 +1,6 @@
 # 社区扩展功能实施方案
 
-2026-09-07。本文记录标签、订阅、关注/粉丝、私信、积分悬赏、签到排行榜、设备会话、2FA 和持久邮件队列的已确认规则。实现按阶段推进，所有写入使用 API 和数据库事务，Nuxt 只负责展示。
+2026-09-07。本文记录标签、订阅、关注/粉丝、私信、积分悬赏、签到排行榜、设备会话、2FA 和持久邮件队列的已确认规则。实现按阶段推进，所有写入使用 API 和数据库事务，Next.js 只负责展示和交互。具体当前状态以 [功能矩阵](FEATURE_STATUS.md) 和 [前端状态](FRONTEND_STATUS.md) 为准。
 
 实施进度：schema 9 已接入标签、关注/粉丝、三类订阅分发、私信首条限制/屏蔽/已读；schema 10 已实现持久邮件队列；schema 11 已实现设备会话管理；schema 13 已实现积分账户、奖励、流水、后台配置/调账和只读对账；schema 14 已完成 TOTP 2FA 专项安全修复。实际接口见 [COMMUNITY_API.md](COMMUNITY_API.md)、[EMAIL_QUEUE.md](EMAIL_QUEUE.md)、[DEVICE_SESSIONS.md](DEVICE_SESSIONS.md)、[POINTS.md](POINTS.md) 和 [MFA.md](MFA.md)。下面未单独标为已实现的模型与奖励建议仍属于目标方案。schema 17 已增加积分 Top 100 和站点报表快照、管理员读取 API；2026-09-28 的 schema 18–20 已完成投票、积分悬赏和签到第一版，实际规则见 [互动 API](ENGAGEMENT_FEATURES.md)。面向用户的多维排行榜仍未实现。最新交付状态见 [功能矩阵](FEATURE_STATUS.md)。
 

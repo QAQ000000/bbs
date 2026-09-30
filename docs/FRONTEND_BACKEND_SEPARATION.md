@@ -1,8 +1,8 @@
 # GoBBS 前后端分离开发方案
 
-创建日期：2026-09-06。状态：后端展示层剥离已实施；Next.js 前端及完整契约阶段尚未完成。
+创建日期：2026-09-06。当前状态：后端展示层剥离已实施，Next.js 前端已完成主要页面与机器可读出口；本文保留早期设计和实施记录，当前交付以 [前端状态](FRONTEND_STATUS.md) 为准。
 
-2026-09-28 选型调整：按用户确认，原 Nuxt / Vue 方案改为 Next.js App Router / React / TypeScript。Go API、SSR、同域 Cookie/CSRF 和游客 Markdown 输出边界保持不变。页面方向已确认采用社区门户式：首页为综合及关注信息流，提供独立版块详情页。具体 UI 组件、编辑器与视觉样板见 [前端 UI 选型](FRONTEND_UI_STACK.md)，这些实现选择尚待确认。
+2026-09-28 选型调整：按用户确认，原 Nuxt / Vue 方案改为 Next.js App Router / React / TypeScript，现已在 `frontend/` 实现。Go API、SSR、同域 Cookie/CSRF 和游客 Markdown 输出边界保持不变。页面方向采用社区门户式：首页为综合及关注信息流，提供独立版块详情页。具体视觉基线和实现记录见 [前端 UI 选型](FRONTEND_UI_STACK.md) 与 [前端状态](FRONTEND_STATUS.md)。
 
 本文件是后续分离开发的设计基线。目标是保留 Go + PostgreSQL 的业务能力，将页面、交互和面向爬虫的文档输出迁到独立 Next.js 前端。除下方实施记录明确列出的项目外，本文目录、接口和响应约定仍为目标设计；当前接口以 [API.md](API.md) 为准。
 
@@ -21,23 +21,23 @@
 
 验证记录：`go vet ./...` 与后端构建通过；`go test -race ./internal/api -count=1` 在隔离库通过 23 项顶层测试（含读取端点子用例），`go test ./internal/store -count=1` 在另一个隔离库通过 23 项测试；其余基础包单测通过。独立新二进制在第三个空测试库完成 schema 5 初始化、安装校验、创建分类/版块、发帖/回复、SSE 纯数据事件、旧页面 JSON 404 和退出撤销的实际 HTTP 验证。测试进程已停止，验证不代表 Next.js 或生产部署已完成。
 
-本轮边界：Next.js、SSR 页面、Markdown 文档出口、SEO 和生成客户端尚未完成。当前已有覆盖真实注册路由的 docs/openapi.json，其中字段级契约按模块补齐；准确完成度见 [功能状态](FEATURE_STATUS.md)。部分动作名/写字段保留旧约定，点赞/收藏仍为 toggle，写入幂等未完成；当前 API 是迁移版本，不宣称全部目标契约已实现。`internal/service` 尚未机械拆层，先复用现有业务流程。
+早期边界记录：Next.js、SSR 页面、Markdown 文档出口和 SEO 当时尚未完成，现已由 `frontend/` 提供。当前仍有部分动作名/写字段保留旧约定，点赞/收藏仍为 toggle，写入幂等和完整字段契约尚未全部形式化；`internal/service` 继续复用现有业务流程。
 
 **部署与回滚差异**：此版本不含可访问的网站页面，暂不替换生产网站。旧 `content_html` 列保留但新建/编辑不再生成 HTML，因此不能假定旧页面二进制可以直接显示新写入内容；真实发布前须重新设计兼容回滚，或补齐原文到旧 HTML 的恢复流程。下文原迁移计划作为目标保留，不应据此跳过这项实际差异。
 
 ### 0.1 后续实现：会员后端
 
-会员等级、成长规则、经验流水、等级权限 / 额度、版块读取限制、等级徽章数据、后台配置预览与人工调整 API 已实现。详细契约与 schema 6 迁移说明见 [MEMBERSHIP.md](MEMBERSHIP.md)。Next.js 应直接使用 API 返回的 `level`、`authorLevel`、`capabilities`，不复制后端升级或权限规则。会员管理 UI 仍未开发。
+会员等级、成长规则、经验流水、等级权限 / 额度、版块读取限制、等级徽章数据、后台配置预览与人工调整 API 已实现。详细契约与 schema 6 迁移说明见 [MEMBERSHIP.md](MEMBERSHIP.md)。Next.js 直接使用 API 返回的 `level`、`authorLevel`、`capabilities`，不复制后端升级或权限规则；会员管理 UI 已在 `/admin/membership` 接入。
 
-任务称号和作者采纳后端已实现，相关迁移为 schema 7。条件、发布补发、佩戴和 API 契约见 [TITLES.md](TITLES.md)。Next.js 使用 `equippedTitle`、`acceptedPostId`、`accepted` 和采纳 capabilities；称号 UI 待实现。
+任务称号和作者采纳后端已实现，相关迁移为 schema 7。条件、发布补发、佩戴和 API 契约见 [TITLES.md](TITLES.md)。Next.js 使用 `equippedTitle`、`acceptedPostId`、`accepted` 和采纳 capabilities；称号管理 UI 已在 `/admin/titles` 接入。
 
-后续基础流程推进到 schema 8：通知分页/偏好及系统事件、replyTo/viewerHasLiked、楼层位置 API、草稿 subject、本人内容状态 API；接口和前端刷新规则见 [FORUM_WORKFLOWS.md](FORUM_WORKFLOWS.md)。收藏删楼未读和审核回复通知两项缺陷已补修，页面尚待接入。
+后续基础流程推进到 schema 8：通知分页/偏好及系统事件、replyTo/viewerHasLiked、楼层位置 API、草稿 subject、本人内容状态 API；接口和前端刷新规则见 [FORUM_WORKFLOWS.md](FORUM_WORKFLOWS.md)。收藏删楼未读和审核回复通知两项缺陷已补修，通知、私信、草稿和内容操作页面已在 `frontend/` 接入。
 
 会员模块直接采用新系统：默认五级经验门槛为 0 / 100 / 500 / 1500 / 5000；不映射旧三级信任等级、不双写旧字段。迁移 006 删除 `users.trust_level`，现有账号首次接入从 LV0 开始。下文通用兼容策略不适用于这项已明确调整的会员设计。
 
 ### 0.2 后续实现：内容与社区接口契约
 
-截至 2026-09-28，198 个既有 API 操作中 94 个已审核到字段级，另有 12 个请求级、4 个特殊传输级，88 个仍为路由级。内容浏览、互动和后台审核接入见 [内容接入说明](FRONTEND_CONTENT_INTEGRATION.md)；标签、关注/粉丝、三类订阅、通知偏好及私信/屏蔽见 [社区接入说明](FRONTEND_COMMUNITY_INTEGRATION.md)。本批没有新增页面或业务路由，不将订阅默认开启、首条私信限制及双向屏蔽校验移到前端；实际权限仍由写入时的后端检查决定。
+截至 2026-09-30，OpenAPI 注册 205 个 API 操作，其中 98 个为 fields、12 个为 request、4 个为 transport，91 个仍为 route 级定义。内容浏览、互动和后台审核接入见 [内容接入说明](FRONTEND_CONTENT_INTEGRATION.md)；标签、关注/粉丝、三类订阅、通知偏好及私信/屏蔽见 [社区接入说明](FRONTEND_COMMUNITY_INTEGRATION.md)。订阅默认开启、首条私信限制及双向屏蔽校验仍由后端写入时决定，前端只展示能力和错误。
 
 ## 1. 已确定的方向与范围
 

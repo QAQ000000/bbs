@@ -1,6 +1,6 @@
 # GoBBS 演进计划（ROADMAP）
 
-> 本文保留原单体论坛的功能完成记录。2026-09-06 起按 [前后端分离方案](FRONTEND_BACKEND_SEPARATION.md) 继续开发；当前已移除 Go 展示层，原有页面功能待 Nuxt 接替，本文旧阶段的完成状态不代表新前端已经实现。
+> 本文保留原单体论坛的功能完成记录和阶段性计划。2026-09-06 起按 [前后端分离方案](FRONTEND_BACKEND_SEPARATION.md) 继续开发；当前 Go 展示层已移除，页面由 Next.js `frontend/` 接替。本文旧阶段的完成状态不代表当前生产部署状态，当前实现以 [功能矩阵](FEATURE_STATUS.md) 为准。
 
 > 目标：从「设计诚实的中小论坛」推进到「可以交给非开发站长日常开站」。
 > 原则不变：单实例、零外部基础设施（不上 Redis / Elastic / WebSocket）、SSR + SSE。

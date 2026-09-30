@@ -14,7 +14,7 @@ Go + PostgreSQL 论坛 API 后端，当前数据库 schema 21。Go 提供 JSON A
 - 治理：角色权限、版主管辖、审核、举报、回收站、敏感词、封禁、公告、站点配置和审计 API。
 - 异步与运行：PostgreSQL 持久任务、邮件重试、搜索/版块统计校准、后台积分榜及站点报表快照、数据库/队列诊断和隔离回归脚本。
 
-投票、悬赏、签到第一版后端已实现；补签、连续额外奖励和悬赏分摊未实现。排行榜目前只有后台积分 Top 100 快照，没有公开榜单和多维排名。后台配置页面、编辑器、SSR 和爬虫页面也不属于当前 API 二进制。完整边界见 [功能矩阵](docs/FEATURE_STATUS.md)。
+投票、悬赏、签到第一版后端已实现；补签、连续额外奖励和悬赏分摊未实现。积分 Top 100 后台快照和公开积分余额榜均已提供，但热门作者、热门话题、日榜/周榜等多维排名尚未实现。浏览器页面、SSR、Markdown 和 SEO 由独立的 `frontend/` Next.js 工程提供，不属于 Go API 二进制本身。完整边界见 [功能矩阵](docs/FEATURE_STATUS.md)。
 
 ## 权限与成长模型
 
@@ -37,7 +37,7 @@ FORUM_DSN="postgres://user:pass@127.0.0.1:5432/forum" \
 FORUM_ADDR="127.0.0.1:8090" \
 ./bin/forumd -seed
 
-# 4. 检查 API；该版本不提供浏览器页面
+# 4. 检查 Go API；浏览器页面由独立 frontend/ 服务提供
 curl http://127.0.0.1:8090/api/status
 curl http://127.0.0.1:8090/api/v1/home
 # -seed 演示管理员：admin / admin123456（通过 API 登录后须改密）
@@ -121,7 +121,7 @@ WantedBy=multi-user.target
 ```nginx
 location /api/ { proxy_pass http://127.0.0.1:8090; }
 location /api/v1/events { proxy_pass http://127.0.0.1:8090; proxy_buffering off; proxy_read_timeout 60s; }
-# 页面路由须在 Next.js 上线后转发给其独立服务；媒体路由见部署文档。
+# 页面路由转发给独立 Next.js 服务；媒体路由见部署文档。
 ```
 
 生产环境务必：改默认管理员密码、`FORUM_PROD=1`（HTTPS 下 Secure Cookie）。
@@ -166,7 +166,7 @@ scripts/           辅助脚本（素材导出、发布自检）
 - **迁移策略**：迁移锁串行化同库迁移，DDL 与版本登记在同一事务提交；新库初始化 schema，已有版本账本的库只运行缺失编号迁移。正常重启不重放业务 DDL。支持 `-migrate` 独立迁移、`-enqueue-derived-repair` 显式排入搜索/版块统计修复；详见 [迁移与维护](docs/MIGRATIONS.md)。升级前仍需备份和维护窗口，旧二进制不保证兼容新数据库。
 - **登录会话**：Cookie 中为原始 token，库中仅存 SHA-256。
 - **设备管理**：支持设备列表、重命名、单设备/其他设备/全部退出，接口见 [设备会话管理](docs/DEVICE_SESSIONS.md)。
-- **独立积分**：账户、行为奖励、冲回流水、后台配置/调账及只读对账，见 [积分账本](docs/POINTS.md)；悬赏结算/退款、每日签到奖励已接入；积分榜已生成后台快照，公开排行尚未接入。
+- **独立积分**：账户、行为奖励、冲回流水、后台配置/调账及只读对账，见 [积分账本](docs/POINTS.md)；悬赏结算/退款、每日签到奖励、后台积分快照和公开积分余额榜已接入；多维排行仍未实现。
 
 ## 前端运行（frontend/）
 

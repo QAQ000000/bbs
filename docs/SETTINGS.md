@@ -72,7 +72,7 @@ PUT/PATCH 只接受真实 JSON 布尔、整数或字符串，拒绝 null、数�
 5. 配置非法时，配置 GET 为 `503`，但有权限的管理员通常仍可读取 schema/status；状态接口 `200` 不代表配置健康，须检查 `data.valid`。`valid=false` 时 `effective=null`，先修复再刷新状态。数据库或版本键不可读时，状态接口本身也会 `503`。
 6. `requiresRestart=false` 仅表示无需重启。报表时区在下一次成功刷新后体现在快照中，保留期在后续清理批次生效；页面应展示实际快照的 `timeZone/reportDate` 及过期状态，不将保存成功显示为后台任务完成。
 
-这些定义可用于前端类型生成；具体 SDK 和后台页面尚未生成。跨字段依赖、有效 IANA 时区等规则由后端最终校验，OpenAPI 的类型和范围不能代替业务校验。
+这些定义可用于前端类型生成；后台站点设置页面已在 `/admin/settings` 接入。跨字段依赖、有效 IANA 时区等规则由后端最终校验，OpenAPI 的类型和范围不能代替业务校验。
 
 ## 字段约束
 
@@ -145,4 +145,4 @@ SMTP 地址、凭据、站点外部 URL、邮件密钥和 MFA 密钥仍属于部
 
 2026-09-08 03:36（Asia/Shanghai）完成当前工作区全量验收：存储层 72 项（183.773 秒）、API 66 项（62.767 秒）、迁移 9 项（4.274 秒）、其余模块 12 项，合计 159 项顶层测试全部通过。使用独立 PostgreSQL 测试库，所有包运行 `-race -count=1`，无失败、跳过或竞态告警；`go vet ./...`、gofmt 及差异检查通过。回归前后 Go/SQL 源码及依赖文件校验和一致，测试数据库和受限角色均已清理。
 
-本机数据库回归日志为 `/tmp/community-store.log`、`/tmp/community-api.log`、`/tmp/community-migrate.log`。SMTP 仅使用本机夹具，启动重放通过重复调用迁移验证；未验收外部 SMTP、真实进程重启或前端页面，未提交或部署。
+本机数据库回归日志为 `/tmp/community-store.log`、`/tmp/community-api.log`、`/tmp/community-migrate.log`。SMTP 仅使用本机夹具，启动重放通过重复调用迁移验证；外部 SMTP、真实生产进程重启和正式域名部署仍需单独验收。后台设置页面已在 `/admin/settings` 接入。
