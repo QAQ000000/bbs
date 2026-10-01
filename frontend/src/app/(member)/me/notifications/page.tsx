@@ -69,7 +69,7 @@ export default async function NotificationsPage({
             </div>
           </>
         ) : (
-          <div className="panel">
+          <div className={styles.panel}>
             <EmptyState
               title={unreadOnly ? '没有未读通知' : '暂无通知'}
               description="当有人回复、提到你或处理你的内容时，会在这里显示。"
@@ -77,7 +77,7 @@ export default async function NotificationsPage({
           </div>
         )
       ) : (
-        <div className="panel">
+        <div className={styles.panel}>
           <ErrorState title="通知加载失败" description="无法读取通知列表，请稍后重试。" retryHref="/me/notifications" />
         </div>
       )}

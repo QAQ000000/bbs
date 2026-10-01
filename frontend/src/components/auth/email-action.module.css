@@ -37,3 +37,12 @@
 .links a {
   color: var(--color-primary);
 }
+.panel { width: 100%; max-width: 560px; border-radius: 8px; }
+.links { flex-wrap: wrap; }
+.text, .error { overflow-wrap: anywhere; }
+@media (max-width: 768px) {
+  .panel { margin: 16px auto; padding: 24px 16px; }
+  .title { font-size: 18px; }
+  .text { font-size: 13px; }
+  .links { gap: 12px; font-size: 13px; }
+}

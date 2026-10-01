@@ -60,7 +60,7 @@ export function NotificationList({ items }: { items: NotificationView[] }) {
   const hasUnread = items.some((item) => !item.read);
 
   return (
-    <div className="panel panel-flush">
+    <div className={styles.panel}>
       <div className={styles.header}>
         <span className={styles.count}>共 {items.length} 条</span>
         <Button size="small" type="secondary" loading={marking} disabled={!hasUnread} onClick={() => void markAll()}>

@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Input, InputNumber, Switch } from '@arco-design/web-react';
-import { browserSend } from '@/lib/api/browser';
+import { browserGet, browserSend } from '@/lib/api/browser';
 import { ApiError } from '@/lib/api/errors';
 import type { SettingField, SettingsSchema, SettingsStatus, SiteSettingsAdmin } from '@/lib/api/types';
 import { toastError, toastSuccess } from '../ui/feedback';
@@ -44,6 +44,29 @@ const GROUPS: { title: string; hint: string; fields: string[] }[] = [
   },
 ];
 
+const FIELD_META: Record<string, { label: string; description: string; unit?: string; risk?: string }> = {
+  siteName: { label: '站点名称', description: '显示在页头、邮件和公开页面。' },
+  siteLogo: { label: '站点 Logo', description: '可填 Logo 地址；为空时使用部署默认 Logo。' },
+  footerText: { label: '页脚文本', description: '显示在公共页面页脚。' },
+  siteClosed: { label: '关闭站点', description: '关闭后普通用户只能访问必要的登录和管理入口。', risk: '高风险：将影响普通用户访问。' },
+  siteClosedReason: { label: '关闭原因', description: '站点关闭时展示给访问者。' },
+  registerEnabled: { label: '开放注册', description: '允许新用户创建账号。' },
+  captchaEnabled: { label: '启用验证码', description: '在支持的认证流程中启用验证码。' },
+  emailVerifyEnabled: { label: '要求邮箱验证', description: '需要 SMTP 已配置；保存后新注册用户需验证邮箱。', risk: '请确认邮件服务已配置并可投递。' },
+  requireConsent: { label: '要求同意条款', description: '注册时要求用户同意条款和隐私政策。' },
+  termsContent: { label: '服务条款', description: '注册同意框使用的正文。' },
+  privacyContent: { label: '隐私政策', description: '注册同意框使用的隐私政策正文。' },
+  threadsPerPage: { label: '主题每页数量', description: '列表页每页显示的主题数量。', unit: '条' },
+  postsPerPage: { label: '回复每页数量', description: '主题页每页显示的回复数量。', unit: '条' },
+  moderateEnabled: { label: '启用内容审核', description: '新主题和回复进入审核队列。' },
+  uploadEnabled: { label: '允许上传', description: '允许用户上传图片和文件。', risk: '关闭后用户将无法上传新文件。' },
+  maxImageMB: { label: '单张图片上限', description: '单个图片文件允许的最大大小。', unit: 'MB' },
+  maxFileMB: { label: '单个文件上限', description: '单个非图片文件允许的最大大小。', unit: 'MB' },
+  uploadMaxDiskGB: { label: '上传磁盘上限', description: '上传目录允许使用的磁盘空间上限。', unit: 'GB' },
+  analyticsRetentionDays: { label: '报表保留天数', description: '快照清理任务保留的天数；0 表示关闭清理。', unit: '天' },
+  reportTimeZone: { label: '报表时区', description: '使用有效 IANA 时区，例如 Asia/Shanghai。' },
+};
+
 function isLongText(name: string): boolean {
   return name === 'termsContent' || name === 'privacyContent';
 }
@@ -51,6 +74,8 @@ function isLongText(name: string): boolean {
 export function SettingsForm({ settings, schema, status }: SettingsFormProps) {
   const router = useRouter();
   const [values, setValues] = useState<SiteSettingsAdmin>(settings);
+  const initialValues = useRef<SiteSettingsAdmin>(settings);
+  const [dirty, setDirty] = useState<Set<string>>(new Set());
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -61,7 +86,42 @@ export function SettingsForm({ settings, schema, status }: SettingsFormProps) {
   for (const field of schema.fields) fieldMap[field.name] = field;
 
   function setValue(name: string, value: unknown) {
+    const previous = values[name];
+    const risky = ['siteClosed', 'uploadEnabled', 'emailVerifyEnabled', 'requireConsent'].includes(name);
+    if (risky && previous !== value && value === (name === 'siteClosed' || name === 'emailVerifyEnabled' || name === 'requireConsent')) {
+      const meta = FIELD_META[name];
+      if (!window.confirm(`${meta?.label ?? name}：${meta?.risk ?? '此操作会改变站点行为'}\n\n确定继续吗？`)) return;
+    }
     setValues((prev) => ({ ...prev, [name]: value }));
+    setDirty((prev) => {
+      const next = new Set(prev);
+      if (Object.is(initialValues.current[name], value)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  }
+
+  async function reload() {
+    setError(null);
+    setNotice(null);
+    try {
+      const [nextSettings, nextSchema, nextStatus] = await Promise.all([
+        browserGet<SiteSettingsAdmin>('/admin/settings'),
+        browserGet<SettingsSchema>('/admin/settings/schema'),
+        browserGet<SettingsStatus>('/admin/settings/status'),
+      ]);
+      initialValues.current = nextSettings;
+      setValues(nextSettings);
+      setDirty(new Set());
+      setConflict(false);
+      // schema/status are server props; refresh updates them after the local reset.
+      void nextSchema;
+      void nextStatus;
+      router.refresh();
+    } catch (caught) {
+      const err = caught as ApiError;
+      setError(err.message);
+    }
   }
 
   function validate(): boolean {
@@ -103,11 +163,18 @@ export function SettingsForm({ settings, schema, status }: SettingsFormProps) {
       setError('请先修正标记的字段。');
       return;
     }
+    if (dirty.size === 0) {
+      setNotice('没有需要保存的修改。');
+      return;
+    }
     const body: Record<string, unknown> = { version: values.version };
-    for (const field of schema.fields) body[field.name] = values[field.name];
+    for (const name of dirty) body[name] = values[name];
     setBusy(true);
     try {
-      await browserSend('/admin/settings', { method: 'PUT', body });
+      const saved = await browserSend<SiteSettingsAdmin>('/admin/settings', { method: 'PATCH', body });
+      initialValues.current = saved;
+      setValues(saved);
+      setDirty(new Set());
       toastSuccess('配置已保存');
       setNotice('配置已保存为新版本，站点设置即时生效。');
       setErrors({});
@@ -118,17 +185,8 @@ export function SettingsForm({ settings, schema, status }: SettingsFormProps) {
         setConflict(true);
         setError('配置已被他人修改（版本冲突）。你输入的内容仍然保留，请重新读取后再保存。');
       } else if (err.status === 422) {
-        // 后端返回 "字段: 说明"，按字段展示。
-        const message = err.message || '';
-        const idx = message.indexOf(': ');
-        if (idx > 0) {
-          const field = message.slice(0, idx);
-          const text = message.slice(idx + 2);
-          setErrors({ [field]: text });
-          setError('部分字段未通过校验，请修正后重试。');
-        } else {
-          setError(message);
-        }
+        if (err.fields) setErrors(err.fields);
+        setError(err.message);
       } else {
         setError(err.message);
       }
@@ -141,14 +199,19 @@ export function SettingsForm({ settings, schema, status }: SettingsFormProps) {
   function renderField(field: SettingField) {
     const id = 'setting-' + field.name;
     const value = values[field.name];
+    const meta = FIELD_META[field.name] ?? { label: field.name, description: '' };
+    const defaultValue = schema.defaults[field.name];
     if (field.type === 'boolean') {
       return (
         <div key={field.name} className={styles.switchRow}>
           <div>
             <label className={styles.switchLabel} htmlFor={id}>
-              {field.name}
+              {meta.label}
             </label>
-            <p className={styles.fieldHint}>{field.legacyName}</p>
+            <p className={styles.fieldDescription}>{meta.description}{meta.risk ? ` ${meta.risk}` : ''}</p>
+            {field.name === 'emailVerifyEnabled' && Boolean(value) && !status.smtpEnabled ? <p className={styles.dependencyWarning}>当前 SMTP 未配置，后端不会启用邮箱验证。</p> : null}
+            {field.name === 'requireConsent' && Boolean(value) && (!String(values.termsContent ?? '').trim() || !String(values.privacyContent ?? '').trim()) ? <p className={styles.dependencyWarning}>启用前请填写服务条款和隐私政策。</p> : null}
+            <p className={styles.fieldHint}>默认：{String(defaultValue)} · 字段：{field.legacyName}</p>
           </div>
           <Switch id={id} checked={Boolean(value)} onChange={(checked) => setValue(field.name, checked)} />
         </div>
@@ -157,9 +220,9 @@ export function SettingsForm({ settings, schema, status }: SettingsFormProps) {
     return (
       <div key={field.name} className={styles.field}>
         <label className={styles.label} htmlFor={id}>
-          {field.name}
+          {meta.label}
           <span className={styles.range}>
-            {field.type === 'integer' ? field.min + ' - ' + field.max : field.min + '-' + field.max + ' 字符'}
+            {field.type === 'integer' ? `${field.min} - ${field.max}${meta.unit ? ` ${meta.unit}` : ''}` : `${field.min}-${field.max} 字符`}
           </span>
         </label>
         {isLongText(field.name) ? (
@@ -178,13 +241,20 @@ export function SettingsForm({ settings, schema, status }: SettingsFormProps) {
         ) : (
           <Input id={id} value={String(value ?? '')} onChange={(v) => setValue(field.name, v)} maxLength={field.max} />
         )}
-        <p className={styles.fieldHint}>{field.legacyName}</p>
+        <p className={styles.fieldDescription}>{meta.description}{meta.risk ? ` ${meta.risk}` : ''}</p>
+        <p className={styles.fieldHint}>默认：{String(defaultValue)} · 字段：{field.legacyName}</p>
         {errors[field.name] ? <p className={styles.fieldError}>{errors[field.name]}</p> : null}
       </div>
     );
   }
 
   return (
+    <div className={styles.layout}>
+      <nav className={styles.groupNav} aria-label="设置分组">
+        {GROUPS.map((group, index) => group.fields.some((name) => fieldMap[name]) ? (
+          <a key={group.title} href={`#settings-group-${index}`}>{group.title}</a>
+        ) : null)}
+      </nav>
     <form className={styles.form} onSubmit={save}>
       <section className={['panel', styles.statusCard].join(' ')}>
         <div className={styles.statusRow}>
@@ -217,11 +287,11 @@ export function SettingsForm({ settings, schema, status }: SettingsFormProps) {
         ) : null}
       </section>
 
-      {GROUPS.map((group) => {
+      {GROUPS.map((group, index) => {
         const fields = group.fields.map((name) => fieldMap[name]).filter(Boolean);
         if (fields.length === 0) return null;
         return (
-          <section key={group.title} className={['panel', styles.groupCard].join(' ')}>
+          <section key={group.title} id={`settings-group-${index}`} className={['panel', styles.groupCard].join(' ')}>
             <header className={styles.groupHead}>
               <h2 className={styles.groupTitle}>{group.title}</h2>
               <span className={styles.groupHint}>{group.hint}</span>
@@ -241,13 +311,15 @@ export function SettingsForm({ settings, schema, status }: SettingsFormProps) {
         <Button type="primary" htmlType="submit" loading={busy} disabled={conflict} title={conflict ? '请先重新读取配置' : undefined}>
           保存配置
         </Button>
-        <Button type="secondary" onClick={() => router.refresh()}>
+        <Button type="secondary" onClick={() => void reload()}>
           重新读取
         </Button>
+        {dirty.size > 0 ? <span className={styles.dirtyHint}>有 {dirty.size} 项未保存</span> : null}
         <span className={styles.actionHint}>
-          保存会整体提交全部字段并携带当前版本；冲突时保留输入。
+          仅提交已修改字段并携带当前版本；冲突时保留输入。
         </span>
       </div>
     </form>
+    </div>
   );
 }

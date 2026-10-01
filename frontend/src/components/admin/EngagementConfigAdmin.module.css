@@ -65,6 +65,7 @@
   align-items: center;
   gap: 12px;
   margin-top: 18px;
+  flex-wrap: wrap;
 }
 .error {
   margin: 0 0 12px;

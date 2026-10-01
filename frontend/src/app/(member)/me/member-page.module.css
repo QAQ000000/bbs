@@ -42,3 +42,21 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
 }
+.subtitle { margin: 0 0 16px; color: var(--color-text-tertiary); font-size: 12px; line-height: 1.7; }
+.panel { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; overflow: hidden; }
+.listPanel { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; padding: 0 24px; }
+.savedRow { padding: 16px 0; border-bottom: 1px solid var(--color-border); }
+.savedRow:last-child { border-bottom: 0; }
+.savedTitle { color: var(--color-text); font-size: 13px; font-weight: 500; overflow-wrap: anywhere; }
+.savedTitle:hover { color: var(--color-primary); }
+.savedMeta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; color: var(--color-text-tertiary); font-size: 11px; overflow-wrap: anywhere; }
+@media (max-width: 768px) {
+  .title { font-size: 18px; }
+  .header { gap: 10px; margin-bottom: 12px; }
+  .filters { flex-wrap: wrap; }
+  .filter, .filterActive { font-size: 12px; }
+  .listPanel { padding: 0 14px; }
+  .savedRow { padding: 12px 0; }
+  .savedTitle { font-size: 12px; }
+  .pagination { margin-top: 12px; }
+}

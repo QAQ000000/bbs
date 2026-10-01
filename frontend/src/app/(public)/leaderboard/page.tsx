@@ -26,7 +26,7 @@ export default async function LeaderboardPage() {
   const stats = home?.stats;
 
   return (
-    <div className="container page">
+    <div className={styles.page}>
       <Breadcrumb items={[{ label: '首页', href: '/' }, { label: '排行榜' }]} />
       <h1 className={styles.title}>排行榜</h1>
       <p className={styles.subtitle}>

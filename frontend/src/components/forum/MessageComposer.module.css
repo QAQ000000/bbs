@@ -46,3 +46,9 @@
   gap: 12px;
   margin-top: 10px;
 }
+@media (max-width: 768px) {
+  .composer { padding: 12px; }
+  .textarea { font-size: 13px; }
+  .banner, .error { font-size: 12px; overflow-wrap: anywhere; }
+  .actions { flex-wrap: wrap; gap: 8px; }
+}

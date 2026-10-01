@@ -3,10 +3,14 @@
   grid-template-columns: 220px minmax(0, 1fr);
   min-height: 100vh;
   background: var(--color-bg);
+  transition: grid-template-columns .2s;
+}
+.collapsed {
+  grid-template-columns: 68px minmax(0, 1fr);
 }
 .sidebar {
   background: #1d2129;
-  color: rgba(255, 255, 255, 0.75);
+  color: #c9cdd4;
   display: flex;
   flex-direction: column;
   position: sticky;
@@ -17,11 +21,11 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  height: 60px;
-  padding: 0 18px;
+  min-height: 64px;
+  padding: 0 20px;
   color: #fff;
   font-weight: 700;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  white-space: nowrap;
 }
 .brand:hover {
   color: #fff;
@@ -30,36 +34,39 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 7px;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 6px;
   background: var(--color-primary);
   color: #fff;
   font-size: 14px;
 }
 .nav {
-  padding: 10px 8px;
+  padding: 10px 0;
+  overflow-y: auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 .item,
 .active {
   display: flex;
   align-items: center;
-  gap: 10px;
-  height: 40px;
-  padding: 0 12px;
-  border-radius: var(--radius-btn);
+  gap: 13px;
+  min-height: 44px;
+  padding: 0 24px;
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.75);
+  color: #c9cdd4;
 }
 .item :global(svg),
 .active :global(svg) {
-  font-size: 16px;
+  font-size: 18px;
+  flex-shrink: 0;
 }
 .item:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--color-primary);
   color: #fff;
 }
 .active {
@@ -85,12 +92,12 @@
   flex-direction: column;
 }
 .topbar {
-  height: 60px;
+  min-height: 64px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 0 24px;
+  padding: 0 26px;
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
 }
@@ -111,10 +118,120 @@
   color: var(--color-text-secondary);
 }
 .content {
-  padding: 20px 24px 40px;
+  width: 100%;
+  max-width: 1320px;
+  min-width: 0;
+  padding: 28px 26px 50px;
 }
-@media (max-width: 900px) {
-  .shell {
+.collapseButton {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  margin: auto auto 18px;
+  border: 0;
+  background: transparent;
+  color: #c9cdd4;
+  font-size: 18px;
+  cursor: pointer;
+}
+.collapseButton:hover {
+  color: #fff;
+}
+.collapsed .brand {
+  padding: 0 20px;
+}
+.collapsed .brand > span:last-child,
+.collapsed .nav a > span {
+  display: none;
+}
+.collapsed .nav a {
+  justify-content: center;
+  padding: 0;
+}
+
+/* Shared admin surfaces apply to every route while local modules keep layout and state styles. */
+.content h1 {
+  font-size: 25px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.content h2 {
+  font-size: 16px;
+  line-height: 1.5;
+}
+.content div:has(> h1) {
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.content div:has(> table) {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+}
+.content :global(.panel) > div:has(> h2) {
+  flex-wrap: wrap;
+}
+.content :global(.panel) {
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: none;
+}
+.content :global(.panel) :global(.panel) {
+  padding: 12px 0;
+  border: 0;
+  border-radius: 0;
+}
+.content table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+.content table th {
+  height: 42px;
+  padding: 10px 16px;
+  background: #f7f8fa;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+}
+.content table td {
+  height: 54px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+.content tbody tr:hover {
+  background: #f7f8fa;
+}
+.content :global(.arco-input-wrapper),
+.content :global(.arco-select-view),
+.content :global(.arco-textarea-wrapper) {
+  border-radius: 4px;
+}
+.content input:not([type='checkbox']):not([type='radio']),
+.content textarea,
+.content select {
+  max-width: 100%;
+}
+.content pre {
+  max-width: 100%;
+  overflow: auto;
+}
+.content dd {
+  overflow-wrap: anywhere;
+}
+.mobileMenu {
+  display: none;
+}
+@media (max-width: 768px) {
+  .shell,
+  .collapsed {
     grid-template-columns: minmax(0, 1fr);
   }
   .sidebar {
@@ -124,16 +241,37 @@
     position: sticky;
     top: 0;
     z-index: 20;
-    height: 48px;
+    min-height: 52px;
     padding: 0 16px;
   }
   .crumb {
+    flex: 1;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   .topRight { gap: 8px; }
+  .mobileMenu {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-btn);
+    background: transparent;
+    color: var(--color-text);
+    font-size: 20px;
+    cursor: pointer;
+  }
   .user { display: none; }
-  .content { padding: 16px 16px 32px; }
+  .content { padding: 16px 12px 44px; }
+  .content h1 { font-size: 22px; }
+  .content :global(.panel) { padding: 14px; }
+  .content div:has(> h1) { gap: 8px; }
+  .content table th,
+  .content table td { padding-left: 12px; padding-right: 12px; }
 }

@@ -25,7 +25,7 @@ export default async function CheckinPage() {
   ]);
 
   return (
-    <div className="container page">
+    <div className={styles.page}>
       <Breadcrumb items={[{ label: '首页', href: '/' }, { label: '每日签到' }]} />
       <h1 className={styles.title}>每日签到</h1>
       <p className={styles.subtitle}>签到奖励与连续天数以服务端返回为准，重复签到不会重复发放。</p>

@@ -1,7 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useSession } from '@/lib/auth/session';
+import { Avatar } from '@/components/ui/Avatar';
 import styles from './MemberNav.module.css';
 
 const ITEMS = [
@@ -18,8 +20,27 @@ const ITEMS = [
 
 export function MemberNav() {
   const pathname = usePathname() || '/me';
+  const router = useRouter();
+  const { user } = useSession();
   return (
-    <nav className={['panel', styles.nav].join(' ')} aria-label="用户中心导航">
+    <nav className={styles.nav} aria-label="用户中心导航">
+      {user ? (
+        <Link href="/me" className={styles.identity}>
+          <Avatar userId={user.id} name={user.username} size={64} />
+          <strong>{user.username}</strong>
+          <span>{user.signature || '我的会员中心'}</span>
+        </Link>
+      ) : null}
+      <label className={styles.mobileSelect}>
+        <span>会员中心</span>
+        <select
+          aria-label="切换会员中心页面"
+          value={ITEMS.some(item => item.href === pathname) ? pathname : '/me/security'}
+          onChange={event => router.push(event.target.value)}
+        >
+          {ITEMS.map(item => <option key={item.href} value={item.href}>{item.label}</option>)}
+        </select>
+      </label>
       {ITEMS.map((item) => {
         const active = pathname === item.href;
         return (

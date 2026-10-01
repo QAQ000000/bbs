@@ -10,12 +10,12 @@
   justify-content: space-between;
   padding: 6px 8px;
   border-bottom: 1px solid var(--color-border);
-  background: var(--color-fill);
+  background: var(--color-surface);
 }
 .tools {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
 }
 .tool {
   display: inline-flex;
@@ -70,6 +70,14 @@
   color: var(--color-text);
   min-height: 140px;
   background: var(--color-surface);
+}
+@media (max-width: 768px) {
+  .toolbar { flex-wrap: wrap; gap: 8px; padding: 8px; }
+  .tools { flex-wrap: wrap; min-width: 0; }
+  .modes { margin-left: auto; }
+  .textarea, .preview { padding: 12px; font-size: 13px; }
+  .footer { flex-wrap: wrap; gap: 8px; }
+  .footer > * { max-width: 100%; }
 }
 .textarea:focus {
   background: #fff;

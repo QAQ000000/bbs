@@ -3,6 +3,7 @@
   align-items: center;
   gap: 8px;
   margin-bottom: 16px;
+  flex-wrap: wrap;
 }
 .search {
   width: 280px;
@@ -18,9 +19,12 @@
 }
 .tableWrap {
   overflow-x: auto;
+  min-width: 0;
+  width: 100%;
 }
 .table {
   width: 100%;
+  min-width: 680px;
   border-collapse: collapse;
   font-size: 13px;
 }

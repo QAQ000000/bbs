@@ -36,6 +36,10 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
       </aside>
       <main className={styles.formSide}>
         <div className={styles.formInner}>
+          <Link href="/" className={styles.mobileBrand}>
+            <Logo size={44} />
+            <span>{name}</span>
+          </Link>
           {site?.siteClosed ? (
             <p className={styles.closed}>
               站点当前已关闭：{site.siteClosedReason || '维护中'}。仅保留必要的管理入口。

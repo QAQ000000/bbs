@@ -255,6 +255,7 @@ export function EditPostForm({ post, threadTitle, forumId, smileys, uploadEnable
             <li>确认合并后才采用服务端最新版本提交，不会静默覆盖他人更新。</li>
             <li>编辑会记录历史版本，包含链接或审核开启时可能进入待审。</li>
           </ul>
+          {content.trim() ? <div className={styles.previewBox}><h3>内容摘要</h3><p>{content.slice(0, 240)}</p></div> : null}
         </section>
       </aside>
     </form>

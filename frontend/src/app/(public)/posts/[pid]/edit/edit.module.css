@@ -1,7 +1,14 @@
+.page { width: 100%; max-width: 1440px; margin: 0 auto; padding: 0 32px 50px; }
 .title {
   margin: 0 0 6px;
-  font-size: 22px;
+  font-size: 26px;
   font-weight: 700;
+}
+@media (max-width: 768px) {
+  .page { padding: 14px 12px 24px; }
+  .title { font-size: 20px; }
+  .page .subtitle { line-height: 1.7; font-size: 12px; margin-bottom: 14px; }
+  .page .forbidden { padding: 24px 16px; }
 }
 .subtitle {
   margin: 0 0 20px;

@@ -28,7 +28,7 @@ export default async function SecurityPage() {
       <h1 className={styles.title}>安全设置</h1>
       <p className={styles.subtitle}>密码、两步验证与登录设备。高危操作需要重新验证当前密码。</p>
 
-      <section className={['panel', styles.card].join(' ')}>
+      <section className={styles.card}>
         <h2 className={styles.cardTitle}>邮箱</h2>
         <EmailPanel
           email={me?.email ?? ''}
@@ -38,17 +38,17 @@ export default async function SecurityPage() {
         />
       </section>
 
-      <section className={['panel', styles.card].join(' ')}>
+      <section className={styles.card}>
         <h2 className={styles.cardTitle}>修改密码</h2>
         <PasswordForm />
       </section>
 
-      <section className={['panel', styles.card].join(' ')}>
+      <section className={styles.card}>
         <h2 className={styles.cardTitle}>两步验证</h2>
         {mfa ? <TwoFactorPanel status={mfa} /> : <p className={styles.empty}>两步验证状态暂不可用。</p>}
       </section>
 
-      <section className={['panel', styles.card].join(' ')}>
+      <section className={styles.card}>
         <h2 className={styles.cardTitle}>登录设备</h2>
         {sessions ? <SessionManager sessions={sessions} /> : <p className={styles.empty}>设备列表暂不可用。</p>}
       </section>

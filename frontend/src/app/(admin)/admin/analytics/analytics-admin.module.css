@@ -79,6 +79,17 @@
   border-collapse: collapse;
   font-size: 13px;
 }
+.tableWrap {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+}
+.tableWrap .table {
+  min-width: 560px;
+}
+.cardHead {
+  flex-wrap: wrap;
+}
 .table th,
 .table td {
   padding: 7px 10px;

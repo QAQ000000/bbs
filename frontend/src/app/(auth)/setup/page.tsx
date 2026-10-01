@@ -28,7 +28,7 @@ export default async function SetupPage() {
       <div>
         <h1 className={styles.title}>无法读取安装状态</h1>
         <p className={styles.subtitle}>后端服务暂时不可用，无法确认站点是否已初始化。请稍后重试。</p>
-        <p className={styles.brandDesc}>
+        <p className={styles.subtitle}>
           <Link href="/setup">重新检查</Link>
         </p>
       </div>

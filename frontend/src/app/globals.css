@@ -139,6 +139,11 @@ button {
   :root {
     --container-pad: 16px;
   }
+
+  .page {
+    padding-top: 12px;
+    padding-bottom: 24px;
+  }
 }
 
 /* 移动端为底部固定导航预留空间与安全区。 */

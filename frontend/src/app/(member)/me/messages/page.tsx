@@ -53,8 +53,8 @@ export default async function MessagesPage({
   return (
     <div>
       <h1 className={styles.title}>私信</h1>
-      <div className={styles.layout}>
-        <section className={['panel', styles.listPanel].join(' ')} aria-label="会话列表">
+      <div className={[styles.layout, selected ? styles.withSelection : '', cid && !selected ? styles.invalidSelection : ''].join(' ')}>
+        <section className={styles.listPanel} aria-label="会话列表">
           {conversations.length > 0 ? (
             <ul className={styles.conversations}>
               {conversations.map((item) => {
@@ -103,10 +103,11 @@ export default async function MessagesPage({
           </div>
         </section>
 
-        <section className={['panel', styles.threadPanel].join(' ')} aria-label="消息历史">
+        <section className={styles.threadPanel} aria-label="消息历史">
           {selected ? (
             <>
               <header className={styles.threadHeader}>
+                <Link href={'/me/messages?page=' + page} className={styles.backLink}>返回会话</Link>
                 <Link href={'/users/' + selected.otherId} className={styles.threadPeer}>
                   <Avatar userId={selected.otherId} name={selected.otherName} size={28} />
                   {selected.otherName}
@@ -147,7 +148,7 @@ export default async function MessagesPage({
                 </div>
               ) : null}
 
-              <MessageComposer conversation={selected} latestMessageId={latestMessageId} />
+              <MessageComposer key={selected.id} conversation={selected} latestMessageId={latestMessageId} />
             </>
           ) : cid && !selected ? (
             <EmptyState title="会话不在当前页" description="请从左侧会话列表选择，或返回第一页。" />

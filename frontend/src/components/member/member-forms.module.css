@@ -120,7 +120,7 @@
   color: var(--color-text-tertiary);
   line-height: 1.7;
 }
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .prefs {
     grid-template-columns: 1fr;
   }
@@ -164,4 +164,22 @@
 .changeForm {
   margin-top: 16px;
   max-width: 420px;
+}
+.secret { letter-spacing: 0; }
+.field :global(.arco-input-wrapper), .field :global(.arco-input-inner-wrapper) { min-height: 40px; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-surface); }
+.prefs { gap: 0 24px; }
+.prefs > :global(.arco-checkbox) { min-height: 46px; display: flex; align-items: center; border-bottom: 1px solid var(--color-border); }
+.sessionName, .sessionMeta, .emailState, .hint, .notice { overflow-wrap: anywhere; }
+.emailState { flex-wrap: wrap; }
+@media (max-width: 768px) {
+  .prefs { grid-template-columns: 1fr; }
+  .field { max-width: 100%; }
+  .session { flex-wrap: wrap; gap: 8px; }
+  .sessionName { flex-wrap: wrap; font-size: 13px; }
+  .sessionMeta { font-size: 11px; }
+  .session > :last-child { margin-left: auto; }
+  .recoveryList { columns: 1; }
+  .setupBox, .recovery { padding: 12px; }
+  .secret { font-size: 14px; }
+  .changeForm { max-width: 100%; }
 }

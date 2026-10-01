@@ -7,6 +7,7 @@ import { Dropdown, Input, Menu } from '@arco-design/web-react';
 import {
   IconDown,
   IconEmail,
+  IconLeft,
   IconNotification,
   IconPlus,
   IconSearch,
@@ -33,6 +34,15 @@ export function SiteHeader({ siteName, notificationUnread = 0 }: SiteHeaderProps
   const router = useRouter();
   const { user, logout } = useSession();
   const [keyword, setKeyword] = useState('');
+  const isThreadRoute = pathname.startsWith('/threads/');
+  const isForumRoute = /^\/forums\/[^/]+/.test(pathname);
+  const isDetailRoute = isThreadRoute || isForumRoute;
+  const isUserRoute = /^\/users\/[^/]+\/?$/.test(pathname);
+  const isTagRoute = /^\/tags\/[^/]+\/?$/.test(pathname);
+  const isEditRoute = /^\/posts\/[^/]+\/edit\/?$/.test(pathname);
+  const pageTitles: Record<string, string> = { '/forums': '版块目录', '/tags': '标签目录', '/search': '搜索', '/new': '发布主题', '/checkin': '每日签到', '/leaderboard': '积分排行榜' };
+  const mobileTitle = isThreadRoute ? '主题详情' : isForumRoute ? '版块详情' : isUserRoute ? '用户主页' : isTagRoute ? '标签主题' : isEditRoute ? '编辑内容' : pageTitles[pathname] || null;
+  const hasMobileBack = isDetailRoute || isUserRoute || isTagRoute || isEditRoute || pathname === '/new';
 
   function submitSearch(event: React.FormEvent) {
     event.preventDefault();
@@ -77,12 +87,33 @@ export function SiteHeader({ siteName, notificationUnread = 0 }: SiteHeaderProps
   }
 
   return (
-    <header className={styles.header}>
-      <div className={[styles.inner, 'container'].join(' ')}>
+    <header
+      className={[
+        styles.header,
+        pathname === '/' ? styles.homeHeader : '',
+        isDetailRoute ? styles.detailHeader : '',
+        mobileTitle ? styles.pageHeader : '',
+      ].join(' ')}
+    >
+      <div className={styles.inner}>
         <Link href="/" className={styles.brand} aria-label="返回首页">
           <Logo size={30} />
           <span className={styles.brandName}>{siteName}</span>
         </Link>
+        {hasMobileBack ? (
+          <button
+            type="button"
+            className={styles.mobileBack}
+            aria-label={`返回，${mobileTitle}`}
+            onClick={() => {
+              if (window.history.length > 1) router.back();
+              else router.push(isTagRoute ? '/tags' : isUserRoute || isEditRoute || pathname === '/new' ? '/' : '/forums');
+            }}
+          >
+            <IconLeft aria-hidden="true" />
+            <span>{mobileTitle}</span>
+          </button>
+        ) : mobileTitle ? <strong className={styles.mobileTitle}>{mobileTitle}</strong> : null}
 
         <nav className={styles.nav} aria-label="主导航">
           {NAV.map((item) => {
@@ -106,8 +137,8 @@ export function SiteHeader({ siteName, notificationUnread = 0 }: SiteHeaderProps
             value={keyword}
             onChange={setKeyword}
             prefix={<IconSearch />}
-            placeholder="搜索主题、用户…"
-            aria-label="搜索主题、用户"
+            placeholder="搜索主题…"
+            aria-label="搜索主题"
           />
         </form>
 
@@ -124,7 +155,9 @@ export function SiteHeader({ siteName, notificationUnread = 0 }: SiteHeaderProps
               <Link href="/me/notifications" className={styles.iconBtn} aria-label="通知">
                 <IconNotification />
                 {notificationUnread > 0 ? (
-                  <span className={styles.dot} aria-label={`${notificationUnread} 条未读通知`} />
+                  <span className={[styles.dot, styles.notificationBadge].join(' ')} aria-label={`${notificationUnread} 条未读通知`}>
+                    {notificationUnread > 99 ? '99+' : notificationUnread}
+                  </span>
                 ) : null}
               </Link>
               <Link href="/me/messages" className={styles.iconBtn} aria-label="私信">

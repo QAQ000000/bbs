@@ -5,7 +5,7 @@ import styles from './member.module.css';
 export default function MemberLayout({ children }: { children: React.ReactNode }) {
   return (
     <PublicShell>
-      <div className="container page">
+      <div className={styles.page}>
         <div className={styles.grid}>
           <MemberNav />
           <div className={styles.content}>{children}</div>

@@ -2,7 +2,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 16px;
+  padding: 0 14px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
@@ -16,9 +16,10 @@
 .active {
   display: inline-flex;
   align-items: center;
-  height: 32px;
-  padding: 0 12px;
-  border-radius: var(--radius-btn);
+  height: 48px;
+  padding: 0 14px;
+  border-radius: 0;
+  border-bottom: 2px solid transparent;
   font-size: 14px;
   color: var(--color-text-secondary);
 }
@@ -29,9 +30,47 @@
 .active {
   color: var(--color-primary);
   font-weight: 600;
+  border-bottom-color: var(--color-primary);
 }
 .note {
   margin-left: auto;
   font-size: 12px;
   color: var(--color-text-tertiary);
+}
+
+@media (max-width: 768px) {
+  .tabs {
+    gap: 4px;
+    padding: 0 0 8px;
+    overflow-x: auto;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .left {
+    flex: 0 0 auto;
+    gap: 6px;
+  }
+  .tab,
+  .active {
+    height: 32px;
+    padding: 0 14px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    white-space: nowrap;
+    font-size: 12px;
+  }
+  .active {
+    border-color: var(--color-primary);
+    background: var(--color-primary);
+    color: #fff;
+  }
+  .note {
+    display: none;
+  }
 }

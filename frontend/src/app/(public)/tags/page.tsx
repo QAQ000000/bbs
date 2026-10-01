@@ -1,3 +1,4 @@
+import { tagPath } from '@/lib/tag';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { safeRequest } from '@/lib/api/server';
@@ -30,23 +31,26 @@ export default async function TagsPage({
   const tags = envelope?.data ?? [];
 
   return (
-    <div className="container page">
+    <div className={styles.page}>
       <Breadcrumb items={[{ label: '首页', href: '/' }, { label: '标签目录' }]} />
-      <h1 className={styles.title}>标签目录</h1>
-      <p className={styles.subtitle}>仅列出启用中的标签，按名称与 ID 排序。</p>
+      <header className={styles.header}>
+      <div><h1 className={styles.title}>标签目录</h1>
+      <p className={styles.subtitle}>浏览社区标签，找到感兴趣的话题。</p></div>
       <form className={styles.search} action="/tags" method="get" role="search">
         <input className={styles.input} type="search" name="q" defaultValue={q} placeholder="搜索标签" aria-label="搜索标签" />
         <button className={styles.button} type="submit">
           搜索
         </button>
       </form>
+      </header>
       {envelope ? (
         tags.length > 0 ? (
           <>
             <div className={['panel', styles.grid].join(' ')}>
               {tags.map((tag) => (
-                <Link key={tag.id} href={'/tags/' + (tag.slug || tag.id)} className={styles.tag}>
-                  <span className={styles.tagName} style={tag.color ? { color: tag.color } : undefined}>
+                <Link key={tag.id} href={tagPath(tag)} className={styles.tag}>
+                  <i className={styles.dot} style={tag.color ? { backgroundColor: tag.color } : undefined} aria-hidden="true" />
+                  <span className={styles.tagName}>
                     {tag.name}
                   </span>
                   <span className={styles.tagCount}>{formatCount(tag.threadCount)} 主题</span>

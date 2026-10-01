@@ -1,7 +1,7 @@
 .grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 300px;
-  gap: 24px;
+  gap: 20px;
   align-items: start;
 }
 .main {
@@ -24,6 +24,9 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  justify-content: flex-end;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-border);
 }
 .cancel {
   color: var(--color-text-tertiary);
@@ -51,7 +54,7 @@
   gap: 16px;
 }
 .sideCard {
-  padding: 16px;
+  padding: 20px;
 }
 .sideTitle {
   margin: 0 0 10px;
@@ -121,8 +124,20 @@
   line-height: 1.7;
   color: var(--color-text-tertiary);
 }
-@media (max-width: 1180px) {
+.previewBox { margin-top: 20px; padding: 13px; background: var(--color-fill); border-radius: 6px; overflow-wrap: anywhere; }
+.previewBox h3 { margin: 0 0 8px; font-size: 13px; }
+.previewBox strong { display: block; font-size: 13px; }
+.previewBox p { margin: 6px 0 0; font-size: 12px; color: var(--color-text-tertiary); line-height: 1.7; white-space: pre-wrap; }
+@media (max-width: 768px) {
   .grid {
     grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
   }
+  .card { padding: 14px; }
+  .field { margin-bottom: 14px; }
+  .side { display: none; }
+  .actions { flex-wrap: wrap; gap: 10px; }
+  .attachBlock { padding: 12px; }
+  .attachRow, .attachNumbers { gap: 12px; }
+  .attachPanel :global(.arco-input-number) { max-width: 100%; }
 }

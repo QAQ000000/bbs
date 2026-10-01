@@ -83,3 +83,10 @@
   margin: 0 0 16px;
   color: var(--color-text-tertiary);
 }
+@media (max-width: 768px) {
+  .item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+}

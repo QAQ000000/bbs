@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState } from 'react';
+import { Dropdown, Menu } from '@arco-design/web-react';
 import {
   IconApps,
   IconBug,
@@ -11,6 +13,9 @@ import {
   IconExclamationCircle,
   IconGift,
   IconIdcard,
+  IconMenu,
+  IconMenuFold,
+  IconMenuUnfold,
   IconSafe,
   IconSettings,
   IconStorage,
@@ -54,10 +59,11 @@ export function AdminShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname() || '/admin';
-  const current = NAV.filter((item) => item.ready && pathname.startsWith(item.href)).pop();
+  const [collapsed, setCollapsed] = useState(false);
+  const current = NAV.find((item) => item.ready && (item.href === '/admin' ? pathname === item.href : pathname === item.href || pathname.startsWith(`${item.href}/`)));
 
   return (
-    <div className={styles.shell}>
+    <div className={[styles.shell, collapsed ? styles.collapsed : ''].join(' ')}>
       <aside className={styles.sidebar}>
         <Link href="/admin" className={styles.brand}>
           <span className={styles.logo}>G</span>
@@ -80,11 +86,12 @@ export function AdminShell({
                 </span>
               );
             }
-            const active = item.href === '/admin' ? pathname === '/admin' : pathname.startsWith(item.href);
+            const active = item.href === '/admin' ? pathname === '/admin' : pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
               <Link
                 key={item.href}
                 href={item.href}
+                title={collapsed ? item.label : undefined}
                 className={active ? styles.active : styles.item}
                 aria-current={active ? 'page' : undefined}
               >
@@ -94,9 +101,36 @@ export function AdminShell({
             );
           })}
         </nav>
+        <button
+          type="button"
+          className={styles.collapseButton}
+          onClick={() => setCollapsed((value) => !value)}
+          aria-label={collapsed ? '展开后台侧栏' : '收起后台侧栏'}
+          title={collapsed ? '展开后台侧栏' : '收起后台侧栏'}
+          aria-expanded={!collapsed}
+        >
+          {collapsed ? <IconMenuUnfold /> : <IconMenuFold />}
+        </button>
       </aside>
       <div className={styles.body}>
         <header className={styles.topbar}>
+          <Dropdown
+            trigger="click"
+            position="bl"
+            droplist={
+              <Menu selectedKeys={[current?.href ?? '/admin']}>
+                {NAV.filter((item) => item.ready).map((item) => (
+                  <Menu.Item key={item.href}>
+                    <Link href={item.href}>{item.label}</Link>
+                  </Menu.Item>
+                ))}
+              </Menu>
+            }
+          >
+            <button type="button" className={styles.mobileMenu} aria-label="后台导航菜单" title="后台导航菜单">
+              <IconMenu />
+            </button>
+          </Dropdown>
           <span className={styles.crumb}>管理后台 / {current?.label ?? '概览'}</span>
           <div className={styles.topRight}>
             <Link href="/" className={styles.frontLink}>

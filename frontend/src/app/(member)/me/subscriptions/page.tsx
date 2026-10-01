@@ -65,7 +65,7 @@ export default async function SubscriptionsPage({
       <p className={styles.subtitle}>新订阅默认开启通知；关闭通知或静音不会取消订阅，取消订阅才会移除关系。</p>
       {envelope ? (
         items.length > 0 ? (
-          <div className="panel panel-flush">
+          <div className={styles.panel}>
             <ul className={list.items}>
               {items.map((item) => (
                 <li key={item.kind + item.targetId} className={list.item}>
@@ -88,12 +88,12 @@ export default async function SubscriptionsPage({
             </ul>
           </div>
         ) : (
-          <div className="panel">
+          <div className={styles.panel}>
             <EmptyState title="没有订阅" description="在版块、主题或标签页点击「关注」即可订阅。" />
           </div>
         )
       ) : (
-        <div className="panel">
+        <div className={styles.panel}>
           <ErrorState title="订阅加载失败" description="无法读取订阅列表，请稍后重试。" retryHref="/me/subscriptions" />
         </div>
       )}

@@ -2,7 +2,13 @@
   display: flex;
   flex-direction: column;
 }
+.homeList {
+  gap: 12px;
+}
 .stickySection {
+  margin-bottom: 12px;
+}
+.homeSticky {
   margin-bottom: 12px;
 }
 .sectionTitle {
@@ -26,4 +32,16 @@
   background: var(--color-primary);
   color: #fff;
   font-size: 13px;
+}
+@media (max-width: 768px) {
+  .homeSticky .sectionTitle {
+    display: none;
+  }
+  .homeList {
+    gap: 8px;
+  }
+}
+
+@media (max-width: 768px) {
+  .browse .homeList { gap: 0; border-radius: var(--radius-card); overflow: hidden; }
 }

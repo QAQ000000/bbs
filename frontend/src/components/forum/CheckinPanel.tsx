@@ -29,7 +29,11 @@ export function CheckinPanel({ status }: { status: CheckinStatus }) {
   }
 
   return (
-    <div className={styles.panel}>
+    <div className={['panel', styles.panel].join(' ')}>
+      <div className={styles.status}>
+        <h2 className={styles.heading}>{current.checkedIn ? '今日已签到' : current.enabled ? '每日签到' : '签到未开放'}</h2>
+        <p className={styles.tz}>统计时区：{current.timeZone} · 当前日期 {current.day}</p>
+      </div>
       <div className={styles.streak}>
         <span className={styles.streakValue}>{current.streak}</span>
         <span className={styles.streakLabel}>连续签到天数</span>
@@ -45,7 +49,6 @@ export function CheckinPanel({ status }: { status: CheckinStatus }) {
       <Button type="primary" size="large" loading={busy} disabled={!current.enabled || current.checkedIn} onClick={() => void claim()}>
         {current.checkedIn ? '今日已签到' : current.enabled ? '立即签到' : '签到未开放'}
       </Button>
-      <p className={styles.tz}>统计时区：{current.timeZone} · 当前日期 {current.day}</p>
     </div>
   );
 }

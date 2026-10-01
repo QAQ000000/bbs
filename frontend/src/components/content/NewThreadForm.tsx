@@ -371,6 +371,13 @@ export function NewThreadForm({
             <li>教程与分享建议附可复现步骤。</li>
             <li>提问前先搜索，避免重复发帖。</li>
           </ul>
+          {subject.trim() || content.trim() ? (
+            <div className={styles.previewBox}>
+              <h3>内容摘要</h3>
+              {subject.trim() ? <strong>{subject}</strong> : null}
+              {content.trim() ? <p>{content.slice(0, 240)}</p> : null}
+            </div>
+          ) : null}
         </section>
         {selectedForum ? (
           <section className={['panel', styles.sideCard].join(' ')}>

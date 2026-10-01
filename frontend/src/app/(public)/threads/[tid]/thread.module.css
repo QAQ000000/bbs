@@ -1,7 +1,6 @@
+.page { width: 100%; max-width: 1000px; margin: 24px auto 0; padding: 0 16px 50px; }
 .grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
-  gap: 24px;
+  display: block;
   align-items: start;
 }
 .main {
@@ -21,9 +20,9 @@
   min-width: 0;
 }
 .flags {
-  display: flex;
+  display: inline-flex;
   gap: 6px;
-  margin-bottom: 8px;
+  margin: 0 8px 0 0;
   flex-wrap: wrap;
 }
 .flag {
@@ -56,12 +55,15 @@
   color: var(--color-text-secondary);
 }
 .title {
+  display: inline;
   margin: 0 0 10px;
-  font-size: 21px;
+  font-size: 22px;
+  overflow-wrap: anywhere;
   font-weight: 700;
   line-height: 1.5;
 }
 .meta {
+  margin-top: 10px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -83,6 +85,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
   flex: 0 0 auto;
 }
 .pendingBanner {
@@ -103,9 +106,10 @@
   border-radius: var(--radius-card);
 }
 .side {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
+  margin-top: 20px;
 }
 .sideCard {
   padding: 16px;
@@ -129,6 +133,8 @@
   font-size: 16px;
   font-weight: 600;
   color: var(--color-text);
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 .authorBadges {
   display: flex;
@@ -238,10 +244,24 @@
   color: var(--color-primary);
 }
 @media (max-width: 768px) {
+  .page { margin-top: 0; padding: 14px 12px 24px; }
+  .side { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .main { gap: 12px; }
   .header {
     flex-direction: column;
+    gap: 10px;
+    padding: 14px;
   }
   .title {
+    margin-bottom: 6px;
     font-size: 18px;
+  }
+  .meta {
+    gap: 6px;
+    font-size: 12px;
+  }
+  .headerActions {
+    width: 100%;
+    justify-content: flex-start;
   }
 }

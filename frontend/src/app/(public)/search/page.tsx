@@ -31,9 +31,10 @@ export default async function SearchPage({
   const hits = envelope?.data ?? [];
 
   return (
-    <div className="container page">
+    <div className={styles.page}>
       <h1 className={styles.title}>搜索</h1>
       <form className={styles.search} action="/search" method="get" role="search">
+        {searchParams.forumId ? <input type="hidden" name="forumId" value={searchParams.forumId} /> : null}
         <input className={styles.input} type="search" name="q" defaultValue={q} placeholder="搜索主题标题与正文" aria-label="搜索主题" />
         <button className={styles.button} type="submit">
           搜索
@@ -50,7 +51,9 @@ export default async function SearchPage({
             <p className={styles.summary}>关键词「{q}」共 {envelope.meta?.total ?? hits.length} 条结果</p>
             <ul className={styles.list}>
               {hits.map((hit) => (
-                <li key={hit.threadId} className={['panel', styles.item].join(' ')}>
+                <li key={hit.threadId} className={styles.item}>
+                  <span className={styles.kind}>主题</span>
+                  <div className={styles.content}>
                   <Link className={styles.itemTitle} href={'/threads/' + hit.threadId}>
                     {hit.title}
                   </Link>
@@ -58,6 +61,7 @@ export default async function SearchPage({
                   <span className={styles.meta}>
                     {hit.authorName} · {hit.forumName} · {formatRelative(hit.createdAt)}
                   </span>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -78,7 +82,7 @@ export default async function SearchPage({
         )
       ) : (
         <div className="panel">
-          <ErrorState title="搜索失败" description="搜索服务暂时不可用，请稍后重试。" retryHref={'/search?q=' + encodeURIComponent(q)} />
+          <ErrorState title="搜索失败" description="搜索服务暂时不可用，请稍后重试。" retryHref={'/search?' + new URLSearchParams({ q, ...(searchParams.forumId ? { forumId: searchParams.forumId } : {}) }).toString()} />
         </div>
       )}
     </div>

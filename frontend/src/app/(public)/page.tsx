@@ -87,9 +87,9 @@ export default async function HomePage({
     };
 
   return (
-    <div className="container page">
+    <div className={styles.layout}>
       <div className={styles.grid}>
-        <ForumNav categories={categories} totalThreads={home?.stats.totalThreads} />
+        <ForumNav categories={categories} totalThreads={home?.stats.totalThreads} tags={tagPage?.data ?? []} />
 
         <div className={styles.center}>
           <section className={styles.hero}>
@@ -157,6 +157,7 @@ export default async function HomePage({
                 forumNames={forumNames}
                 emptyTitle="暂时没有可读主题"
                 emptyDescription="还没有公开主题，登录后可以发布第一个主题。"
+                variant="home"
               />
             ) : (
               <div className="panel">
@@ -179,7 +180,6 @@ export default async function HomePage({
         <HomeSidebar
           announcements={home?.announcements ?? []}
           stats={home?.stats ?? null}
-          tags={tagPage?.data ?? []}
         />
       </div>
     </div>

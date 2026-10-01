@@ -2,6 +2,12 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  background: var(--color-bg);
+}
+@media (max-width: 768px) {
+  .shell {
+    padding-bottom: 8px;
+  }
 }
 .main {
   flex: 1 1 auto;

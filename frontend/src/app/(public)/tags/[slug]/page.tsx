@@ -1,9 +1,10 @@
+import { tagPath } from '@/lib/tag';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getTag } from '@/lib/data.server';
 import { safeRequest } from '@/lib/api/server';
 import { getSession } from '@/lib/auth/server';
-import type { ThreadListData } from '@/lib/api/types';
+import type { ThreadSummary } from '@/lib/api/types';
 import { formatCount } from '@/lib/format';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ThreadList } from '@/components/forum/ThreadList';
@@ -23,7 +24,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   return {
     title: tag.name,
     description: tag.description || tag.name + ' 标签下的主题',
-    alternates: { canonical: '/tags/' + (tag.slug || tag.id) },
+    alternates: { canonical: tagPath(tag) },
   };
 }
 
@@ -38,19 +39,20 @@ export default async function TagDetailPage({
   if (!tag) notFound();
   const page = parsePage(searchParams.page);
   const [listPage, session] = await Promise.all([
-    safeRequest<ThreadListData>('/api/v1/tags/' + tag.id + '/threads', { query: { page } }),
+    safeRequest<ThreadSummary[]>('/api/v1/tags/' + tag.id + '/threads', { query: { page } }),
     getSession(),
   ]);
   const data = listPage?.data;
   const meta = listPage?.meta;
 
   return (
-    <div className="container page">
+    <div className={styles.page}>
       <Breadcrumb
         items={[{ label: '首页', href: '/' }, { label: '标签目录', href: '/tags' }, { label: tag.name }]}
       />
       <section className={['panel', styles.header].join(' ')}>
-        <div>
+        <span className={styles.icon} style={tag.color ? { backgroundColor: tag.color } : undefined} aria-hidden="true">#</span>
+        <div className={styles.intro}>
           <h1 className={styles.name} style={tag.color ? { color: tag.color } : undefined}>
             {tag.name}
           </h1>
@@ -61,20 +63,20 @@ export default async function TagDetailPage({
           </p>
         </div>
         {session.user && tag.status === 'active' ? (
-          <SubscribeButton kind="tag" id={tag.id} initialSubscribed={tag.subscribed ?? null} />
+          <SubscribeButton key={`${session.user.id}:${tag.id}:${tag.subscribed}`} kind="tag" id={tag.id} initialSubscribed={tag.subscribed ?? null} />
         ) : null}
       </section>
 
       {data ? (
         <ThreadList
-          threads={data.threads}
-          stickies={data.stickies}
+          variant="browse"
+          threads={data}
           emptyTitle="该标签下暂无主题"
           emptyDescription="换个标签浏览，或发布一个带此标签的主题。"
         />
       ) : (
         <div className="panel">
-          <ErrorState title="主题加载失败" description="无法读取该标签的主题，请稍后重试。" retryHref={'/tags/' + (tag.slug || tag.id)} />
+          <ErrorState title="主题加载失败" description="无法读取该标签的主题，请稍后重试。" retryHref={tagPath(tag)} />
         </div>
       )}
 
@@ -83,7 +85,7 @@ export default async function TagDetailPage({
           <Pagination
             page={meta.page}
             totalPages={meta.totalPages}
-            basePath={'/tags/' + (tag.slug || tag.id)}
+            basePath={tagPath(tag)}
             ariaLabel="标签主题分页"
           />
         </div>

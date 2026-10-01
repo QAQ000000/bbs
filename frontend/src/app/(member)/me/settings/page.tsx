@@ -33,11 +33,11 @@ export default async function SettingsPage() {
     <div>
       <h1 className={styles.title}>资料设置</h1>
       <p className={styles.subtitle}>编辑公开资料与通知偏好；保存失败会保留你已输入的内容。</p>
-      <section className={['panel', styles.card].join(' ')}>
+      <section className={styles.card}>
         <h2 className={styles.cardTitle}>公开资料</h2>
         <ProfileForm signature={me?.signature ?? ''} />
       </section>
-      <section className={['panel', styles.card].join(' ')}>
+      <section className={styles.card}>
         <h2 className={styles.cardTitle}>通知偏好</h2>
         <NotificationPreferencesForm initial={prefs ?? DEFAULT_PREFS} />
       </section>

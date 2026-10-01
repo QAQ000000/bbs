@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { safeGet, safeRequest } from '@/lib/api/server';
 import type { CategoryWithForums, FavoriteView } from '@/lib/api/types';
 import { forumNameMap } from '@/lib/thread';
-import { ThreadCard } from '@/components/forum/ThreadCard';
+import { formatCount, formatRelative } from '@/lib/format';
 import { Pagination } from '@/components/ui/Pagination';
 import { EmptyState, ErrorState } from '@/components/ui/StateView';
 import { requireMember } from '../../guard';
@@ -35,9 +36,17 @@ export default async function FavoritesPage({ searchParams }: { searchParams: { 
       {envelope ? (
         items.length > 0 ? (
           <div>
-            {items.map((item) => (
-              <ThreadCard key={item.id} thread={item} forumName={names[item.forumId]} />
-            ))}
+            <section className={styles.listPanel} aria-label="收藏的主题">
+              {items.map(item => (
+                <article className={styles.savedRow} key={item.id}>
+                  <Link href={'/threads/' + item.id} className={styles.savedTitle}>{item.title}</Link>
+                  <div className={styles.savedMeta}>
+                    <Link href={'/forums/' + item.forumId}>{names[item.forumId] || '查看版块'}</Link>
+                    <span>· {item.authorName} · {formatRelative(item.createdAt)} · {formatCount(item.postCount)} 回复</span>
+                  </div>
+                </article>
+              ))}
+            </section>
             <div className={styles.pagination}>
               <Pagination
                 page={envelope.meta?.page ?? 1}
@@ -48,12 +57,12 @@ export default async function FavoritesPage({ searchParams }: { searchParams: { 
             </div>
           </div>
         ) : (
-          <div className="panel">
+          <div className={styles.panel}>
             <EmptyState title="还没有收藏" description="在主题页点击「收藏」，方便之后快速找到。" />
           </div>
         )
       ) : (
-        <div className="panel">
+        <div className={styles.panel}>
           <ErrorState title="收藏加载失败" description="无法读取收藏列表，请稍后重试。" retryHref="/me/favorites" />
         </div>
       )}

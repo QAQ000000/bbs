@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import type { Announcement, SiteStats, TagView } from '@/lib/api/types';
+import type { Announcement, SiteStats } from '@/lib/api/types';
 import { formatCount, formatRelative } from '@/lib/format';
 import { IconCalendar, IconChart, IconComment, IconHeart, IconMegaphone, IconPen } from './sidebarIcons';
 import styles from './HomeSidebar.module.css';
@@ -7,7 +7,6 @@ import styles from './HomeSidebar.module.css';
 export interface HomeSidebarProps {
   announcements: Announcement[];
   stats: SiteStats | null;
-  tags: TagView[];
 }
 
 const QUICK_LINKS = [
@@ -18,10 +17,10 @@ const QUICK_LINKS = [
 ];
 
 // 设计稿还有“热门话题 / 热门作者”，当前后端没有对应公开聚合接口，
-// 这里改用真实的社区统计与标签，避免用前端静态排序冒充全站榜单。
-export function HomeSidebar({ announcements, stats, tags }: HomeSidebarProps) {
+// 这里展示真实社区统计，避免用前端静态排序冒充全站榜单。
+export function HomeSidebar({ announcements, stats }: HomeSidebarProps) {
   return (
-    <div className={styles.column}>
+    <div className={[styles.column, styles.mobileHidden].join(' ')}>
       <section className={['panel', styles.card].join(' ')} aria-label="社区公告">
         <header className={styles.header}>
           <h2 className={styles.title}>
@@ -61,31 +60,6 @@ export function HomeSidebar({ announcements, stats, tags }: HomeSidebarProps) {
             );
           })}
         </ul>
-      </section>
-
-      <section className={['panel', styles.card].join(' ')} aria-label="热门标签">
-        <header className={styles.header}>
-          <h2 className={styles.title}>热门标签</h2>
-          <Link className={styles.more} href="/tags">
-            全部
-          </Link>
-        </header>
-        {tags.length > 0 ? (
-          <div className={styles.tags}>
-            {tags.map((tag) => (
-              <Link
-                key={tag.id}
-                href={'/tags/' + (tag.slug || tag.id)}
-                className={styles.tag}
-                style={tag.color ? { color: tag.color, borderColor: tag.color } : undefined}
-              >
-                {tag.name}
-              </Link>
-            ))}
-          </div>
-        ) : (
-          <p className={styles.empty}>暂无活跃标签</p>
-        )}
       </section>
 
       <section className={['panel', styles.card].join(' ')} aria-label="社区统计">

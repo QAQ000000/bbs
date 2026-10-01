@@ -1,11 +1,11 @@
 .title {
   margin: 0 0 6px;
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 700;
 }
 .subtitle {
   margin: 0 0 24px;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--color-text-tertiary);
 }
 .field {
@@ -84,4 +84,19 @@
 }
 .mfa {
   text-align: left;
+}
+.field :global(.arco-input-wrapper),
+.field :global(.arco-input-inner-wrapper) { min-height: 42px; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-surface); }
+.submit { min-height: 42px; }
+.captchaRow > :first-child { min-width: 0; flex: 1; }
+.hint, .subtitle { line-height: 1.7; overflow-wrap: anywhere; }
+@media (max-width: 768px) {
+  .title { font-size: 23px; }
+  .field { margin-bottom: 14px; }
+  .field :global(.arco-input-wrapper), .field :global(.arco-input-inner-wrapper) { min-height: 46px; border-radius: 8px; }
+  .submit { min-height: 46px; border-radius: 8px; }
+  .captchaRow { flex-wrap: wrap; gap: 8px; }
+  .captchaImage { width: 100px; height: 38px; }
+  .captchaRefresh { font-size: 12px; }
+  .consent { font-size: 12px; }
 }

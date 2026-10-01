@@ -43,3 +43,7 @@
 .meta {
   color: var(--color-text-tertiary);
 }
+.item { padding: 16px 24px; min-height: 66px; }
+.name { font-size: 13px; font-weight: 500; overflow-wrap: anywhere; }
+.badges { font-size: 11px; }
+@media (max-width: 768px) { .item { padding: 12px 14px; gap: 9px; flex-wrap: wrap; } .body { min-width: 120px; } .name { font-size: 12px; } }

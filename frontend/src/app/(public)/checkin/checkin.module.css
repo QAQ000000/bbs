@@ -1,3 +1,4 @@
+.page { width: 100%; max-width: 792px; margin: 24px auto 0; padding: 0 16px 50px; }
 .title {
   margin: 0 0 6px;
   font-size: 22px;
@@ -23,7 +24,8 @@
   padding: 0;
 }
 .item {
-  display: flex;
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr);
   align-items: center;
   gap: 16px;
   padding: 10px 0;
@@ -43,4 +45,14 @@
 .itemTime {
   color: var(--color-text-tertiary);
   font-size: 12px;
+  grid-column: 2;
+}
+@media (max-width: 768px) {
+  .page { margin-top: 0; padding: 14px 12px 24px; }
+  .title { font-size: 20px; }
+  .subtitle { font-size: 12px; line-height: 1.7; }
+  .history { padding: 16px; margin-top: 12px; }
+  .item { grid-template-columns: 80px minmax(0, 1fr); gap: 5px 10px; font-size: 12px; }
+  .itemMeta { line-height: 1.7; }
+  .itemTime { font-size: 11px; }
 }

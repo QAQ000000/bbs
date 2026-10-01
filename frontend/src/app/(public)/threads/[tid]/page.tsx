@@ -126,8 +126,8 @@ export default async function ThreadDetailPage({
   const authorTitle = posts[0]?.equippedTitle ?? thread.equippedTitle;
 
   return (
-    <div className="container page">
-      <Breadcrumb
+    <div className={styles.page}>
+      <div className="hide-mobile"><Breadcrumb
         items={[
           { label: '首页', href: '/' },
           forum
@@ -135,7 +135,7 @@ export default async function ThreadDetailPage({
             : { label: '版块', href: '/forums' },
           { label: thread.title },
         ]}
-      />
+      /></div>
 
       <div className={styles.grid}>
         <div className={styles.main}>

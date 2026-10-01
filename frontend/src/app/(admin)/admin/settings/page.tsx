@@ -33,7 +33,7 @@ export default async function AdminSettingsPage() {
       <div className={styles.pageHead}>
         <h1 className={styles.pageTitle}>站点设置</h1>
         <span className={styles.pageMeta}>
-          字段、类型与边界来自后端 schema；保存整体提交并携带版本，冲突时保留输入。
+          字段、类型与边界来自后端 schema；保存只提交已修改字段并携带版本，冲突时保留输入。
         </span>
       </div>
       {settings.data && schema.data && status.data ? (

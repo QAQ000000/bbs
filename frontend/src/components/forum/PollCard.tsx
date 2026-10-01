@@ -235,7 +235,7 @@ export function PollCard({ threadId, poll, rules, canCreate, canVote, canClose, 
     <section className={['panel', styles.card].join(' ')} aria-label="投票">
       <div className={styles.cardHead}>
         <h2 className={styles.cardTitle}>投票</h2>
-        <span className={styles.stateBadge}>{STATE_LABELS[current.state] ?? current.state}</span>
+        <span className={styles.stateBadge}>{closed && current.state === 'published' ? '已结束' : STATE_LABELS[current.state] ?? current.state}</span>
       </div>
       <p className={styles.question}>{current.question}</p>
       {error ? <p className={styles.error}>{error}</p> : null}

@@ -58,7 +58,7 @@ export default async function FollowingPage({
       </div>
       {envelope ? (
         items.length > 0 ? (
-          <div className="panel panel-flush">
+          <div className={styles.panel}>
             <ul className={list.items}>
               {items.map((user) => (
                 <li key={user.id} className={list.item}>
@@ -71,6 +71,7 @@ export default async function FollowingPage({
                   </div>
                   {user.id !== session.user.id ? (
                     <FollowButton
+                      key={[session.user.id, user.id, user.following ?? 'unknown'].join(':')}
                       userId={user.id}
                       size="small"
                       initialFollowing={user.following ?? null}
@@ -81,7 +82,7 @@ export default async function FollowingPage({
             </ul>
           </div>
         ) : (
-          <div className="panel">
+          <div className={styles.panel}>
             <EmptyState
               title={tab === 'followers' ? '还没有粉丝' : '还没有关注任何人'}
               description="在主题或用户主页点击「加关注」。"
@@ -89,7 +90,7 @@ export default async function FollowingPage({
           </div>
         )
       ) : (
-        <div className="panel">
+        <div className={styles.panel}>
           <ErrorState title="列表加载失败" description="无法读取关注列表，请稍后重试。" retryHref="/me/following" />
         </div>
       )}

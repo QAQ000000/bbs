@@ -25,7 +25,7 @@ export default async function EditPostPage({ params }: { params: { pid: string }
 
   if (!post.capabilities.canEdit) {
     return (
-      <div className="container page">
+      <div className={styles.page}>
         <div className={['panel', styles.forbidden].join(' ')}>
           <h1>无权限编辑</h1>
           <p>你只能编辑自己的内容；管理员或版主还需要在管辖版块内。</p>
@@ -38,7 +38,7 @@ export default async function EditPostPage({ params }: { params: { pid: string }
   const [thread, site, smileys] = await Promise.all([getThread(post.threadId), getSite(), getSmileyMap()]);
 
   return (
-    <div className="container page">
+    <div className={styles.page}>
       <Breadcrumb
         items={[
           { label: '首页', href: '/' },

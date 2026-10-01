@@ -31,8 +31,8 @@ export default async function MyHomePage() {
 
   return (
     <div>
-      <section className={['panel', styles.profile].join(' ')}>
-        <Avatar userId={me?.id} name={me?.username} size={64} />
+      <section className={styles.profile}>
+        <Avatar userId={me?.id} name={me?.username} size={72} className={styles.avatar} />
         <div className={styles.profileBody}>
           <h1 className={styles.name}>
             {me?.username ?? '我'}
@@ -41,8 +41,6 @@ export default async function MyHomePage() {
           </h1>
           <p className={styles.signature}>{me?.signature || '还没有填写签名'}</p>
           <p className={styles.meta}>
-            <span>{formatCount(me?.postCount ?? 0)} 帖</span>
-            <span className={styles.dotSep}>·</span>
             <span>注册于 {formatDateTime(me?.createdAt)}</span>
             {me?.email ? (
               <>
@@ -62,7 +60,15 @@ export default async function MyHomePage() {
         </div>
       </section>
 
-      <section className={['panel', styles.content].join(' ')}>
+      {me ? (
+        <dl className={styles.stats}>
+          <div><dd>{formatCount(me.postCount)}</dd><dt>发帖</dt></div>
+          {me.points !== undefined ? <div><dd>{formatCount(me.points)}</dd><dt>积分</dt></div> : null}
+          {me.experience !== undefined ? <div><dd>{formatCount(me.experience)}</dd><dt>经验</dt></div> : null}
+        </dl>
+      ) : null}
+
+      <section className={styles.content}>
         <header className={styles.contentHeader}>
           <h2 className={styles.contentTitle}>我的内容</h2>
           <span className={styles.contentHint}>包含待审核与已删除内容的本人视图</span>

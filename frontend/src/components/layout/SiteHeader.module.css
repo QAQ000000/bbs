@@ -2,15 +2,19 @@
   position: sticky;
   top: 0;
   z-index: 100;
-  height: var(--header-height);
+  height: 60px;
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
 }
 .inner {
+  width: 100%;
+  max-width: 1376px;
+  margin: 0 auto;
+  padding: 0 16px;
   height: 100%;
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 28px;
 }
 .brand {
   display: inline-flex;
@@ -18,31 +22,51 @@
   gap: 8px;
   flex: 0 0 auto;
 }
+.mobileBack {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.mobileTitle {
+  display: none;
+}
 .brandName {
   font-size: 17px;
   font-weight: 700;
   color: var(--color-text);
-  letter-spacing: 0.2px;
+  letter-spacing: 0;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .nav {
   display: flex;
   align-items: center;
   gap: 4px;
   flex: 0 0 auto;
+  height: 100%;
 }
 .navLink,
 .navActive {
   display: inline-flex;
   align-items: center;
-  height: 34px;
-  padding: 0 12px;
-  border-radius: var(--radius-btn);
+  height: 100%;
+  padding: 0 14px;
   font-size: 14px;
   color: var(--color-text-secondary);
 }
 .navLink:hover {
-  background: var(--color-fill);
-  color: var(--color-text);
+  background: var(--color-primary-light);
+  color: var(--color-primary);
 }
 .navActive {
   color: var(--color-primary);
@@ -51,10 +75,12 @@
 }
 .search {
   flex: 1 1 auto;
-  max-width: 520px;
+  max-width: 620px;
+  min-width: 120px;
+  margin-left: 8px;
 }
 .search :global(.arco-input-wrapper) {
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-btn);
   background: var(--color-fill);
   border-color: transparent;
 }
@@ -65,7 +91,7 @@
 .actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
   margin-left: auto;
   flex: 0 0 auto;
 }
@@ -118,6 +144,12 @@
   height: 7px;
   border-radius: 50%;
   background: var(--color-danger);
+}
+.notificationBadge {
+  font-size: 0;
+  line-height: 1;
+  text-align: center;
+  color: #fff;
 }
 .userBtn {
   display: inline-flex;
@@ -178,6 +210,9 @@
 }
 
 @media (max-width: 1100px) {
+  .inner {
+    gap: 12px;
+  }
   .nav {
     display: none;
   }
@@ -187,6 +222,60 @@
   }
 }
 @media (max-width: 768px) {
+  .header {
+    height: 48px;
+  }
+  .inner {
+    gap: 10px;
+  }
+  .brand {
+    gap: 7px;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .brand :global(svg) {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+  }
+  .brandName {
+    font-size: 16px;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  .actions {
+    gap: 10px;
+  }
+  .homeHeader .brand {
+    gap: 0;
+  }
+  .homeHeader .brandName {
+    color: var(--color-primary);
+    font-size: 20px;
+    font-weight: 700;
+    max-width: 100%;
+  }
+  .homeHeader .brand :global(svg) {
+    display: none;
+  }
+  .homeHeader .iconBtn + .iconBtn,
+  .homeHeader .userBtn {
+    display: none;
+  }
+  .homeHeader .notificationBadge {
+    top: -2px;
+    right: -2px;
+    width: auto;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    border: 2px solid var(--color-surface);
+    border-radius: 999px;
+    font-size: 11px;
+  }
   .search {
     display: none;
   }
@@ -201,7 +290,30 @@
     padding: 0;
     justify-content: center;
   }
-  .authLinks .login {
+  .authLinks .register {
     display: none;
+  }
+  /* 移动端由底部导航提供唯一的发布入口，避免顶部再出现一个重复按钮。 */
+  .publish {
+    display: none;
+  }
+  .pageHeader .brand {
+    display: none;
+  }
+  .pageHeader .mobileBack {
+    display: inline-flex;
+  }
+  .mobileTitle {
+    display: block;
+    min-width: 0;
+    font-size: 16px;
+    white-space: nowrap;
+  }
+  .detailHeader .publish,
+  .detailHeader .mobileSearch {
+    display: none;
+  }
+  .detailHeader .actions {
+    margin-left: auto;
   }
 }

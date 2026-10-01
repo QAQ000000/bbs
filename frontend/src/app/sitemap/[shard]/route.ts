@@ -1,3 +1,4 @@
+import { tagPath } from '@/lib/tag';
 import { NextResponse } from 'next/server';
 import { serverRequest } from '@/lib/api/server';
 import {
@@ -101,7 +102,7 @@ async function tagShard(index: number, startPage: number) {
         forwardCookies: false,
       });
       for (const tag of tags.data ?? []) {
-        entries.push(urlEntry(SITE_URL + '/tags/' + (tag.slug || tag.id)));
+        entries.push(urlEntry(SITE_URL + tagPath(tag)));
       }
       if ((tags.data ?? []).length === 0) break;
     }

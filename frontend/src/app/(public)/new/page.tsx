@@ -34,7 +34,7 @@ export default async function NewThreadPage({ searchParams }: { searchParams: { 
     .filter((forum) => forum.capabilities?.canCreateThread);
 
   return (
-    <div className="container page">
+    <div className={styles.page}>
       <Breadcrumb items={[{ label: '首页', href: '/' }, { label: '发布主题' }]} />
       <h1 className={styles.title}>发布主题</h1>
       <p className={styles.subtitle}>选择版块并填写标题与正文，发布前可切换预览检查排版。</p>

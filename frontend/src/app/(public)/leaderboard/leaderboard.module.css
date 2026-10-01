@@ -1,17 +1,18 @@
+.page { width: 100%; max-width: 792px; margin: 24px auto 0; padding: 0 16px 50px; }
 .title {
   margin: 12px 0 8px;
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 700;
 }
 .subtitle {
   margin: 0 0 20px;
   max-width: 760px;
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.8;
   color: var(--color-text-secondary);
 }
 .metaCard {
-  padding: 16px 18px;
+  padding: 16px;
   margin-bottom: 16px;
 }
 .metaRow {
@@ -23,6 +24,7 @@
 }
 .metaLabel {
   width: 84px;
+  flex-shrink: 0;
   color: var(--color-text-tertiary);
 }
 .metaValue {
@@ -44,7 +46,7 @@
   line-height: 1.7;
 }
 .board {
-  padding: 8px 0;
+  padding: 16px;
 }
 .list {
   list-style: none;
@@ -55,14 +57,14 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 18px;
+  padding: 14px 0;
   border-bottom: 1px solid var(--color-border);
 }
 .item:last-child {
   border-bottom: none;
 }
 .top {
-  background: var(--color-fill);
+  background: transparent;
 }
 .rank {
   width: 28px;
@@ -73,7 +75,7 @@
   font-variant-numeric: tabular-nums;
 }
 .top .rank {
-  color: var(--color-primary);
+  color: var(--color-warning);
 }
 .name {
   flex: 1;
@@ -88,7 +90,8 @@
 .points {
   font-size: 15px;
   font-weight: 700;
-  color: var(--color-warning);
+  color: var(--color-text);
+  flex-shrink: 0;
   font-variant-numeric: tabular-nums;
 }
 .unit {
@@ -96,7 +99,7 @@
   color: var(--color-text-tertiary);
 }
 .footNote {
-  margin: 8px 18px 0;
+  margin: 12px 0 0;
   font-size: 12px;
   line-height: 1.7;
   color: var(--color-text-tertiary);
@@ -132,7 +135,16 @@
 .action {
   color: var(--color-primary);
 }
-@media (max-width: 640px) {
+@media (max-width: 768px) {
+  .page { margin-top: 0; padding: 14px 12px 24px; }
+  .title { font-size: 20px; }
+  .subtitle { font-size: 12px; margin-bottom: 14px; }
+  .board, .metaCard, .statsCard { padding: 14px; }
+  .item { gap: 8px; }
+  .name, .points { font-size: 13px; }
+  .rank { width: 22px; flex-shrink: 0; }
+  .metaValue { min-width: 0; overflow-wrap: anywhere; }
+  .metaRow { align-items: flex-start; font-size: 12px; }
   .stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

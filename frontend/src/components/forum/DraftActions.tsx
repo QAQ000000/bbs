@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@arco-design/web-react';
+import { IconDelete } from '@arco-design/web-react/icon';
 import { browserSend } from '@/lib/api/browser';
 import { toastError, toastSuccess } from '../ui/feedback';
 
@@ -24,7 +25,7 @@ export function DraftActions({ context }: { context: string }) {
   }
 
   return (
-    <Button size="mini" type="text" status="danger" loading={loading} onClick={() => void remove()}>
+    <Button size="small" type="text" status="danger" icon={<IconDelete />} loading={loading} onClick={() => void remove()}>
       删除
     </Button>
   );

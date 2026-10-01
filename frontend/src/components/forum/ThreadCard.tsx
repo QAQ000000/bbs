@@ -16,13 +16,15 @@ export interface ThreadCardProps {
   /** 可选封面；加载失败时自动隐藏。 */
   coverUrl?: string;
   showForum?: boolean;
+  variant?: 'default' | 'home' | 'browse';
 }
 
-export function ThreadCard({ thread, forumName, excerpt, coverUrl, showForum = true }: ThreadCardProps) {
+export function ThreadCard({ thread, forumName, excerpt, coverUrl, showForum = true, variant = 'default' }: ThreadCardProps) {
   const flags = threadFlags(thread);
   return (
-    <article className={styles.card}>
+    <article className={[styles.card, variant !== 'default' ? styles.home : '', variant === 'browse' ? styles.browse : ''].join(' ')}>
       <div className={styles.main}>
+        <div className={variant !== 'default' ? styles.titleRow : undefined}>
         {flags.length > 0 ? (
           <div className={styles.flags}>
             {flags.map((flag) => (
@@ -35,13 +37,16 @@ export function ThreadCard({ thread, forumName, excerpt, coverUrl, showForum = t
         <h2 className={styles.title}>
           <Link href={`/threads/${thread.id}`}>{thread.title}</Link>
         </h2>
+        </div>
         {excerpt ? <p className={styles.excerpt}>{excerpt}</p> : null}
         <div className={styles.meta}>
           <Avatar userId={thread.authorId} name={thread.authorName} size={24} href={`/users/${thread.authorId}`} />
           <Link className={styles.author} href={`/users/${thread.authorId}`}>
             {thread.authorName}
           </Link>
-          <LevelBadge level={thread.authorLevel} size="sm" />
+          <span className={styles.level}>
+            <LevelBadge level={thread.authorLevel} size="sm" />
+          </span>
           {showForum && forumName ? (
             <Link className={styles.forum} href={`/forums/${thread.forumId}`}>
               {forumName}

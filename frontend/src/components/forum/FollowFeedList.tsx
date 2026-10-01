@@ -98,6 +98,7 @@ export function FollowFeedList({ stream, threads, meta, forumNames }: FollowFeed
         forumNames={forumNames}
         emptyTitle="暂无内容"
         emptyDescription="关注的版块或用户还没有发布新主题。"
+        variant="home"
       />
       {error ? (
         <p className={styles.error} role="alert">

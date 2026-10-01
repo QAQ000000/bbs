@@ -78,6 +78,7 @@ export default async function AdminAnalyticsPage() {
           <h2 className={styles.cardTitle}>快照列表</h2>
           <span className={styles.hint}>快照列表与报表相互分离 · 快照非实时 · 过期按保留期自动清理</span>
         </div>
+        <div className={styles.tableWrap}>
         <table className={styles.table}>
           <thead>
             <tr>
@@ -111,6 +112,7 @@ export default async function AdminAnalyticsPage() {
             ))}
           </tbody>
         </table>
+        </div>
         <p className={styles.hint}>
           接口只提供按名称读取的两个快照，没有列表、导出或“重新生成”动作，因此这里不提供这些按钮。
         </p>
@@ -139,6 +141,7 @@ export default async function AdminAnalyticsPage() {
               {pointEntries.length === 0 ? (
                 <p className={styles.hint}>快照已生成但内容为空。</p>
               ) : (
+                <div className={styles.tableWrap}>
                 <table className={styles.table}>
                   <thead>
                     <tr><th>名次</th><th>用户</th><th>当前积分余额</th></tr>
@@ -159,6 +162,7 @@ export default async function AdminAnalyticsPage() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               )}
             </>
           )}

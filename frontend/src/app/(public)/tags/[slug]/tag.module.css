@@ -1,30 +1,18 @@
-.header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 20px;
-  margin-bottom: 16px;
-}
-.name {
-  margin: 0 0 8px;
-  font-size: 20px;
-  font-weight: 700;
-}
-.desc {
-  margin: 0 0 8px;
-  font-size: 14px;
-  color: var(--color-text-secondary);
-  line-height: 1.7;
-}
-.meta {
-  margin: 0;
-  font-size: 13px;
-  color: var(--color-text-tertiary);
-}
-.pagination {
-  margin-top: 16px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
+.page { max-width: 1376px; margin: 28px auto 0; padding: 0 16px 38px; }
+.header { display: flex; align-items: center; gap: 16px; min-height: 104px; padding: 18px 24px; margin-bottom: 14px; }
+.icon { width: 44px; height: 44px; display: grid; place-items: center; flex-shrink: 0; background: var(--color-primary); color: white; font-size: 24px; border-radius: 9px; }
+.intro { flex: 1; min-width: 0; }
+.name { margin: 0 0 7px; font-size: 20px; font-weight: 600; overflow-wrap: anywhere; }
+.desc { margin: 0 0 6px; font-size: 13px; color: var(--color-text-tertiary); line-height: 1.7; overflow-wrap: anywhere; }
+.meta { margin: 0; font-size: 12px; color: var(--color-text-tertiary); }
+.pagination { margin-top: 16px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-card); }
+@media (max-width: 768px) {
+  .page { margin: 0 auto; padding: 8px 12px 24px; }
+  .page > :global(nav) { display: none; }
+  .header { min-height: 75px; padding: 12px; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+  .icon { width: 36px; height: 36px; font-size: 20px; }
+  .name { font-size: 16px; margin-bottom: 4px; }
+  .desc { font-size: 12px; }
+  .meta { font-size: 11px; }
+  .header :global(.arco-btn) { height: 30px; padding: 0 10px; font-size: 12px; }
 }

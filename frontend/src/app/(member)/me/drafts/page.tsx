@@ -36,7 +36,7 @@ export default async function DraftsPage() {
       <h1 className={styles.title}>草稿箱</h1>
       <p className={styles.subtitle}>草稿按上下文保存；服务端草稿与本地内容不一致时以服务端返回为准。</p>
       {drafts.length > 0 ? (
-        <div className="panel panel-flush">
+        <div className={styles.panel}>
           <ul className={list.items}>
             {drafts.map((draft) => (
               <li key={draft.context} className={list.item}>
@@ -58,7 +58,7 @@ export default async function DraftsPage() {
           </ul>
         </div>
       ) : (
-        <div className="panel">
+        <div className={styles.panel}>
           <EmptyState title="草稿箱是空的" description="编辑主题或回复时内容会自动保存到草稿箱。" />
         </div>
       )}

@@ -1,5 +1,6 @@
+import { tagPath } from '@/lib/tag';
 import Link from 'next/link';
-import type { CategoryWithForums } from '@/lib/api/types';
+import type { CategoryWithForums, TagView } from '@/lib/api/types';
 import styles from './ForumNav.module.css';
 
 const DOT_COLORS = ['#165DFF', '#00B42A', '#FF7D00', '#F53F3F', '#722ED1', '#0FC6C2', '#3491FA', '#FF9A2E'];
@@ -8,14 +9,15 @@ export interface ForumNavProps {
   categories: CategoryWithForums[];
   activeForumId?: string;
   totalThreads?: number;
+  tags?: TagView[];
 }
 
 /** 首页左栏版块导航：分类内列出可读版块与主题数。 */
-export function ForumNav({ categories, activeForumId, totalThreads }: ForumNavProps) {
+export function ForumNav({ categories, activeForumId, totalThreads, tags = [] }: ForumNavProps) {
   let index = 0;
   return (
-    <aside className="panel" aria-label="版块导航">
-      <div className={styles.nav}>
+    <aside className={styles.navPanel} aria-label="版块导航">
+      <div className={['panel', styles.nav].join(' ')}>
         <p className={styles.title}>版块导航</p>
         <Link
           href="/forums"
@@ -49,6 +51,13 @@ export function ForumNav({ categories, activeForumId, totalThreads }: ForumNavPr
           </div>
         ))}
       </div>
+      <section className={['panel', styles.tagPanel].join(' ')} aria-label="社区标签">
+        <header className={styles.tagHeader}><h2>社区标签</h2><Link href="/tags">全部</Link></header>
+        {tags.length ? <div className={styles.tags}>{tags.map((tag) => (
+          <Link key={tag.id} href={tagPath(tag)} className={styles.tag}
+            style={tag.color ? { color: tag.color, borderColor: tag.color } : undefined}>{tag.name}</Link>
+        ))}</div> : <p className={styles.empty}>暂无标签</p>}
+      </section>
     </aside>
   );
 }

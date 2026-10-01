@@ -54,18 +54,16 @@ export default async function ForumDetailPage({
     .filter(Boolean);
 
   return (
-    <div className="container page">
-      <Breadcrumb
+    <div className={styles.page}>
+      <div className="hide-mobile"><Breadcrumb
         items={[
           { label: '首页', href: '/' },
           { label: '版块目录', href: '/forums' },
           { label: forum.name },
         ]}
-      />
+      /></div>
 
-      <div className={styles.grid}>
-        <div className={styles.main}>
-          <section className={['panel', styles.header].join(' ')}>
+      <section className={['panel', styles.header].join(' ')}>
             <div className={styles.headerMain}>
               <h1 className={styles.name}>
                 <span className={styles.dot} aria-hidden="true" />
@@ -82,7 +80,7 @@ export default async function ForumDetailPage({
             </div>
             <div className={styles.actions}>
               {session.user ? (
-                <SubscribeButton kind="forum" id={forum.id} initialSubscribed={forum.subscribed ?? null} />
+                <SubscribeButton key={`${session.user.id}:${forum.id}:${forum.subscribed}`} kind="forum" id={forum.id} initialSubscribed={forum.subscribed ?? null} />
               ) : (
                 <Link className={styles.loginLink} href="/login">
                   登录后关注
@@ -125,8 +123,11 @@ export default async function ForumDetailPage({
             {meta ? <span className={styles.total}>共 {formatCount(meta.total)} 个主题</span> : null}
           </nav>
 
+      <div className={styles.grid}>
+        <div className={styles.main}>
           {data ? (
             <ThreadList
+              variant="browse"
               threads={data.threads}
               stickies={data.stickies}
               forumNames={{ [forum.id]: forum.name }}
