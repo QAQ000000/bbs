@@ -56,6 +56,7 @@ export function ForumAdmin({ categories }: { categories: CategoryWithForums[] })
     Modal.confirm({
       title: '确认删除版块「' + name + '」？',
       content: '删除前请确认版块内主题已迁移或清理，操作会记录审计日志。',
+      style: { width: 'min(520px, calc(100vw - 32px))' },
       okText: '确认删除',
       cancelText: '取消',
       onOk: async () => {
@@ -174,6 +175,7 @@ export function ForumAdmin({ categories }: { categories: CategoryWithForums[] })
       ))}
 
       <Modal
+        style={{ width: 'min(520px, calc(100vw - 32px))' }}
         title={draft?.id ? '编辑版块' : '新建版块'}
         visible={Boolean(draft)}
         confirmLoading={busy}
@@ -225,6 +227,7 @@ export function ForumAdmin({ categories }: { categories: CategoryWithForums[] })
       </Modal>
 
       <Modal
+        style={{ width: 'min(520px, calc(100vw - 32px))' }}
         title={catId ? '重命名分类' : '新建分类'}
         visible={catOpen}
         confirmLoading={busy}

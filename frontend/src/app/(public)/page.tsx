@@ -89,7 +89,13 @@ export default async function HomePage({
   return (
     <div className={styles.layout}>
       <div className={styles.grid}>
-        <ForumNav categories={categories} totalThreads={home?.stats.totalThreads} tags={tagPage?.data ?? []} />
+        <ForumNav
+          categories={categories}
+          totalThreads={home?.stats.totalThreads}
+          tags={tagPage?.data ?? []}
+          categoriesFailed={!home}
+          tagsFailed={!tagPage}
+        />
 
         <div className={styles.center}>
           <section className={styles.hero}>
@@ -180,6 +186,7 @@ export default async function HomePage({
         <HomeSidebar
           announcements={home?.announcements ?? []}
           stats={home?.stats ?? null}
+          unavailable={!home}
         />
       </div>
     </div>

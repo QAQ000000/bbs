@@ -7,6 +7,7 @@ import styles from './HomeSidebar.module.css';
 export interface HomeSidebarProps {
   announcements: Announcement[];
   stats: SiteStats | null;
+  unavailable?: boolean;
 }
 
 const QUICK_LINKS = [
@@ -18,7 +19,7 @@ const QUICK_LINKS = [
 
 // 设计稿还有“热门话题 / 热门作者”，当前后端没有对应公开聚合接口，
 // 这里展示真实社区统计，避免用前端静态排序冒充全站榜单。
-export function HomeSidebar({ announcements, stats }: HomeSidebarProps) {
+export function HomeSidebar({ announcements, stats, unavailable }: HomeSidebarProps) {
   return (
     <div className={[styles.column, styles.mobileHidden].join(' ')}>
       <section className={['panel', styles.card].join(' ')} aria-label="社区公告">
@@ -37,6 +38,8 @@ export function HomeSidebar({ announcements, stats }: HomeSidebarProps) {
               </li>
             ))}
           </ul>
+        ) : unavailable ? (
+          <p className={styles.empty}>公告暂不可用，请稍后重试。</p>
         ) : (
           <p className={styles.empty}>暂无公告</p>
         )}

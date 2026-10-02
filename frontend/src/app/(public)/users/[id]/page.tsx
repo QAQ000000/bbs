@@ -80,15 +80,19 @@ export default async function UserProfilePage({
               我的主页
             </Link>
           ) : session.user ? (
-            <FollowButton
-              key={[session.user?.id, user.id, profile.data.following ?? 'unknown'].join(':')}
-              userId={user.id}
-              initialFollowing={profile.data.following ?? null}
-            />
+            <div className={styles.actionGroup}>
+              {!isSelf ? <Link className={styles.selfLink} href={'/me/messages?to=' + encodeURIComponent(user.id)}>发私信</Link> : null}
+              <FollowButton
+                key={[session.user?.id, user.id, profile.data.following ?? 'unknown'].join(':')}
+                userId={user.id}
+                initialFollowing={profile.data.following ?? null}
+              />
+            </div>
           ) : (
-            <Link className={styles.selfLink} href="/login">
-              登录后关注
-            </Link>
+            <div className={styles.actionGroup}>
+              <Link className={styles.selfLink} href={'/login?next=' + encodeURIComponent('/me/messages?to=' + user.id)}>登录后私信</Link>
+              <Link className={styles.selfLink} href="/login">登录后关注</Link>
+            </div>
           )}
         </div>
       </section>

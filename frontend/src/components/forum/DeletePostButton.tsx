@@ -27,6 +27,7 @@ export function DeletePostButton({ postId, floor, threadId, forumId, size = 'min
       content: isFirstFloor
         ? '删除首楼会同时删除主题及其全部回复，操作不可自动撤销。'
         : '删除后该楼层公开不可见，操作会记录审计日志。',
+      style: { width: 'min(520px, calc(100vw - 32px))' },
       okText: '确认删除',
       cancelText: '取消',
       onOk: async () => {

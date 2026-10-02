@@ -5,7 +5,7 @@ import type { CurrentUser, OwnContentItem } from '@/lib/api/types';
 import { formatCount, formatDateTime, formatRelative } from '@/lib/format';
 import { Avatar } from '@/components/ui/Avatar';
 import { LevelBadge, TitleBadge } from '@/components/ui/LevelBadge';
-import { EmptyState } from '@/components/ui/StateView';
+import { EmptyState, ErrorState } from '@/components/ui/StateView';
 import { requireMember } from '../guard';
 import styles from './me.module.css';
 
@@ -31,7 +31,7 @@ export default async function MyHomePage() {
 
   return (
     <div>
-      <section className={styles.profile}>
+      {me ? <section className={styles.profile}>
         <Avatar userId={me?.id} name={me?.username} size={72} className={styles.avatar} />
         <div className={styles.profileBody}>
           <h1 className={styles.name}>
@@ -58,7 +58,7 @@ export default async function MyHomePage() {
             公开主页
           </Link>
         </div>
-      </section>
+      </section> : <ErrorState title="个人资料加载失败" description="无法读取你的账号资料，请稍后重试。" retryHref="/me" />}
 
       {me ? (
         <dl className={styles.stats}>
@@ -73,7 +73,9 @@ export default async function MyHomePage() {
           <h2 className={styles.contentTitle}>我的内容</h2>
           <span className={styles.contentHint}>包含待审核与已删除内容的本人视图</span>
         </header>
-        {items.length > 0 ? (
+        {content === null ? (
+          <ErrorState title="内容列表加载失败" description="无法读取你的内容，暂时不能判断是否为空。" retryHref="/me" />
+        ) : items.length > 0 ? (
           <ul className={styles.list}>
             {items.map((item) => (
               <li key={item.id} className={styles.item}>

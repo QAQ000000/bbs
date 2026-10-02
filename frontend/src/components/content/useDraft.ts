@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { browserGet, browserSend } from '@/lib/api/browser';
+import { toastError } from '../ui/feedback';
 
 export interface DraftData {
   context: string;
@@ -17,6 +18,7 @@ export interface DraftData {
 export function useServerDraft(context: string, enabled: boolean) {
   const [restored, setRestored] = useState<DraftData | null>(null);
   const restoredRef = useRef(false);
+  const saveFailureNotified = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -42,9 +44,16 @@ export function useServerDraft(context: string, enabled: boolean) {
       if (!enabled) return;
       if (timer.current) clearTimeout(timer.current);
       timer.current = setTimeout(() => {
-        browserSend('/me/draft', { method: 'POST', body: { context, content, subject } }).catch(() => {
-          // 自动保存失败静默处理，用户提交时仍有服务端校验。
-        });
+        browserSend('/me/draft', { method: 'POST', body: { context, content, subject } })
+          .then(() => {
+            saveFailureNotified.current = false;
+          })
+          .catch(() => {
+            if (!saveFailureNotified.current) {
+              toastError(new Error('草稿保存失败，当前内容尚未同步到服务器。'));
+              saveFailureNotified.current = true;
+            }
+          });
       }, 2500);
     },
     [context, enabled],

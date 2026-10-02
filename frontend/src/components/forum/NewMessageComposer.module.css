@@ -1,0 +1,6 @@
+.composer { padding: 20px; }
+.composer h2 { margin: 0 0 6px; font-size: 16px; }
+.note { margin: 0 0 14px; color: var(--color-text-secondary); font-size: 13px; line-height: 1.6; }
+.textarea { display: block; width: 100%; min-height: 120px; padding: 10px 12px; resize: vertical; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-bg); color: var(--color-text); font: inherit; line-height: 1.6; }
+.textarea:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 1px; }
+.actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; color: var(--color-text-tertiary); font-size: 12px; }

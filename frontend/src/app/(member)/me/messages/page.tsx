@@ -1,12 +1,13 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { safeRequest } from '@/lib/api/server';
-import type { ConversationView, MessageView } from '@/lib/api/types';
+import { safeGet, safeRequest } from '@/lib/api/server';
+import type { ConversationView, MessageView, UserProfileView } from '@/lib/api/types';
 import { formatDateTime, formatRelative } from '@/lib/format';
 import { Avatar } from '@/components/ui/Avatar';
 import { Pagination } from '@/components/ui/Pagination';
-import { EmptyState } from '@/components/ui/StateView';
+import { EmptyState, ErrorState } from '@/components/ui/StateView';
 import { MessageComposer } from '@/components/forum/MessageComposer';
+import { NewMessageComposer } from '@/components/forum/NewMessageComposer';
 import { requireMember } from '../../guard';
 import styles from './messages.module.css';
 
@@ -27,18 +28,21 @@ function idParam(value?: string): string {
 export default async function MessagesPage({
   searchParams,
 }: {
-  searchParams: { page?: string; cid?: string; before?: string };
+  searchParams: { page?: string; cid?: string; before?: string; to?: string };
 }) {
   const session = await requireMember('/me/messages');
   const page = parsePage(searchParams.page);
   const cid = idParam(searchParams.cid);
   const before = idParam(searchParams.before);
+  const to = idParam(searchParams.to);
 
   const conversationsEnvelope = await safeRequest<ConversationView[]>('/api/v1/me/conversations', {
     query: { page },
   });
   const conversations = conversationsEnvelope?.data ?? [];
   const selected = cid ? conversations.find((item) => item.id === cid) ?? null : null;
+  const recipient = to && !cid ? await safeGet<UserProfileView>('/api/v1/users/' + to) : null;
+  const startingConversation = Boolean(to && !cid);
 
   const messagesEnvelope =
     cid && selected
@@ -53,9 +57,11 @@ export default async function MessagesPage({
   return (
     <div>
       <h1 className={styles.title}>私信</h1>
-      <div className={[styles.layout, selected ? styles.withSelection : '', cid && !selected ? styles.invalidSelection : ''].join(' ')}>
+      <div className={[styles.layout, selected || startingConversation ? styles.withSelection : '', cid && !selected ? styles.invalidSelection : ''].join(' ')}>
         <section className={styles.listPanel} aria-label="会话列表">
-          {conversations.length > 0 ? (
+          {conversationsEnvelope === null ? (
+            <ErrorState title="会话列表加载失败" description="无法读取私信列表，暂时不能判断是否存在会话。" retryHref="/me/messages" />
+          ) : conversations.length > 0 ? (
             <ul className={styles.conversations}>
               {conversations.map((item) => {
                 const active = item.id === cid;
@@ -120,7 +126,9 @@ export default async function MessagesPage({
               </header>
 
               <div className={styles.history}>
-                {ordered.length > 0 ? (
+                {messagesEnvelope === null ? (
+                  <ErrorState title="消息记录加载失败" description="无法读取该会话的消息，请稍后重试。" retryHref={'/me/messages?cid=' + selected.id} />
+                ) : ordered.length > 0 ? (
                   ordered.map((message) => {
                     const mine = message.senderId === session.user.id;
                     return (
@@ -150,6 +158,10 @@ export default async function MessagesPage({
 
               <MessageComposer key={selected.id} conversation={selected} latestMessageId={latestMessageId} />
             </>
+          ) : startingConversation ? (
+            recipient ? <NewMessageComposer userId={to} username={recipient.user.username} /> : (
+              <ErrorState title="无法发起私信" description="无法读取目标用户资料；该账号可能不存在或服务暂不可用。" retryHref={'/me/messages?to=' + to} />
+            )
           ) : cid && !selected ? (
             <EmptyState title="会话不在当前页" description="请从左侧会话列表选择，或返回第一页。" />
           ) : (
