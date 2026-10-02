@@ -5,7 +5,6 @@ import { notFound } from 'next/navigation';
 import {
   getBounty,
   getEngagementRules,
-  getForum,
   getForumThreads,
   getPointsAccount,
   getPoll,
@@ -14,6 +13,8 @@ import {
   getThread,
   getUserProfile,
 } from '@/lib/data.server';
+import { safeGet } from '@/lib/api/server';
+import type { ForumDetail } from '@/lib/api/types';
 import { getSession } from '@/lib/auth/server';
 import { getSite } from '@/lib/site.server';
 import { getSmileyMap } from '@/lib/markdown/smiley.server';
@@ -93,7 +94,7 @@ export default async function ThreadDetailPage({
 
   // 互动数据只在需要时读取；规则为公开快照，写操作仍以后端校验为准。
   const [forum, postsPage, smileys, profile, relatedPage, site, rules, poll, bounty, account] = await Promise.all([
-    getForum(thread.forumId),
+    safeGet<ForumDetail>('/api/v1/forums/' + thread.forumId),
     getPosts(tid, page),
     getSmileyMap(),
     getUserProfile(thread.authorId),

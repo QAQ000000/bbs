@@ -64,7 +64,7 @@ Ardot 文件当前包含 **85 个页面级 Frame**，分为桌面和 375px 移�
 
 - 1440px 内容容器维持设计稿 32px 基线，首页列间距收敛到 20px，顶部导航间距调整为 24px。
 - 首页三栏现已按导出稿的精确几何关系排列：外边距 32px、左栏 208px、列间距 20px、中栏 828px、右栏 300px。
-- 从 HTML 稿复用社区横幅 `img46.png` 为 `frontend/public/assets/community-banner.png`，首页横幅使用真实位图，不再使用纯 CSS 渐变占位。
+- 从 HTML 稿复用社区横幅 `img46.png` 为首页横幅 `frontend/public/assets/design-20261001/home-banner.webp`，首页使用真实位图，不再使用纯 CSS 渐变占位。
 - 桌面认证品牌区留白和右侧表单宽度调整为设计稿接近的 360px。
 - 移动后台隐藏桌面侧栏，使用 48px 紧凑顶部栏并裁切过长面包屑，消除原先 15 项导航横向挤压。
 

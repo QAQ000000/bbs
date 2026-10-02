@@ -72,7 +72,7 @@ export const getPosts = cache(
 
 /** 主题详情侧栏用：失败时返回 null，仅隐藏辅助卡片。 */
 export const getUserProfile = cache(async (uid: string): Promise<UserProfileView | null> =>
-  getOr404<UserProfileView>('/api/v1/users/' + uid),
+  safeGet<UserProfileView>('/api/v1/users/' + uid),
 );
 
 /** 公开用户主页：区分不存在与加载失败。 */

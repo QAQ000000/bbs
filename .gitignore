@@ -15,3 +15,5 @@ frontend/.next/
 frontend/out/
 frontend/.env
 frontend/.env.local
+# Playwright 截图和临时验收输出不进入源码提交。
+output/

@@ -36,10 +36,11 @@
 1. [Ardot 设计核对](ARDOT_DESIGN_REVIEW.md)：实际设计基线、页面覆盖、设计与 API 差异。
 2. [页面设计](FRONTEND_PAGE_DESIGN.md)：页面 ID、路由、交互、状态、响应式及权限。
 3. [UI 交付规范](FRONTEND_UI_HANDOFF.md) 和 [UI 技术选型](FRONTEND_UI_STACK.md)。
-4. [前后端分离方案](FRONTEND_BACKEND_SEPARATION.md)：SSR、同域请求、会话、媒体、SEO、Markdown 与缓存边界。
-5. [内容接入](FRONTEND_CONTENT_INTEGRATION.md) 和 [社区接入](FRONTEND_COMMUNITY_INTEGRATION.md)。
-6. [API 文档](API.md)、[社区 API](COMMUNITY_API.md)、[OpenAPI](openapi.json) 和 [功能状态](FEATURE_STATUS.md)。
-7. [视觉简报](FRONTEND_VISUAL_BRIEF.md) 作为历史背景；颜色和实际布局以 Ardot 已确认稿为准。
+4. [视觉与交互规范](FRONTEND_GUIDELINES.md)：组件复用、状态、CSS 边界和验收清单。
+5. [前后端分离方案](FRONTEND_BACKEND_SEPARATION.md)：SSR、同域请求、会话、媒体、SEO、Markdown 与缓存边界。
+6. [内容接入](FRONTEND_CONTENT_INTEGRATION.md) 和 [社区接入](FRONTEND_COMMUNITY_INTEGRATION.md)。
+7. [API 文档](API.md)、[社区 API](COMMUNITY_API.md)、[OpenAPI](openapi.json) 和 [功能状态](FEATURE_STATUS.md)。
+8. [视觉简报](FRONTEND_VISUAL_BRIEF.md) 作为历史背景；颜色和实际布局以 Ardot 已确认稿为准。
 
 文档包含历史方案、建议和待实现项，不能把写在文档中的接口直接当成已经存在。核对 `internal/api/routes.go`、对应 handler / DTO 和实际响应；发现冲突时记录并修正文档或接入假设。OpenAPI 的路由占位定义不能充当完整字段类型。
 
@@ -158,6 +159,7 @@ pnpm build
 4. 用两个账号或匿名 / 登录切换验证私有页面、查询缓存和 SSR 不串数据。
 5. 1440px 与 375px 检查，并抽查中间宽度；关注中文长标题、长用户名、代码块 / 表格、弹层、手机键盘和底部导航。
 6. 检查加载、空、失败、无权限、冲突、重复点击、可见键盘焦点、弹层焦点返回，以及控制台 hydration / 样式错误。
+7. 按 [视觉与交互规范](FRONTEND_GUIDELINES.md) 逐项记录 `PASS`、`FAIL` 或 `N/A`，不能以“页面能打开”替代状态和视觉验收。
 
 所需验证以第一批实际完成的范围为准。缺少测试账号、服务或工具时说明具体未验证部分，不把构建通过写成全部联调通过；不要删除或重置现有数据库来方便测试。
 

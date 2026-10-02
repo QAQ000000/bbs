@@ -3,7 +3,7 @@ import { Logo } from '@/components/layout/Logo';
 
 export default function NotFound() {
   return (
-    <div
+    <main
       style={{
         minHeight: '100vh',
         display: 'flex',
@@ -35,6 +35,6 @@ export default function NotFound() {
       >
         返回首页
       </Link>
-    </div>
+    </main>
   );
 }

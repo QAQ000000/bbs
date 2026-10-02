@@ -2,7 +2,7 @@
 
 export default function GlobalError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
-    <div
+    <main
       style={{
         minHeight: '60vh',
         display: 'flex',
@@ -34,6 +34,6 @@ export default function GlobalError({ reset }: { error: Error & { digest?: strin
       >
         重新加载
       </button>
-    </div>
+    </main>
   );
 }

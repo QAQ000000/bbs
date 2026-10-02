@@ -30,7 +30,8 @@ a {
   text-decoration: none;
 }
 
-a:hover {
+/* Default link hover must not override component colors, including selected controls. */
+a:where(:hover) {
   color: var(--color-primary);
 }
 
