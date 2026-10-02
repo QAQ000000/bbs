@@ -1,4 +1,10 @@
 .page { width: 100%; max-width: 792px; margin: 24px auto 0; padding: 0 16px 50px; }
+.tabs { display: flex; border-bottom: 1px solid var(--color-border); margin-bottom: 16px; }
+.tabs a { flex: 1; min-width: 0; padding: 12px 4px; text-align: center; color: var(--color-text-secondary); font-size: 14px; border-bottom: 2px solid transparent; }
+.tabs a[aria-current] { color: var(--color-primary); border-bottom-color: var(--color-primary); font-weight: 600; }
+.periodForm { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; font-size: 13px; }
+.periodForm input, .periodForm button { min-height: 40px; padding: 6px 10px; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-surface); color: var(--color-text); font: inherit; }
+.periodForm button { cursor: pointer; }
 .title {
   margin: 12px 0 8px;
   font-size: 22px;

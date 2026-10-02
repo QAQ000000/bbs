@@ -27,6 +27,15 @@ func (s *Server) runAnalytics(ctx context.Context) {
 		{name: "points", refresh: func(ctx context.Context) error {
 			return s.st.RefreshPointsLeaderboard(ctx, time.Now().UTC().Truncate(time.Hour), 100)
 		}},
+		{name: "points.day", refresh: func(ctx context.Context) error {
+			return s.st.RefreshPeriodLeaderboard(ctx, "day", time.Now())
+		}},
+		{name: "points.week", refresh: func(ctx context.Context) error {
+			return s.st.RefreshPeriodLeaderboard(ctx, "week", time.Now())
+		}},
+		{name: "points.month", refresh: func(ctx context.Context) error {
+			return s.st.RefreshPeriodLeaderboard(ctx, "month", time.Now())
+		}},
 		{name: "site", refresh: func(ctx context.Context) error {
 			return s.st.RefreshSiteReport(ctx, time.Now().UTC().Truncate(24*time.Hour))
 		}},

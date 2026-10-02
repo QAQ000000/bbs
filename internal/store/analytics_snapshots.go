@@ -81,11 +81,15 @@ func (s *Store) PruneAnalyticsSnapshots(ctx context.Context) (int64, error) {
 	}
 	result, err := s.pool.Exec(ctx, `WITH latest AS MATERIALIZED (
 		SELECT DISTINCT ON(name) name,period_start FROM analytics_snapshots
-		WHERE name IN ('points','site') ORDER BY name,period_start DESC
+		WHERE name IN ('points','site','points.day','points.week','points.month') ORDER BY name,period_start DESC
 	), expired AS (
 		SELECT a.name,a.period_start FROM analytics_snapshots a
 		JOIN latest l ON a.name=l.name
-		WHERE a.period_start < now()-$1::int*interval '24 hours'
+		WHERE CASE a.name
+		 WHEN 'points.day' THEN a.period_start+interval '1 day'
+		 WHEN 'points.week' THEN a.period_start+interval '7 days'
+		 WHEN 'points.month' THEN ((a.period_start AT TIME ZONE 'Asia/Shanghai')+interval '1 month') AT TIME ZONE 'Asia/Shanghai'
+		 ELSE a.period_start END < now()-$1::int*interval '24 hours'
 		AND a.period_start < l.period_start
 		ORDER BY a.period_start,a.name LIMIT 500
 		FOR UPDATE OF a SKIP LOCKED

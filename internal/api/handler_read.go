@@ -498,7 +498,20 @@ func (s *Server) indexThreads(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) setupGet(w http.ResponseWriter, r *http.Request) {
-	s.respond(w, 200, map[string]bool{"required": s.setupRequired()})
+	exists, err := s.st.HasUsers(r.Context())
+	if err != nil {
+		s.fail(w, r, 503, "SETUP_CHECK_FAILED", "无法检查数据库与安装状态")
+		return
+	}
+	version, err := s.st.SchemaVersion(r.Context())
+	if err != nil {
+		s.fail(w, r, 503, "SETUP_CHECK_FAILED", "无法读取数据库迁移状态")
+		return
+	}
+	s.respond(w, 200, map[string]any{
+		"required": !exists, "database": "up", "schema": version,
+		"smtpEnabled": s.mailer.Enabled(), "secureCookies": s.cfg.ProdMode,
+	})
 }
 func (s *Server) captchaGet(w http.ResponseWriter, r *http.Request) {
 	if !s.allow(r, "captcha", 30, time.Minute) {

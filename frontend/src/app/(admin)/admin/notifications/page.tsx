@@ -40,7 +40,7 @@ export default async function AdminNotificationsPage({
       <div className={styles.pageHead}>
         <h1 className={styles.pageTitle}>邮件与通知队列</h1>
         <span className={styles.pageMeta}>
-          只提供列表与重试；没有详情 / 取消接口。重试仅对“已失败”任务有效，且需要邮件服务已配置。
+          重试仅适用于未过期的失败任务。待发送、失败任务可取消；发送中的任务无法撤回。
         </span>
       </div>
       <EmailQueueAdmin

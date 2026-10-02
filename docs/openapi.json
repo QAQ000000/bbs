@@ -4952,6 +4952,226 @@
         "x-source": "internal/api/routes.go"
       }
     },
+    "/api/v1/admin/email-jobs/{jobId}": {
+      "get": {
+        "description": "要求后台与 email.manage 权限。仅返回任务元数据；不返回地址、正文、关联楼层、令牌或密文。不存在或已清理返回 404。",
+        "operationId": "get_api_v1_admin_email_jobs_jobId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "jobId",
+            "required": true,
+            "schema": {
+              "pattern": "^[1-9][0-9]*$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "jobId",
+            "required": true,
+            "schema": {
+              "pattern": "^[1-9][0-9]*$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "attempts": {
+                          "type": "integer"
+                        },
+                        "createdAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "expiresAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "id": {
+                          "type": "string"
+                        },
+                        "kind": {
+                          "type": "string"
+                        },
+                        "lastError": {
+                          "type": "string"
+                        },
+                        "nextAttemptAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "retries": {
+                          "type": "integer"
+                        },
+                        "sentAt": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "status": {
+                          "enum": [
+                            "pending",
+                            "sending",
+                            "sent",
+                            "dead",
+                            "cancelled"
+                          ],
+                          "type": "string"
+                        },
+                        "userId": {
+                          "type": "string"
+                        },
+                        "version": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "userId",
+                        "kind",
+                        "status",
+                        "attempts",
+                        "retries",
+                        "version",
+                        "nextAttemptAt",
+                        "expiresAt",
+                        "createdAt",
+                        "sentAt",
+                        "lastError"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "实时元数据"
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "实时邮件任务详情",
+        "tags": [
+          "admin"
+        ],
+        "x-contract-level": "fields",
+        "x-csrf-required": false,
+        "x-handler": "adminEmailDetail",
+        "x-source": "internal/api/routes.go"
+      }
+    },
+    "/api/v1/admin/email-jobs/{jobId}/cancel": {
+      "post": {
+        "description": "要求后台与 email.manage 权限及 CSRF。携带当前 version，只允许 pending/dead，取消与审计事务提交，清除令牌密文并增加版本。发送中和终态不允许取消；状态/版本冲突返回 409 EMAIL_CANCEL_CONFLICT。SMTP 关闭时也可取消。取消任务不撤销认证令牌，也不能重试。",
+        "operationId": "post_api_v1_admin_email_jobs_jobId_cancel",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "jobId",
+            "required": true,
+            "schema": {
+              "pattern": "^[1-9][0-9]*$",
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/CSRF"
+          },
+          {
+            "in": "path",
+            "name": "jobId",
+            "required": true,
+            "schema": {
+              "pattern": "^[1-9][0-9]*$",
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/CSRF"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "version": {
+                    "minimum": 1,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "version"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "message"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "已取消"
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "取消待发送或失败的邮件任务",
+        "tags": [
+          "admin"
+        ],
+        "x-contract-level": "fields",
+        "x-csrf-required": true,
+        "x-handler": "adminEmailCancel",
+        "x-source": "internal/api/routes.go"
+      }
+    },
     "/api/v1/admin/email-jobs/{jobId}/retry": {
       "post": {
         "description": "已注册接口。路由级契约；详细业务字段及权限条件见 docs/API.md 及对应专题文档。未声明的字段不代表接口接受任意输入。",
@@ -11726,6 +11946,120 @@
         "x-source": "internal/api/routes.go"
       }
     },
+    "/api/v1/home/popular": {
+      "get": {
+        "description": "按查看者当前可见版块过滤后聚合，排除删除/待审内容与封禁作者。话题取近七天发布主题，按公开回复数、累计浏览数、ID 倒序；作者按近七天公开发帖当前获赞数、发帖数、ID 排序。各最多 5 项，不使用模拟数据。",
+        "operationId": "get_api_v1_home_popular",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "authors": {
+                          "items": {
+                            "properties": {
+                              "likes": {
+                                "type": "integer"
+                              },
+                              "posts": {
+                                "type": "integer"
+                              },
+                              "userId": {
+                                "type": "string"
+                              },
+                              "username": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "userId",
+                              "username",
+                              "posts",
+                              "likes"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 5,
+                          "type": "array"
+                        },
+                        "generatedAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "since": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "threads": {
+                          "items": {
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "replies": {
+                                "type": "integer"
+                              },
+                              "title": {
+                                "type": "string"
+                              },
+                              "views": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "title",
+                              "replies",
+                              "views"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 5,
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "since",
+                        "generatedAt",
+                        "threads",
+                        "authors"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "真实聚合"
+          },
+          "default": {
+            "$ref": "#/components/responses/APIError"
+          }
+        },
+        "security": [
+          {},
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "近七天热门话题与作者",
+        "tags": [
+          "community"
+        ],
+        "x-contract-level": "fields",
+        "x-csrf-required": false,
+        "x-handler": "homePopular",
+        "x-source": "internal/api/routes.go"
+      }
+    },
     "/api/v1/index/threads": {
       "get": {
         "description": "无需登录，只返回游客可见的公开主题（未删除、未待审、按版块可见性过滤）；有界分页，size 最大 100。供 Next.js 生成 sitemap.xml 与 rss.xml，不返回正文、附件或待审内容。",
@@ -11868,9 +12202,32 @@
     },
     "/api/v1/leaderboard/points": {
       "get": {
-        "description": "无需登录。只读后台 Worker 生成的 points 快照，不在请求内重算排名；读取时会再次过滤当前被封禁（禁止登录）账号，因此旧快照同样遵守公开规则。status=unavailable 表示快照尚未生成，stale=true 表示快照过期。",
+        "description": "无需登录，只读 Worker 快照，读取时再次过滤封禁账号。默认 balance 为当前余额；day/week/month 为上海时区自然日、周一开始的自然周、自然月内积分净变化，包含扣减/退款/管理员调整，排除 baseline。每榜最多 100 人，同分按用户 ID。date 指定周期内日期，禁止未来日期；余额榜不接受 date。Worker 每小时刷新当前和上一周期，历史快照受保留策略限制，缺失返回 unavailable。complete 表示统计区间结束，仍可能因延迟入账而更新；asOf 是事件时间上限。",
         "operationId": "get_api_v1_leaderboard_points",
-        "parameters": [],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "period",
+            "schema": {
+              "default": "balance",
+              "enum": [
+                "balance",
+                "day",
+                "week",
+                "month"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date",
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -11881,6 +12238,13 @@
                       "properties": {
                         "ageSeconds": {
                           "type": "integer"
+                        },
+                        "asOf": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "complete": {
+                          "type": "boolean"
                         },
                         "entries": {
                           "items": {
@@ -11918,6 +12282,29 @@
                           "nullable": true,
                           "type": "string"
                         },
+                        "limit": {
+                          "enum": [
+                            100
+                          ],
+                          "type": "integer"
+                        },
+                        "period": {
+                          "enum": [
+                            "balance",
+                            "day",
+                            "week",
+                            "month"
+                          ],
+                          "type": "string"
+                        },
+                        "periodEnd": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "periodStart": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
                         "refreshIntervalSeconds": {
                           "type": "integer"
                         },
@@ -11932,6 +12319,12 @@
                             "ready",
                             "stale",
                             "unavailable"
+                          ],
+                          "type": "string"
+                        },
+                        "timeZone": {
+                          "enum": [
+                            "Asia/Shanghai"
                           ],
                           "type": "string"
                         }
@@ -11974,7 +12367,7 @@
             "sessionCookie": []
           }
         ],
-        "summary": "公开积分余额榜",
+        "summary": "公开积分余额与周期变化榜",
         "tags": [
           "community"
         ],
@@ -16973,19 +17366,54 @@
     },
     "/api/v1/setup": {
       "get": {
-        "description": "已注册接口。路由级契约；详细业务字段及权限条件见 docs/API.md 及对应专题文档。未声明的字段不代表接口接受任意输入。",
+        "description": "数据库连接由部署环境提供，不返回数据库地址或凭据。每次查询检查数据库和迁移状态，失败返回 503 SETUP_CHECK_FAILED。",
         "operationId": "get_api_v1_setup",
         "parameters": [],
         "responses": {
-          "2XX": {
+          "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Envelope"
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "database": {
+                          "enum": [
+                            "up"
+                          ],
+                          "type": "string"
+                        },
+                        "required": {
+                          "type": "boolean"
+                        },
+                        "schema": {
+                          "type": "integer"
+                        },
+                        "secureCookies": {
+                          "type": "boolean"
+                        },
+                        "smtpEnabled": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "required",
+                        "database",
+                        "schema",
+                        "smtpEnabled",
+                        "secureCookies"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "type": "object"
                 }
               }
             },
-            "description": "成功响应；具体状态码由业务决定。"
+            "description": "部署状态"
           },
           "default": {
             "$ref": "#/components/responses/APIError"
@@ -16997,11 +17425,11 @@
             "sessionCookie": []
           }
         ],
-        "summary": "GET /api/v1/setup",
+        "summary": "安装状态与部署环境检查",
         "tags": [
           "community"
         ],
-        "x-contract-level": "route",
+        "x-contract-level": "fields",
         "x-csrf-required": false,
         "x-handler": "setupGet",
         "x-source": "internal/api/routes.go"
@@ -21474,5 +21902,5 @@
       "url": "/"
     }
   ],
-  "x-route-count": 205
+  "x-route-count": 208
 }

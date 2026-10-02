@@ -5,7 +5,7 @@ import { getSession } from '@/lib/auth/server';
 import { getSite } from '@/lib/site.server';
 import { formatCount } from '@/lib/format';
 import { forumNameMap } from '@/lib/thread';
-import type { FeedMeta, FollowFeedData, HomeView, TagView, ThreadListData } from '@/lib/api/types';
+import type { FeedMeta, FollowFeedData, HomeView, PopularView, TagView, ThreadListData } from '@/lib/api/types';
 import { ForumNav } from '@/components/forum/ForumNav';
 import { HomeSidebar } from '@/components/forum/HomeSidebar';
 import { ThreadList } from '@/components/forum/ThreadList';
@@ -48,7 +48,7 @@ export default async function HomePage({
   const session = await getSession();
   const loggedIn = Boolean(session.user);
 
-  const [site, home, tagPage, feedPage, followPage] = await Promise.all([
+  const [site, home, tagPage, feedPage, followPage, popular] = await Promise.all([
     getSite(),
     safeGet<HomeView>('/api/v1/home'),
     safeRequest<TagView[]>('/api/v1/tags', { query: { page: 1 } }),
@@ -59,6 +59,7 @@ export default async function HomePage({
           query: { cursor: cursor || undefined, limit: followLimit },
         })
       : Promise.resolve(null),
+    safeGet<PopularView>('/api/v1/home/popular'),
   ]);
 
   const categories = home?.categories ?? [];
@@ -184,6 +185,7 @@ export default async function HomePage({
         </div>
 
         <HomeSidebar
+          popular={popular}
           announcements={home?.announcements ?? []}
           stats={home?.stats ?? null}
           unavailable={!home}

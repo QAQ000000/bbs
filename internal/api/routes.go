@@ -37,6 +37,7 @@ func (s *Server) routes() http.Handler {
 	m.HandleFunc("GET /api/v1/me/feed/forums", s.feedForums)
 	m.HandleFunc("GET /api/v1/me/feed/users", s.feedUsers)
 	m.HandleFunc("GET /api/v1/leaderboard/points", s.publicPointsLeaderboard)
+	m.HandleFunc("GET /api/v1/home/popular", s.homePopular)
 	m.HandleFunc("GET /api/v1/users/{id}/followers", s.followsGet)
 	m.HandleFunc("GET /api/v1/tags", s.tagsGet)
 	m.HandleFunc("GET /api/v1/tags/{tagId}", s.tagGet)
@@ -109,6 +110,7 @@ func (s *Server) routes() http.Handler {
 		"PUT /api/v1/admin/settings":             s.settingsJSONSave,
 		"PATCH /api/v1/admin/settings":           s.settingsJSONSave,
 		"GET /api/v1/admin/email-jobs":           s.adminEmailQueue,
+		"GET /api/v1/admin/email-jobs/{jobId}":   s.adminEmailDetail,
 		"GET /api/v1/admin/users/{uid}/sessions": s.adminUserSessions,
 	} {
 		m.HandleFunc(route, s.adminPointGuard(route, h))
@@ -117,6 +119,7 @@ func (s *Server) routes() http.Handler {
 		"POST /api/v1/admin/forums/save": s.adminForumSave, "POST /api/v1/admin/forums/delete": s.adminForumDelete, "POST /api/v1/admin/forums/move": s.adminForumMove,
 		"POST /api/v1/admin/tags": s.tagSave, "PUT /api/v1/admin/tags/{tagId}": s.tagSave,
 		"POST /api/v1/admin/email-jobs/{jobId}/retry":           s.adminEmailRetry,
+		"POST /api/v1/admin/email-jobs/{jobId}/cancel":          s.adminEmailCancel,
 		"DELETE /api/v1/admin/users/{uid}/sessions":             s.adminUserSessionsManage,
 		"DELETE /api/v1/admin/users/{uid}/sessions/{sessionId}": s.adminUserSessionsManage,
 		"POST /api/v1/admin/cats/save":                          s.adminCatSave, "POST /api/v1/admin/cats/delete": s.adminCatDelete, "POST /api/v1/admin/threads/action": s.adminThreadAction,

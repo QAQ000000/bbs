@@ -221,6 +221,34 @@ func (s *Store) RetryEmail(ctx context.Context, id, version, actor int64) error 
 	return tx.Commit(ctx)
 }
 
+func (s *Store) EmailJob(ctx context.Context, id int64) (*EmailJob, error) {
+	return scanEmail(s.pool.QueryRow(ctx, `SELECT `+emailCols+` FROM email_jobs WHERE id=$1`, id))
+}
+
+// Cancellation races safely with claiming: only an unclaimed task can be cancelled.
+func (s *Store) CancelEmail(ctx context.Context, id, version, actor int64) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	tag, err := tx.Exec(ctx, `UPDATE email_jobs SET status='cancelled',version=version+1,
+	 sealed_token='',lease_until=NULL,last_error='admin_cancelled',updated_at=now()
+	 WHERE id=$1 AND version=$2 AND status IN ('pending','dead')`, id, version)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() != 1 {
+		return ErrNotFound
+	}
+	_, err = tx.Exec(ctx, `INSERT INTO admin_logs(uid,username,action,detail)
+	 SELECT id,username,'email.cancel',$2 FROM users WHERE id=$1`, actor, fmt.Sprintf("email_job=%d", id))
+	if err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
 func (s *Store) SubscriptionEmailValid(ctx context.Context, uid, pid int64) (bool, error) {
 	var valid bool
 	err := s.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM posts p JOIN threads t ON t.id=p.thread_id

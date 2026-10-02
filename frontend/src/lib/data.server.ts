@@ -103,8 +103,8 @@ export const getPointsAccount = cache(async (): Promise<PointsAccount | null> =>
 // ---- 公开排行榜：只读 Worker 快照 ----
 
 /** 读取公开积分余额榜快照；失败返回 null，页面区分“快照缺失/过期”与请求失败。 */
-export const getPointsLeaderboard = cache(async (): Promise<LeaderboardView | null> =>
-  safeGet<LeaderboardView>('/api/v1/leaderboard/points'),
+export const getPointsLeaderboard = cache(async (period = 'balance', date?: string): Promise<LeaderboardView | null> =>
+  safeGet<LeaderboardView>('/api/v1/leaderboard/points', { query: { period, date } }),
 );
 
 export const getTag = cache(async (slug: string): Promise<TagView | null> => {

@@ -1,0 +1,17 @@
+.steps { list-style: none; padding: 0; margin: 24px 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.steps li { display: grid; justify-items: center; gap: 8px; color: var(--color-text-secondary); text-align: center; font-size: 12px; line-height: 1.5; }
+.steps li span { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid var(--color-border); border-radius: 50%; font-weight: 600; }
+.steps .active span { background: var(--color-primary); border-color: var(--color-primary); color: var(--color-text-inverse); }
+.steps li[aria-current] { font-weight: 700; }
+.heading { margin: 0 0 20px; font-size: 18px; }
+.fields { border: 0; padding: 0; margin: 0; min-width: 0; }
+.description { color: var(--color-text-secondary); font-size: 13px; line-height: 1.8; }
+.alert { color: #a11721; }
+.checks { margin: 0 0 20px; font-size: 13px; }
+.checks > div { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--color-border); }
+.checks dt { color: var(--color-text-secondary); }
+.checks dd { margin: 0; overflow-wrap: anywhere; }
+.actions { display: flex; gap: 12px; margin-top: 24px; }
+.actions > button { flex: 1; min-height: 44px; }
+.footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; font-size: 13px; }
+.finish { display: inline-block; margin-top: 12px; font-weight: 600; }

@@ -123,7 +123,7 @@ TOTP 绑定、验证登录、关闭和恢复码更新见 [二次验证](MFA.md)�
 
 ## OpenAPI 与已注册路由
 
-[openapi.json](openapi.json) 是当前 205 个 API 操作的机器可读索引，由源码路由和 [openapi.overrides.json](openapi.overrides.json) 中的人工审核定义生成。查看一个操作的 `x-source`、`x-handler` 可定位实现。媒体 URL `/uploads/`、`/avatar/{uid}`、`/smiley/{pkg}/{file}`、`/captcha/{id}` 另由受控媒体处理器提供。
+[openapi.json](openapi.json) 是当前 208 个 API 操作的机器可读索引，由源码路由和 [openapi.overrides.json](openapi.overrides.json) 中的人工审核定义生成。查看一个操作的 `x-source`、`x-handler` 可定位实现。媒体 URL `/uploads/`、`/avatar/{uid}`、`/smiley/{pkg}/{file}`、`/captcha/{id}` 另由受控媒体处理器提供。
 
 ```bash
 go run ./scripts/api-contract         # 更新生成文件
@@ -151,4 +151,4 @@ go run ./scripts/api-contract -check  # 检查路由/审核定义与生成文件
 
 `/api/status` 和 `/api/v1/health/ready` 保留 `{ok, db, schema, pending, ts}` 监控结构；数据库不可用时返回 503。`/api/v1/health/live` 仅检查进程 HTTP 服务。
 
-后端展示层剥离和业务接口化已完成，Next.js SSR/交互、HTML 与 Markdown 出口、SEO、安装向导和机器可读出口已由 `frontend/` 提供。剩余工作主要是完整字段契约/生成类型、请求幂等、生产域名与 Nginx 同域分流、真实 SMTP/生产容量验收，以及邮件详情、投票全状态台账和多维排行榜等非阻塞扩展。部分动作式接口与字段仍会在契约阶段继续规范化，联调前应锁定版本。
+后端展示层剥离和业务接口化已完成，Next.js SSR/交互、HTML 与 Markdown 出口、SEO、四步安装向导和机器可读出口已由 `frontend/` 提供。热门话题/作者、日周月积分变化榜、邮件实时详情和取消已接入，规则见 [实施记录](PRODUCT_CAPABILITIES_20261002.md)。剩余工作主要是完整字段契约/生成类型、请求幂等、生产域名与 Nginx 同域分流、真实 SMTP/生产容量验收，以及投票全状态台账和多维排行榜等扩展。部分动作式接口与字段仍会在契约阶段继续规范化，联调前应锁定版本。

@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { serverGet } from '@/lib/api/server';
 import { SetupForm } from '@/components/auth/SetupForm';
+import type { SetupState } from '@/lib/api/types';
 import styles from '../auth.module.css';
 
 export const metadata: Metadata = {
@@ -12,18 +13,17 @@ export const metadata: Metadata = {
 };
 
 export default async function SetupPage() {
-  let required: boolean | null = null;
+  let state: SetupState | null = null;
   try {
-    const state = await serverGet<{ required: boolean }>('/api/v1/setup', { forwardCookies: false });
-    required = Boolean(state?.required);
+    state = await serverGet<SetupState>('/api/v1/setup', { forwardCookies: false });
   } catch {
-    required = null;
+    state = null;
   }
 
   // 已初始化：不能再次进入安装流程。
-  if (required === false) redirect('/login');
+  if (state?.required === false) redirect('/login');
 
-  if (required === null) {
+  if (!state) {
     return (
       <div>
         <h1 className={styles.title}>无法读取安装状态</h1>
@@ -35,5 +35,5 @@ export default async function SetupPage() {
     );
   }
 
-  return <SetupForm />;
+  return <SetupForm initialState={state} />;
 }

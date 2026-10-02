@@ -363,6 +363,12 @@ export interface LeaderboardEntry {
 }
 
 export interface LeaderboardView {
+  period: 'balance' | 'day' | 'week' | 'month';
+  periodStart?: string;
+  periodEnd?: string;
+  asOf?: string;
+  complete?: boolean;
+  timeZone: string;
   status: 'ready' | 'stale' | 'unavailable' | string;
   generatedAt: string | null;
   stale: boolean;
@@ -370,6 +376,21 @@ export interface LeaderboardView {
   staleAfterSeconds: number;
   refreshIntervalSeconds: number;
   entries: LeaderboardEntry[];
+}
+
+export interface SetupState {
+  required: boolean;
+  database: 'up';
+  schema: number;
+  smtpEnabled: boolean;
+  secureCookies: boolean;
+}
+
+export interface PopularView {
+  since: string;
+  generatedAt: string;
+  threads: { id: string; title: string; replies: number; views: number }[];
+  authors: { userId: string; username: string; posts: number; likes: number }[];
 }
 
 export interface UploadView {

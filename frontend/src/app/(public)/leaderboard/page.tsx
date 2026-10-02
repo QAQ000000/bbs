@@ -11,7 +11,7 @@ import styles from './leaderboard.module.css';
 
 export const metadata: Metadata = {
   title: '排行榜',
-  description: 'GoBBS 社区公开积分余额榜，数据来自后台快照。',
+  description: 'GoBBS 社区积分余额与日、周、月积分变化排行榜。',
   alternates: { canonical: '/leaderboard' },
 };
 
@@ -21,8 +21,14 @@ function statusLabel(board: LeaderboardView): { text: string; tone: string } {
   return { text: '快照正常', tone: styles.ok };
 }
 
-export default async function LeaderboardPage() {
-  const [board, home] = await Promise.all([getPointsLeaderboard(), safeGet<HomeView>('/api/v1/home')]);
+const PERIODS = [{ id: 'balance', label: '余额榜' }, { id: 'day', label: '日榜' }, { id: 'week', label: '周榜' }, { id: 'month', label: '月榜' }];
+
+export default async function LeaderboardPage({ searchParams }: { searchParams: { period?: string; date?: string } }) {
+  const period = PERIODS.some((item) => item.id === searchParams.period) ? searchParams.period! : 'balance';
+  const date = period !== 'balance' && /^\d{4}-\d{2}-\d{2}$/.test(searchParams.date ?? '') ? searchParams.date : undefined;
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai' }).format(new Date());
+  const path = '/leaderboard?period=' + period + (date ? '&date=' + date : '');
+  const [board, home] = await Promise.all([getPointsLeaderboard(period, date), safeGet<HomeView>('/api/v1/home')]);
   const stats = home?.stats;
 
   return (
@@ -30,25 +36,33 @@ export default async function LeaderboardPage() {
       <Breadcrumb items={[{ label: '首页', href: '/' }, { label: '排行榜' }]} />
       <h1 className={styles.title}>排行榜</h1>
       <p className={styles.subtitle}>
-        当前版本只提供<strong>积分余额榜</strong>：展示账户当前的积分余额，<strong>不是</strong>累计获得积分、活跃度或周期新增。
-        数据由后台 Worker 定期生成快照，页面只读快照，不在每次访问时重算全站排名。
+        {period === 'balance' ? '积分余额榜按当前账户余额排名。' : '周期榜按上海时区的自然日、周一至周日、自然月统计积分净变化，包含扣减、退款和管理员调整，不含初始余额。'}
+        每榜展示前 100 位公开用户。
       </p>
+      <nav className={styles.tabs} aria-label="排行榜周期">
+        {PERIODS.map((item) => <Link key={item.id} href={'/leaderboard?period=' + item.id} aria-current={period === item.id ? 'page' : undefined}>{item.label}</Link>)}
+      </nav>
+      {period !== 'balance' ? <form action="/leaderboard" className={styles.periodForm}>
+        <input type="hidden" name="period" value={period} />
+        <label htmlFor="board-date">周期日期</label><input id="board-date" name="date" type="date" defaultValue={date} max={today} required />
+        <button type="submit">查询</button><Link href={'/leaderboard?period=' + period}>当前周期</Link>
+      </form> : null}
 
       {!board ? (
         <section className="panel">
           <ErrorState
             title="排行榜加载失败"
             description="无法读取排行榜接口，请稍后重试。"
-            retryHref="/leaderboard"
+            retryHref={path}
           />
         </section>
       ) : board.status === 'unavailable' ? (
         <section className="panel">
           <EmptyState
             title="榜单快照尚未生成"
-            description="后台 Worker 会按站点刷新周期生成积分余额榜；生成后这里会自动显示。期间不影响其它功能。"
+            description="所选周期尚无保留快照。后台定时生成当前和上一周期的数据，历史快照受保留策略限制。"
             action={
-              <Link href="/leaderboard" className={styles.action}>
+              <Link href={path} className={styles.action}>
                 重新读取
               </Link>
             }
@@ -59,8 +73,10 @@ export default async function LeaderboardPage() {
           <section className={['panel', styles.metaCard].join(' ')}>
             <div className={styles.metaRow}>
               <span className={styles.metaLabel}>数据口径</span>
-              <span className={styles.metaValue}>当前积分余额（非累计获得 / 活跃度）</span>
+              <span className={styles.metaValue}>{period === 'balance' ? '当前积分余额' : '周期积分净变化（不含初始余额）'}</span>
             </div>
+            {board.periodStart && board.periodEnd ? <div className={styles.metaRow}><span className={styles.metaLabel}>统计区间</span><span className={styles.metaValue}>{formatDateTime(board.periodStart)} 至 {formatDateTime(board.periodEnd)}（不含结束时刻）</span></div> : null}
+            {board.asOf ? <div className={styles.metaRow}><span className={styles.metaLabel}>统计截至</span><span className={styles.metaValue}>{formatDateTime(board.asOf)} · {board.complete ? '周期已结束' : '周期进行中'}</span></div> : null}
             <div className={styles.metaRow}>
               <span className={styles.metaLabel}>生成时间</span>
               <span className={styles.metaValue}>
@@ -74,8 +90,7 @@ export default async function LeaderboardPage() {
             <div className={styles.metaRow}>
               <span className={styles.metaLabel}>刷新周期</span>
               <span className={styles.metaValue}>
-                约 {Math.round(board.refreshIntervalSeconds / 60)} 分钟；超过{' '}
-                {Math.round(board.staleAfterSeconds / 60)} 分钟未刷新视为过期
+                {board.complete ? '周期已结束，保留历史快照' : <>约 {Math.round(board.refreshIntervalSeconds / 60)} 分钟；超过{' '}{Math.round(board.staleAfterSeconds / 60)} 分钟未刷新视为过期</>}
               </span>
             </div>
             {board.stale ? (
@@ -90,11 +105,11 @@ export default async function LeaderboardPage() {
             <section className="panel">
               <EmptyState
                 title="榜单暂无公开用户"
-                description="快照已生成，但没有符合公开规则的积分余额记录。"
+                description="快照已生成，但没有符合公开规则的积分记录。"
               />
             </section>
           ) : (
-            <section className={['panel', styles.board].join(' ')} aria-label="积分余额榜">
+            <section className={['panel', styles.board].join(' ')} aria-label={PERIODS.find((item) => item.id === period)?.label}>
               <ol className={styles.list}>
                 {board.entries.map((entry) => (
                   <li key={entry.userId} className={[styles.item, entry.rank <= 3 ? styles.top : ''].join(' ')}>

@@ -62,4 +62,12 @@ SMTP 与数据库无法原子提交：SMTP 接受邮件后、任务标记成功�
 
 ## 验证
 
+### 实时详情与取消
+
+`GET /api/v1/admin/email-jobs/{jobId}` 重新读取任务元数据，字段与列表一致；不存在或已清理返回 404，不返回收件地址、正文、令牌和关联楼层。
+
+`POST /api/v1/admin/email-jobs/{jobId}/cancel` 接收 `{"version": 3}`，要求同样的后台/`email.manage` 权限及 CSRF。只允许 `pending` 或 `dead`；状态/版本变化返回 `409 EMAIL_CANCEL_CONFLICT`。取消与 `email.cancel` 审计在同一事务提交，增加版本并清除密文。发送中的任务不能取消，已发送邮件不能撤回；取消任务不能重试。取消只停止此任务，不撤销已签发的认证令牌。SMTP 未配置时仍允许取消。
+
+`/admin/notifications` 的详情弹层使用独立接口，取消前确认后果；超时/冲突后先重新读取，不自动重复取消。前端刷新会同步更新列表和游标。
+
 测试使用独立 `gobbs_test_` PostgreSQL 数据库及仅监听回环地址的 SMTP 服务，覆盖事务失败回滚、任务去重、并发领取、租约恢复、过期清理、退避/死信/人工重试、SMTP DATA 成功而 QUIT 断开、令牌加密与失效、订阅取消和内容权限变化。实际外部 SMTP、DNS/SPF/DKIM/DMARC 和收件箱送达率需要在正式部署环境验证。

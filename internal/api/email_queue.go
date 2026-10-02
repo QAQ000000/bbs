@@ -257,3 +257,44 @@ func (s *Server) adminEmailRetry(w http.ResponseWriter, r *http.Request) {
 	}
 	s.respond(w, 200, map[string]any{"message": "邮件任务已重新加入队列"})
 }
+
+func (s *Server) adminEmailDetail(w http.ResponseWriter, r *http.Request) {
+	id := pathID(r, "jobId")
+	if id < 1 {
+		s.fail(w, r, 422, "VALIDATION_FAILED", "需要有效任务编号")
+		return
+	}
+	job, err := s.st.EmailJob(r.Context(), id)
+	if errors.Is(err, store.ErrNotFound) {
+		s.fail(w, r, 404, "NOT_FOUND", "邮件任务不存在或已清理")
+		return
+	}
+	if err != nil {
+		s.fail(w, r, 503, "EMAIL_QUEUE_FAILED", "暂时无法读取邮件任务")
+		return
+	}
+	s.respond(w, 200, job)
+}
+
+func (s *Server) adminEmailCancel(w http.ResponseWriter, r *http.Request) {
+	if !s.checkCSRF(r) {
+		s.fail(w, r, 403, "FORBIDDEN", "表单已过期，请刷新重试")
+		return
+	}
+	id := pathID(r, "jobId")
+	version, err := strconv.ParseInt(r.PostFormValue("version"), 10, 64)
+	if id < 1 || err != nil || version < 1 {
+		s.fail(w, r, 422, "VALIDATION_FAILED", "需要有效任务编号和版本号")
+		return
+	}
+	err = s.st.CancelEmail(r.Context(), id, version, User(r).ID)
+	if errors.Is(err, store.ErrNotFound) {
+		s.fail(w, r, 409, "EMAIL_CANCEL_CONFLICT", "任务状态已变化；只有待发送或失败任务可取消")
+		return
+	}
+	if err != nil {
+		s.fail(w, r, 503, "EMAIL_QUEUE_FAILED", "取消邮件任务失败")
+		return
+	}
+	s.respond(w, 200, map[string]any{"message": "邮件任务已取消"})
+}

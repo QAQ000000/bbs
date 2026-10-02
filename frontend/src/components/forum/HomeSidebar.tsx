@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import type { Announcement, SiteStats } from '@/lib/api/types';
+import type { Announcement, PopularView, SiteStats } from '@/lib/api/types';
+import { Avatar } from '@/components/ui/Avatar';
 import { formatCount, formatRelative } from '@/lib/format';
 import { IconCalendar, IconChart, IconComment, IconHeart, IconMegaphone, IconPen } from './sidebarIcons';
 import styles from './HomeSidebar.module.css';
@@ -8,6 +9,7 @@ export interface HomeSidebarProps {
   announcements: Announcement[];
   stats: SiteStats | null;
   unavailable?: boolean;
+  popular: PopularView | null;
 }
 
 const QUICK_LINKS = [
@@ -17,9 +19,7 @@ const QUICK_LINKS = [
   { href: '/help', label: '帮助中心', icon: IconComment, hint: '' },
 ];
 
-// 设计稿还有“热门话题 / 热门作者”，当前后端没有对应公开聚合接口，
-// 这里展示真实社区统计，避免用前端静态排序冒充全站榜单。
-export function HomeSidebar({ announcements, stats, unavailable }: HomeSidebarProps) {
+export function HomeSidebar({ announcements, stats, unavailable, popular }: HomeSidebarProps) {
   return (
     <div className={[styles.column, styles.mobileHidden].join(' ')}>
       <section className={['panel', styles.card].join(' ')} aria-label="社区公告">
@@ -45,6 +45,16 @@ export function HomeSidebar({ announcements, stats, unavailable }: HomeSidebarPr
         )}
       </section>
 
+      <section className={['panel', styles.card].join(' ')} aria-label="热门话题">
+        <header className={styles.header}><h2 className={styles.title}>热门话题</h2></header>
+        <p className={styles.popularHint}>近七天主题，按回复数、浏览数排序</p>
+        {popular?.threads.length ? <ol className={styles.popularList}>{popular.threads.map((item) => <li key={item.id}><Link href={'/threads/' + item.id}>{item.title}</Link><span>{formatCount(item.replies)} 回复</span></li>)}</ol> : <p className={styles.empty}>{popular ? '近七天暂无可读主题' : '热门话题暂不可用'}</p>}
+      </section>
+      <section className={['panel', styles.card].join(' ')} aria-label="热门作者">
+        <header className={styles.header}><h2 className={styles.title}>热门作者</h2></header>
+        <p className={styles.popularHint}>近七天发帖的获赞数、发帖数排序</p>
+        {popular?.authors.length ? <ul className={styles.authorList}>{popular.authors.map((item) => <li key={item.userId}><Avatar userId={item.userId} name={item.username} size={32} href={'/users/' + item.userId} /><div><Link href={'/users/' + item.userId}>{item.username}</Link><span>{formatCount(item.likes)} 获赞 · {formatCount(item.posts)} 发帖</span></div></li>)}</ul> : <p className={styles.empty}>{popular ? '近七天暂无公开作者' : '热门作者暂不可用'}</p>}
+      </section>
       <section className={['panel', styles.card].join(' ')} aria-label="快捷入口">
         <header className={styles.header}>
           <h2 className={styles.title}>快捷入口</h2>

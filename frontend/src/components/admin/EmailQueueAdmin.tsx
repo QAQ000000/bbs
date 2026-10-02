@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button, Modal } from '@arco-design/web-react';
-import { browserSend } from '@/lib/api/browser';
+import { browserGet, browserSend } from '@/lib/api/browser';
 import { ApiError } from '@/lib/api/errors';
 import type { EmailJobView } from '@/lib/api/types';
 import { formatCount, formatDateTime } from '@/lib/format';
@@ -44,6 +44,57 @@ export function EmailQueueAdmin({ items, counts, nextBefore, status, smtpEnabled
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [detail, setDetail] = useState<EmailJobView | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const detailRequest = useRef(0);
+
+  useEffect(() => {
+    setRows(items);
+    setCursor(nextBefore);
+  }, [items, nextBefore]);
+
+  async function readDetail(job: EmailJobView) {
+    const request = ++detailRequest.current;
+    setDetailId(job.id);
+    setDetail(null);
+    setDetailError(null);
+    try {
+      const latest = await browserGet<EmailJobView>('/admin/email-jobs/' + job.id);
+      if (request === detailRequest.current) {
+        setDetail(latest);
+        setRows((prev) => prev.map((row) => row.id === latest.id ? latest : row));
+      }
+    } catch (caught) {
+      if (request === detailRequest.current) setDetailError((caught as ApiError).message);
+    }
+  }
+
+  function cancel(job: EmailJobView) {
+    Modal.confirm({
+      title: '取消邮件任务 #' + job.id + '？',
+      style: { width: 420, maxWidth: 'calc(100vw - 32px)' },
+      content: '取消后不会投递，也不能重新排队。已进入发送流程的任务无法取消。',
+      okText: '确认取消', cancelText: '保留任务',
+      onOk: async () => {
+        setBusy(true);
+        setError(null);
+        setNotice(null);
+        try {
+          await browserSend('/admin/email-jobs/' + job.id + '/cancel', { method: 'POST', body: { version: job.version } });
+          setNotice('邮件任务 #' + job.id + ' 已取消。');
+          setDetailId(null);
+          ++detailRequest.current;
+          router.refresh();
+        } catch (caught) {
+          const err = caught as ApiError;
+          setError(err.code === 'EMAIL_CANCEL_CONFLICT' ? '任务状态已变化，请重新读取后确认。' : '取消结果未确认：' + err.message + '。请先重新读取任务状态。');
+          router.refresh();
+        } finally {
+          setBusy(false);
+        }
+      },
+    });
+  }
 
   async function loadMore() {
     if (!cursor || busy) return;
@@ -118,7 +169,7 @@ export function EmailQueueAdmin({ items, counts, nextBefore, status, smtpEnabled
             href={'/admin/notifications' + (filter.value ? '?status=' + filter.value : '')}
           >
             {filter.label}
-            <span className={styles.count}>{formatCount(counts[filter.value] ?? 0)}</span>
+            <span className={styles.count}>{formatCount(filter.value ? counts[filter.value] ?? 0 : Object.values(counts).reduce((sum, count) => sum + count, 0))}</span>
           </Link>
         ))}
       </div>
@@ -161,7 +212,7 @@ export function EmailQueueAdmin({ items, counts, nextBefore, status, smtpEnabled
                   </td>
                   <td className={styles.errorCell}>{job.lastError || '无'}</td>
                   <td className={styles.actions}>
-                    <Button size="mini" type="text" onClick={() => setDetail(job)}>
+                    <Button size="mini" type="text" disabled={busy} onClick={() => void readDetail(job)}>
                       详情
                     </Button>
                     {job.status === 'dead' ? (
@@ -171,6 +222,7 @@ export function EmailQueueAdmin({ items, counts, nextBefore, status, smtpEnabled
                     ) : (
                       <span className={styles.hint}>不可重试</span>
                     )}
+                    {job.status === 'pending' || job.status === 'dead' ? <Button size="mini" type="text" status="danger" disabled={busy} onClick={() => cancel(job)}>取消</Button> : null}
                   </td>
                 </tr>
               ))}
@@ -187,7 +239,9 @@ export function EmailQueueAdmin({ items, counts, nextBefore, status, smtpEnabled
         </div>
       ) : null}
 
-      <Modal title={detail ? '邮件任务 #' + detail.id : '邮件任务'} visible={Boolean(detail)} footer={null} onCancel={() => setDetail(null)} style={{ width: 620 }}>
+      <Modal title={'邮件任务 #' + (detailId ?? '')} visible={Boolean(detailId)} footer={null} onCancel={() => { setDetailId(null); ++detailRequest.current; }} style={{ width: 620, maxWidth: 'calc(100vw - 32px)' }}>
+        {!detail && !detailError ? <p role="status">正在读取任务…</p> : null}
+        {detailError ? <p className={styles.error} role="alert">{detailError}</p> : null}
         {detail ? (
           <dl className={styles.detail}>
             <div><dt>任务 ID</dt><dd>{detail.id}</dd></div>
@@ -203,6 +257,7 @@ export function EmailQueueAdmin({ items, counts, nextBefore, status, smtpEnabled
             <div className={styles.full}><dt>最后错误</dt><dd>{detail.lastError || '无'}</dd></div>
           </dl>
         ) : null}
+        {detail && (detail.status === 'pending' || detail.status === 'dead') ? <Button status="danger" disabled={busy} onClick={() => cancel(detail)}>取消任务</Button> : null}
         <p className={styles.hint}>接口不返回收件人地址、关联楼层与邮件令牌；此处也不写入前端日志。</p>
       </Modal>
     </section>
