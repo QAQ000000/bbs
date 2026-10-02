@@ -77,7 +77,13 @@
 }
 .groupHead {
   margin-bottom: 12px;
+  cursor: pointer;
+  list-style: none;
 }
+.groupHead::-webkit-details-marker { display: none; }
+.groupHead::after { content: '⌄'; float: right; color: var(--color-text-tertiary); transition: transform .15s ease; }
+.groupCard:not([open]) .groupHead { margin-bottom: 0; }
+.groupCard:not([open]) .groupHead::after { transform: rotate(-90deg); }
 .groupTitle {
   margin: 0 0 2px;
   font-size: 15px;
@@ -201,4 +207,10 @@
   .label {
     flex-wrap: wrap;
   }
+  .groupCard { padding: 14px; }
+  .groupHead { margin-bottom: 10px; padding-right: 2px; }
+  .groupTitle { font-size: 14px; }
+  .groupHint { display: block; padding-right: 20px; line-height: 1.6; }
+  .fieldDescription { font-size: 12px; }
+  .fieldHint { overflow-wrap: anywhere; }
 }

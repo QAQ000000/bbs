@@ -291,13 +291,13 @@ export function SettingsForm({ settings, schema, status }: SettingsFormProps) {
         const fields = group.fields.map((name) => fieldMap[name]).filter(Boolean);
         if (fields.length === 0) return null;
         return (
-          <section key={group.title} id={`settings-group-${index}`} className={['panel', styles.groupCard].join(' ')}>
-            <header className={styles.groupHead}>
+          <details key={group.title} id={`settings-group-${index}`} className={['panel', styles.groupCard].join(' ')} open>
+            <summary className={styles.groupHead}>
               <h2 className={styles.groupTitle}>{group.title}</h2>
               <span className={styles.groupHint}>{group.hint}</span>
-            </header>
+            </summary>
             <div className={styles.fields}>{fields.map((field) => renderField(field))}</div>
-          </section>
+          </details>
         );
       })}
 

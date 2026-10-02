@@ -122,6 +122,18 @@
   font-size: 13px;
   line-height: 1.7;
 }
+@media (max-width: 768px) {
+  .card { padding: 14px; }
+  .head { align-items: flex-start; }
+  .headActions { width: 100%; align-items: flex-start; }
+  .autoToggle { flex: 1 1 100%; line-height: 1.5; }
+  .queryRow > * { max-width: 100%; }
+  .queryRow :global(.arco-input-wrapper),
+  .queryRow :global(.arco-select-view) { width: 100% !important; }
+  .queryRow :global(.arco-btn) { width: 100%; }
+  .meta { grid-template-columns: minmax(0, 1fr); }
+  .table { min-width: 520px; }
+}
 @media (max-width: 1100px) {
   .grid {
     grid-template-columns: minmax(0, 1fr);

@@ -36,16 +36,21 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
       </aside>
       <main className={styles.formSide}>
         <div className={styles.formInner}>
-          <Link href="/" className={styles.mobileBrand}>
-            <Logo size={44} />
-            <span>{name}</span>
-          </Link>
+          <div className={styles.mobileAuthTop}>
+            <Link href="/" className={styles.mobileBack} aria-label="返回首页">‹ 返回</Link>
+            <Link href="/" className={styles.mobileBrand}>
+              <Logo size={36} />
+              <span>{name}</span>
+            </Link>
+            <span aria-hidden="true" />
+          </div>
           {site?.siteClosed ? (
             <p className={styles.closed}>
               站点当前已关闭：{site.siteClosedReason || '维护中'}。仅保留必要的管理入口。
             </p>
           ) : null}
           {children}
+          <p className={styles.mobileTrust}>请勿在公共设备保存密码。本站登录使用安全会话保护。</p>
         </div>
       </main>
     </div>

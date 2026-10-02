@@ -5,6 +5,12 @@
 .arco-btn-primary {
   box-shadow: none;
 }
+.arco-btn-primary:not(.arco-btn-disabled):hover,
+.arco-btn-primary:not(.arco-btn-disabled):focus-visible {
+  background-color: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+  color: var(--color-text-inverse);
+}
 .arco-input-wrapper,
 .arco-select-view,
 .arco-textarea-wrapper {

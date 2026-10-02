@@ -147,7 +147,7 @@ export function PermissionsAdmin({ points, matrix }: PermissionsAdminProps) {
                 {ADMIN_ROLES.map((role) => {
                   const locked = role.id === '1' && HARD_PROTECTED.includes(point);
                   return (
-                    <td key={role.id}>
+                    <td key={role.id} data-label={role.label}>
                       <Checkbox
                         checked={locked ? true : Boolean(state[role.id][point])}
                         disabled={locked}

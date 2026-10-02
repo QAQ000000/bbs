@@ -31,7 +31,8 @@
 .desc {
   margin: 0;
   font-size: 13px;
-  color: var(--color-text-tertiary);
+  /* 13px 正文说明使用 secondary，确保在白色/浅灰面板上达到 WCAG AA。 */
+  color: var(--color-text-secondary);
   max-width: 420px;
 }
 .action {

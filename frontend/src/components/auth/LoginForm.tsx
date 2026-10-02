@@ -203,6 +203,10 @@ export function LoginForm({ next, registerEnabled }: LoginFormProps) {
       <p className={styles.footer}>
         <Link href="/password/forgot">忘记密码？</Link>
       </p>
+      <div className={styles.mobileSocial} aria-label="其他登录方式">
+        <p className={styles.mobileSocialTitle}>其他登录方式</p>
+        <p className={styles.mobileSocialHint}>第三方登录暂未开放</p>
+      </div>
     </div>
   );
 }

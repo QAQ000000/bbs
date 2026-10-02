@@ -222,6 +222,10 @@ export function RegisterForm({ captchaEnabled, requireConsent }: RegisterFormPro
       <p className={styles.footer}>
         已有账号？<Link href="/login">去登录</Link>
       </p>
+      <div className={styles.mobileSocial} aria-label="其他登录方式">
+        <p className={styles.mobileSocialTitle}>其他登录方式</p>
+        <p className={styles.mobileSocialHint}>第三方登录暂未开放</p>
+      </div>
     </div>
   );
 }

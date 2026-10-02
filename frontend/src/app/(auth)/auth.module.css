@@ -11,6 +11,8 @@
 .formSide { display: grid; place-items: center; padding: 32px 8%; min-width: 0; }
 .formInner { width: 100%; max-width: 360px; min-width: 0; }
 .mobileBrand { display: none; }
+.mobileAuthTop,
+.mobileTrust { display: none; }
 .closed { margin: 0 0 20px; padding: 12px 14px; border-radius: 6px; background: var(--color-danger-bg); color: var(--color-danger); font-size: 13px; line-height: 1.6; }
 .title { margin: 0 0 8px; font-size: 26px; }
 .subtitle { margin: 0 0 24px; color: var(--color-text-tertiary); font-size: 13px; line-height: 1.7; }
@@ -19,6 +21,10 @@
   .brand { display: none; }
   .formSide { min-height: 100vh; padding: 40px 24px 72px; align-items: start; }
   .formInner { max-width: 360px; }
-  .mobileBrand { display: grid; justify-items: center; gap: 10px; margin: 0 auto 36px; color: var(--color-text); font-size: 20px; font-weight: 700; overflow-wrap: anywhere; text-align: center; }
+  .mobileAuthTop { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; margin: 0 auto 30px; width: 100%; }
+  .mobileBrand { display: inline-flex; grid-column: 2; align-items: center; justify-content: center; gap: 8px; margin: 0; color: var(--color-text); font-size: 18px; font-weight: 700; overflow-wrap: anywhere; text-align: center; }
+  .mobileBack { justify-self: start; color: var(--color-text-secondary); font-size: 13px; }
+  .mobileBack:hover, .mobileBack:focus-visible { color: var(--color-primary); }
+  .mobileTrust { display: block; margin: 28px auto 0; color: var(--color-text-secondary); font-size: 12px; line-height: 1.7; text-align: center; }
   .title { font-size: 23px; }
 }
